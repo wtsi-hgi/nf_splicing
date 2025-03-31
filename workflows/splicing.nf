@@ -13,12 +13,11 @@ Usage:
 
     Mandatory arguments:
         --sample_sheet        Path of the sample sheet
-        --barcode_file        Path of the barcode association file (relations between barcodes and variants)
     
     Optional arguments:
     Basic:
         --outdir              the directory path of output results, default: the current directory
-        --library_type        random, muta, default: muta
+        --library             random, muta, default: muta
 
     """
 }
@@ -35,15 +34,24 @@ if (params.sample_sheet) {
                       .splitCsv(header: true, sep: ",")
                       .map { row -> 
                         def sample_id = "${row.sample}_${row.replicate}"
-                        tuple(sample_id, row.sample, row.replicate, row.directory, row.read1, row.read2, row.reference) }
+                        tuple(sample_id, row.sample, row.replicate, row.directory, row.read1, row.read2, row.reference, row.barcode) }
 } else {
     helpMessage()
-    println "Error: Please specify the full path of the sample sheet!\n"
+    log.info("Error: Please specify the full path of the sample sheet!\n")
     exit 1
 }
 
-params.outdir       = params.outdir       ?: "$PWD"
+params.outdir             = params.outdir       ?: "$PWD"
+if (!file(params.outdir).isDirectory()) {
+    log.error("Invalid output directory: ${params.outdir}. Please specify a valid directory.")
+    exit 1
+}
 
+params.library            = params.library      ?: "muta"
+if (params.library != 'random' && params.library != 'muta') {
+    log.error("Invalid protocol option: ${params.library}. Valid options: 'random', 'muta'")
+    exit 1
+}
 
 /* -- check software exist -- */
 def required_tools = ['bwa', 'hisat2', 'samtools', 'bamtools', 'flash2', 'fastp']
@@ -59,4 +67,7 @@ workflow splicing {
     prepare_files(ch_sample)
     ch_ref_indexes = prepare_files.out.ch_ref_indexes
     ch_exon_indexes = prepare_files.out.ch_exon_indexes
+
+    /* -- step 1: process reads by fastqc and flash2 -- */
+
 }
