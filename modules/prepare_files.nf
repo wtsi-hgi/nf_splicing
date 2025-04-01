@@ -5,19 +5,19 @@ workflow prepare_files {
     main:
     ch_ref = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, reference, barcode) }
 
-    // build exon indexes
+    /* -- build exon indexes -- */
     create_exon_fasta(ch_ref)
     ch_exon = create_exon_fasta.out.ch_exon
 
     create_bwa_indexes(ch_exon)
     ch_exon_indexes = create_bwa_indexes.out.ch_bwa_indexes
 
-    // build reference indexes
-    // random intron needs to re-build the reference
+    /* -- build reference indexes -- */
     if (params.library == 'muta') {
         create_hisat2_indexes_muta(ch_ref)
         ch_ref_indexes = create_hisat2_indexes_muta.out.ch_hisat2_indexes
     } else {
+        // random intron needs to re-build the reference
         create_hisat2_indexes_random(ch_ref)
         ch_ref_indexes = create_hisat2_indexes_random.out.ch_hisat2_indexes
     }
