@@ -36,17 +36,6 @@ calc_end_pos <- function(start_pos, cigar)
     return(end_pos)
 }
 
-calc_softclip_lens <- function(cigar)
-{
-    first_softclip <- 0
-    last_softclip <- 0
-    
-    if(grepl("^[0-9]+S", cigar)) first_softclip <- as.numeric(sub("S", "", regmatches(cigar, regexpr("^[0-9]+S", cigar))))
-    if(grepl("[0-9]+S$", cigar)) last_softclip <- as.numeric(sub("S", "", regmatches(cigar, regexpr("[0-9]+S$", cigar))))
-
-    return(c(first_softclip, last_softclip))
-}
-
 write_to_sam_file <- function(bam_data, index, output_sam)
 {
     read_out <- c(bam_data$qname[index],
