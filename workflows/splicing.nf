@@ -5,6 +5,8 @@ include { check_required } from '../modules/check_software.nf'
 include { check_input_files } from '../modules/check_input_files.nf'
 include { prepare_files } from '../modules/prepare_files.nf'
 include { processing_reads } from '../modules/processing_reads.nf'
+include { filtering_reads_se } from '../modules/filtering_reads_se.nf'
+include { filtering_reads_pe } from '../modules/filtering_reads_pe.nf'
 
 /* -- define functions -- */
 def helpMessage() {
@@ -77,8 +79,8 @@ workflow splicing {
 
     /* -- prepare the reference files and indexes -- */
     prepare_files(ch_sample)
-    ch_ref_indexes = prepare_files.out.ch_ref_indexes
-    ch_exon_indexes = prepare_files.out.ch_exon_indexes
+    ch_bwa_ref = prepare_files.out.ch_bwa_ref
+    ch_hisat2_ref = prepare_files.out.ch_hisat2_ref
 
     /* -- step 1: process reads by fastqc and flash2 -- */
     ch_sample_step1 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, read1, read2) }
@@ -89,12 +91,16 @@ workflow splicing {
     ch_sample_step2 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) }
                                .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats ->
                                                                 tuple(sample_id,  extended_frags, not_combined_1, not_combined_2) })
-                               .join(ch_exon_indexes.map { tuple(it[0], it[1]) })
+                               .join(ch_bwa_ref)
 
     ch_sample_step2_se = ch_sample_step2.map { sample_id, barcode, extended_frags, not_combined_1, not_combined_2, exon_fasta -> 
                                                 tuple(sample_id, barcode, extended_frags, exon_fasta) }
     ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, extended_frags, not_combined_1, not_combined_2, exon_fasta -> 
                                                 tuple(sample_id, barcode, not_combined_1, not_combined_2, exon_fasta) }
 
-    
+    filtering_reads_se(ch_sample_step2_se)
+
+    if (params.do_pe_reads) {
+        filtering_reads_pe(ch_sample_step2_pe)
+    }
 }

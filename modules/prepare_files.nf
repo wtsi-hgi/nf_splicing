@@ -5,36 +5,32 @@ workflow prepare_files {
     main:
     ch_ref = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, reference, barcode) }
 
-    /* -- build exon indexes -- */
-    create_exon_fasta(ch_ref)
-    ch_exon = create_exon_fasta.out.ch_exon
+    /* -- create bwa reference of exon fasta -- */
+    create_bwa_reference(ch_ref)
+    ch_bwa_ref = create_bwa_reference.out.ch_bwa_ref
 
-    create_bwa_indexes(ch_exon)
-    ch_exon_indexes = create_bwa_indexes.out.ch_bwa_indexes
-
-    /* -- build reference indexes -- */
+    /* -- create hisat2 reference of wildtype or random intron -- */
     if (params.library == 'muta') {
-        create_hisat2_indexes_muta(ch_ref)
-        ch_ref_indexes = create_hisat2_indexes_muta.out.ch_hisat2_indexes
+        ch_hisat2_ref = ch_ref.map { sample_id, reference, barcode -> tuple(sample_id, reference) }
     } else {
         // random intron needs to re-build the reference
-        create_hisat2_indexes_random(ch_ref)
-        ch_ref_indexes = create_hisat2_indexes_random.out.ch_hisat2_indexes
+        create_hisat2_reference(ch_ref)
+        ch_hisat2_ref = create_hisat2_reference.out.ch_hisat2_ref
     }
 
     emit:
-    ch_ref_indexes
-    ch_exon_indexes
+    ch_bwa_ref
+    ch_hisat2_ref
 }
 
-process create_exon_fasta {
+process create_bwa_reference {
     label 'process_single'
 
     input:
     tuple val(sample_id), path(reference), path(barcode)
 
     output:
-    tuple val(sample_id), path("${sample_id}.exon.fasta"), emit: ch_exon
+    tuple val(sample_id), path("${sample_id}.exon.fasta"), emit: ch_bwa_ref
 
     script:
     """
@@ -42,29 +38,14 @@ process create_exon_fasta {
     """
 }
 
-process create_hisat2_indexes_muta {
+process create_hisat2_reference {
     label 'process_single'
 
     input:
     tuple val(sample_id), path(reference), path(barcode)
 
     output:
-    tuple val(sample_id), path(reference), path("${sample_id}.ref.*.ht2"), emit: ch_hisat2_indexes
-
-    script:
-    """
-    hisat2-build "${reference}" "${sample_id}.ref"
-    """
-}
-
-process create_hisat2_indexes_random {
-    label 'process_single'
-
-    input:
-    tuple val(sample_id), path(reference), path(barcode)
-
-    output:
-    tuple val(sample_id), path("${sample_id}.ref.fasta"), path("${sample_id}.ref.*.ht2"), emit: ch_hisat2_indexes
+    tuple val(sample_id), path("${sample_id}.ref.fasta"), emit: ch_hisat2_ref
 
     script:
     """
@@ -87,22 +68,5 @@ process create_hisat2_indexes_random {
 
     awk -F'\\t' -v OFS='\\t' 'NR==FNR{part1=\$1;part2=\$2;next}
                                      {print ">var"FNR; print part1\"\"tolower(\$1)\"\"part2}' "${sample_id}.constant_seq.txt" "${sample_id}.random_seq.txt" > ${sample_id}.ref.fasta
-
-    hisat2-build "${sample_id}.ref.fasta" "${sample_id}.ref"
-    """
-}
-
-process create_bwa_indexes {
-    label 'process_single'
-
-    input:
-    tuple val(sample_id), path(exon_fasta)
-
-    output:
-    tuple val(sample_id), path(exon_fasta), path("${exon_fasta}.*"), emit: ch_bwa_indexes
-
-    script:
-    """
-    bwa index "${exon_fasta}"
     """
 }

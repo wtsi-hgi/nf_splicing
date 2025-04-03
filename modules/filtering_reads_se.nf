@@ -32,6 +32,7 @@ process bwa_align_se_reads {
 
     script:
     """
+    bwa index ${exon_fasta}
     bwa mem -t 32 -O 10,10 -E 5,5 -L 1,1 ${exon_fasta} ${extended_frags} > ${sample_id}.filter_se.sam
     samtools fastq -@ 32 -f 4 -c 9 -0 ${sample_id}.filter_se.unmapped.fastq.gz ${sample_id}.filter_se.sam
     samtools view -@ 32 -b -F 4 -F 256 -F 2048 ${sample_id}.filter_se.sam > ${sample_id}.filter_se.unique.bam
@@ -53,7 +54,7 @@ process filter_se_reads {
 
     script:
     """
-    ${projectDir}/scripts/filter_bam_se.R -i ${bam}
+    ${projectDir}/scripts/filter_bam_se.R -b ${bam}
     samtools view -@ 80 -b -o ${sample_id}.filter_se.filtered.bam ${sample_id}.filter_se.unique.sorted.filtered.sam
     samtools sort -@ 80 -o ${sample_id}.filter_se.filtered.sorted.bam ${sample_id}.filter_se.filtered.bam
     samtools index -@ 80 ${sample_id}.filter_se.filtered.sorted.bam
