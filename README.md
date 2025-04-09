@@ -63,29 +63,27 @@ submit the bash script below
 #BSUB -R "select[mem>1000] rusage[mem=1000]"
 #BSUB -M 1000
 #BSUB -q normal
-
+#BSUB -J nf_splicing
+   
 # modules
 module load HGI/common/nextflow/23.10.0
-module load HGI/softpack/users/fs18/nf_longread
-
+module load HGI/softpack/users/fs18/nf_splicing
+   
 #--------------#
 # user specify #
 #--------------#
 # LSF group
 export LSB_DEFAULT_USERGROUP=hgi
-
+   
 # Paths
-export INPUTSAMPLE=$PWD/inputs/samplesheet.csv
+export INPUTSAMPLE=$PWD/inputs/sample_sheet.csv
 export OUTPUTRES=$PWD/outputs
-
+  
 #-----------#
 # pipelines #
 #-----------#
-nextflow run -resume nf_longread/main.nf --sample_sheet $INPUTSAMPLE \
-                                         --protocol DNA \
-                                         --platform hifi \
-                                         --outdir $OUTPUTRES \
-                                         --skip_snvcov
+nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
+	                                     --library      random
 ```
 
 <a id="options"></a>
