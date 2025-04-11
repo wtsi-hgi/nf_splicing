@@ -6,7 +6,9 @@ workflow filtering_reads_pe {
     bwa_align_pe_reads(ch_sample)
     ch_bwa_pe_unmapped = bwa_align_pe_reads.out.ch_bwa_pe_unmapped
     ch_bwa_pe_bam = bwa_align_pe_reads.out.ch_bwa_pe_bam
+    ch_exon_pos = bwa_align_pe_reads.out.ch_exon_pos
     
+    ch_bwa_pe_bam = ch_bwa_pe_bam.join(ch_exon_pos)
     filter_pe_reads(ch_bwa_pe_bam)
     ch_bwa_pe_wrongmap = filter_pe_reads.out.ch_bwa_pe_wrongmap
     ch_bwa_pe_filtered = filter_pe_reads.out.ch_bwa_pe_filtered
@@ -18,17 +20,19 @@ workflow filtering_reads_pe {
     emit:
     ch_bwa_pe_filtered
     ch_bwa_pe_fail
+    ch_exon_pos
 }
 
 process bwa_align_pe_reads {
     label 'process_medium'
 
     input:
-    tuple val(sample_id), path(barcode), path(not_combined_1),path(not_combined_2), path(exon_fasta)
+    tuple val(sample_id), path(barcode), path(not_combined_1), path(not_combined_2), path(exon_fasta), path(exon_pos)
 
     output:
     tuple val(sample_id), path("${sample_id}.filter_pe.unmapped.r1.fastq.gz"), path("${sample_id}.filter_pe.unmapped.r2.fastq.gz"), emit: ch_bwa_pe_unmapped
     tuple val(sample_id), path("${sample_id}.filter_pe.unique.sorted.bam"), path("${sample_id}.filter_pe.unique.sorted.bam.bai"), emit: ch_bwa_pe_bam
+    tuple val(sample_id), path(exon_pos), emit: ch_exon_pos
 
     script:
     """
@@ -46,7 +50,7 @@ process filter_pe_reads {
     label 'process_high'
 
     input:
-    tuple val(sample_id), path(bam), path(bai)
+    tuple val(sample_id), path(bam), path(bai), path(exon_pos)
 
     output:
     tuple val(sample_id), path("${sample_id}.filter_pe.wrongmap.r1.fastq.gz"), path("${sample_id}.filter_pe.wrongmap.r2.fastq.gz"), emit: ch_bwa_pe_wrongmap
@@ -54,7 +58,7 @@ process filter_pe_reads {
 
     script:
     """
-    ${projectDir}/scripts/filter_bam_pe.R -b ${bam}
+    ${projectDir}/scripts/filter_bam_pe.R -b ${bam} -e ${exon_pos}
     samtools view -@ 80 -b -o ${sample_id}.filter_pe.filtered.bam ${sample_id}.filter_pe.unique.sorted.filtered.sam
     samtools sort -@ 80 -o ${sample_id}.filter_pe.filtered.sorted.bam ${sample_id}.filter_pe.filtered.bam
     samtools index -@ 80 ${sample_id}.filter_pe.filtered.sorted.bam

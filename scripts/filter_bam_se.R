@@ -5,6 +5,7 @@ invisible(lapply(packages, quiet_library))
 
 #-- options --#
 option_list <- list(make_option(c("-b", "--input_bam"),  type = "character", help = "input bam"),
+                    make_option(c("-e", "--exon_pos"),   type = "character", help = "exon position file"),
                     make_option(c("-s", "--softclip"),   type = "integer",   help = "softclip tolerance", default = 5),
                     make_option(c("-o", "--output_dir"), type = "character", help = "output directory",   default = getwd()),
                     make_option(c("-t", "--threads"),    type = "integer",   help = "number of threads",  default = 64),
@@ -15,6 +16,7 @@ opt <- parse_args(opt_parser)
 
 # Check if required arguments are provided
 if(is.null(opt$input_bam)) stop("-b, input bam file is required!", call. = FALSE)
+if(is.null(opt$exon_pos))  stop("-e, exon position file is required!", call. = FALSE)
 
 #-- function --#
 calc_end_pos <- function(start_pos, cigar)
@@ -72,7 +74,7 @@ process_read <- function(i, bam_data)
     # 1. read alignment should be end-to-end, allow 5 bp difference for softclip
     # 2. library may be longer than reads, so reads may not cover the end part of last exon, allow 5 bp difference
     read_start_pass <- ((exon_positions$exon_end[1] - read_start_pos) > pos_tolerance)
-    read_end_pass <- ifelse(read_ref == "e10_e11_e12", 
+    read_end_pass <- ifelse(read_ref == "E1_E2_E3", 
                             ((read_end_pos - sum(exon_positions$length[c(1,2)]) + 1) > pos_tolerance), 
                             ((read_end_pos - sum(exon_positions$length[1]) + 1) > pos_tolerance))
     if(read_start_pass & read_end_pass)
@@ -92,9 +94,7 @@ bam_chunk_size <- opt$chunk_size
 
 bam_prefix <- tools::file_path_sans_ext(basename(opt$input_bam))
 
-exon_positions <- rbind(c("E5", 1, 62),
-                        c("E6", 215, 277),
-                        c("E7", 410, 515))
+exon_positions <- read.table(opt$exon_pos, header = FALSE, sep = "\t")
 colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
 exon_positions <- as.data.table(exon_positions)
 set(exon_positions, j = "exon_id", value = as.character(exon_positions$exon_id))

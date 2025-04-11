@@ -81,6 +81,7 @@ workflow splicing {
     prepare_files(ch_sample)
     ch_bwa_ref = prepare_files.out.ch_bwa_ref
     ch_hisat2_ref = prepare_files.out.ch_hisat2_ref
+    ch_exon_pos = prepare_files.out.ch_exon_pos
 
     /* -- step 1: process reads by fastqc and flash2 -- */
     ch_sample_step1 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, read1, read2) }
@@ -92,11 +93,12 @@ workflow splicing {
                                .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats ->
                                                                 tuple(sample_id,  extended_frags, not_combined_1, not_combined_2) })
                                .join(ch_bwa_ref)
+                               .join(ch_exon_pos)
 
-    ch_sample_step2_se = ch_sample_step2.map { sample_id, barcode, extended_frags, not_combined_1, not_combined_2, exon_fasta -> 
-                                                tuple(sample_id, barcode, extended_frags, exon_fasta) }
-    ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, extended_frags, not_combined_1, not_combined_2, exon_fasta -> 
-                                                tuple(sample_id, barcode, not_combined_1, not_combined_2, exon_fasta) }
+    ch_sample_step2_se = ch_sample_step2.map { sample_id, barcode, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
+                                                tuple(sample_id, barcode, extended_frags, exon_fasta, exon_pos) }
+    ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
+                                                tuple(sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos) }
 
     filtering_reads_se(ch_sample_step2_se)
 

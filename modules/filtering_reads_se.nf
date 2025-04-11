@@ -6,7 +6,9 @@ workflow filtering_reads_se {
     bwa_align_se_reads(ch_sample)
     ch_bwa_se_unmapped = bwa_align_se_reads.out.ch_bwa_se_unmapped
     ch_bwa_se_bam = bwa_align_se_reads.out.ch_bwa_se_bam
+    ch_exon_pos = bwa_align_se_reads.out.ch_exon_pos
     
+    ch_bwa_se_bam = ch_bwa_se_bam.join(ch_exon_pos)
     filter_se_reads(ch_bwa_se_bam)
     ch_bwa_se_wrongmap = filter_se_reads.out.ch_bwa_se_wrongmap
     ch_bwa_se_filtered = filter_se_reads.out.ch_bwa_se_filtered
@@ -18,17 +20,19 @@ workflow filtering_reads_se {
     emit:
     ch_bwa_se_filtered
     ch_bwa_se_fail
+    ch_exon_pos
 }
 
 process bwa_align_se_reads {
     label 'process_medium'
 
     input:
-    tuple val(sample_id), path(barcode), path(extended_frags), path(exon_fasta)
+    tuple val(sample_id), path(barcode), path(extended_frags), path(exon_fasta), path(exon_pos)
 
     output:
     tuple val(sample_id), path("${sample_id}.filter_se.unmapped.fastq.gz"), emit: ch_bwa_se_unmapped
     tuple val(sample_id), path("${sample_id}.filter_se.unique.sorted.bam"), path("${sample_id}.filter_se.unique.sorted.bam.bai"), emit: ch_bwa_se_bam
+    tuple val(sample_id), path(exon_pos), emit: ch_exon_pos
 
     script:
     """
@@ -46,7 +50,7 @@ process filter_se_reads {
     label 'process_high'
 
     input:
-    tuple val(sample_id), path(bam), path(bai)
+    tuple val(sample_id), path(bam), path(bai), path(exon_pos)
 
     output:
     tuple val(sample_id), path("${sample_id}.filter_se.wrongmap.fastq.gz"), emit: ch_bwa_se_wrongmap
@@ -54,7 +58,7 @@ process filter_se_reads {
 
     script:
     """
-    ${projectDir}/scripts/filter_bam_se.R -b ${bam}
+    ${projectDir}/scripts/filter_bam_se.R -b ${bam} -e ${exon_pos}
     samtools view -@ 80 -b -o ${sample_id}.filter_se.filtered.bam ${sample_id}.filter_se.unique.sorted.filtered.sam
     samtools sort -@ 80 -o ${sample_id}.filter_se.filtered.sorted.bam ${sample_id}.filter_se.filtered.bam
     samtools index -@ 80 ${sample_id}.filter_se.filtered.sorted.bam
