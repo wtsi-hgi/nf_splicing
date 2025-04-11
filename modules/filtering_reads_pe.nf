@@ -12,6 +12,7 @@ workflow filtering_reads_pe {
     filter_pe_reads(ch_bwa_pe_bam)
     ch_bwa_pe_wrongmap = filter_pe_reads.out.ch_bwa_pe_wrongmap
     ch_bwa_pe_filtered = filter_pe_reads.out.ch_bwa_pe_filtered
+    ch_bwa_pe_filtered_idxstats = filter_pe_reads.out.ch_bwa_pe_filtered_idxstats
 
     ch_bwa_pe_joined = ch_bwa_pe_unmapped.join(ch_bwa_pe_wrongmap)
     merge_fastqs(ch_bwa_pe_joined)
@@ -19,6 +20,7 @@ workflow filtering_reads_pe {
 
     emit:
     ch_bwa_pe_filtered
+    ch_bwa_pe_filtered_idxstats
     ch_bwa_pe_fail
     ch_exon_pos
 }
@@ -55,6 +57,7 @@ process filter_pe_reads {
     output:
     tuple val(sample_id), path("${sample_id}.filter_pe.wrongmap.r1.fastq.gz"), path("${sample_id}.filter_pe.wrongmap.r2.fastq.gz"), emit: ch_bwa_pe_wrongmap
     tuple val(sample_id), path("${sample_id}.filter_pe.filtered.sorted.bam"), path("${sample_id}.filter_pe.filtered.sorted.bam.bai"), emit: ch_bwa_pe_filtered
+    tuple val(sample_id), path("${sample_id}.filter_pe.filtered.idxstats.txt"), emit: ch_bwa_pe_filtered_idxstats
 
     script:
     """
@@ -63,7 +66,8 @@ process filter_pe_reads {
     samtools sort -@ 80 -o ${sample_id}.filter_pe.filtered.sorted.bam ${sample_id}.filter_pe.filtered.bam
     samtools index -@ 80 ${sample_id}.filter_pe.filtered.sorted.bam
     rm ${sample_id}.filter_pe.filtered.bam ${sample_id}.filter_pe.unique.sorted.filtered.sam
-    
+    samtools idxstats ${sample_id}.filter_pe.filtered.sorted.bam > ${sample_id}.filter_pe.filtered.idxstats.txt
+
     mv ${sample_id}.filter_pe.unique.sorted.wrongmap.r1.fastq ${sample_id}.filter_pe.wrongmap.r1.fastq
     pigz --best -p 80 ${sample_id}.filter_pe.wrongmap.r1.fastq
     mv ${sample_id}.filter_pe.unique.sorted.wrongmap.r2.fastq ${sample_id}.filter_pe.wrongmap.r2.fastq
