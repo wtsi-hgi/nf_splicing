@@ -97,18 +97,24 @@ create_barcode_list <- function(i, bam_data, barcode_marker, barcode_template, b
         cat("\r", paste0("processed: ", i, "/", length(bam_data[[1]]$seq)))
     }
 
-    read_ref <- as.character(bam_data[[1]]$rname[i])
-    if(!(read_ref %in% names(barcodes_chunk)))
+    # different experiment needs to look at different flag
+    # if reference is plus strand, look at 147
+    # if reference is minus strand, look at 83    
+    if(bam_data[[1]]$flag[i] == 83)
     {
-        barcodes_chunk[[read_ref]] <- vector()
+        read_ref <- as.character(bam_data[[1]]$rname[i])
+        if(!(read_ref %in% names(barcodes_chunk)))
+        {
+            barcodes_chunk[[read_ref]] <- vector()
+        }
+
+        read_seq <- toupper(data.frame(bam_data[[1]]$seq[i])[1,1])
+        barcode_seq <- ifelse(str_detect(barcode_template, "^[N]+$"),
+                              get_barcode_by_marker(read_seq, barcode_marker, barcode_length),
+                              get_barcode_by_template(read_seq, barcode_marker, barcode_template))
+
+        barcodes_chunk[[read_ref]] <- c(barcodes_chunk[[read_ref]], barcode_seq)
     }
-
-    read_seq <- toupper(data.frame(bam_data[[1]]$seq[i])[1,1])
-    barcode_seq <- ifelse(str_detect(barcode_template, "^[N]+$"),
-                          get_barcode_by_marker(read_seq, barcode_marker, barcode_length),
-                          get_barcode_by_template(read_seq, barcode_marker, barcode_template))
-
-    barcodes_chunk[[read_ref]] <- c(barcodes_chunk[[read_ref]], barcode_seq)
 
     return(barcodes_chunk)
 }
@@ -131,7 +137,7 @@ output_file <- paste0(bam_prefix, ".barcodes.txt")
 if(file.exists(output_file)) invisible(file.remove(output_file))
 
 #-- processing --#
-param <- ScanBamParam(what = c("rname", "seq"))
+param <- ScanBamParam(what = c("rname", "flag", "seq"))
 
 barcodes_list <- list()
 bam_file_handle <- open(BamFile(bam_file, yieldSize = bam_chunk_size))

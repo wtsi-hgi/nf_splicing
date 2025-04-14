@@ -18,11 +18,15 @@ workflow filtering_reads_se {
     merge_fastqs(ch_bwa_se_joined)
     ch_bwa_se_fail = merge_fastqs.out.ch_bwa_se_fail
 
+    extract_barcodes_se(ch_bwa_se_filtered)
+    ch_bwa_se_barcodes = extract_barcodes_se.out.ch_bwa_se_barcodes
+
     emit:
+    ch_exon_pos
     ch_bwa_se_filtered
     ch_bwa_se_filtered_idxstats
     ch_bwa_se_fail
-    ch_exon_pos
+    ch_bwa_se_barcodes
 }
 
 process bwa_align_se_reads {
@@ -85,5 +89,23 @@ process merge_fastqs {
     script:
     """
     cat ${unmapped_fastq} ${wrongmap_fastq} > ${sample_id}.filter_se.fail.fastq.gz
+    """
+}
+
+process extract_barcodes_se {
+    label 'process_medium'
+
+    publishDir "${params.outdir}/extracted_barcodes", mode: "copy", overwrite: true
+
+    input:
+    tuple val(sample_id), path(bam), path(bai)
+
+    output:
+    tuple val(sample_id), path("${sample_id}.filter_se.barcodes.txt"), emit: ch_bwa_se_barcodes
+
+    script:
+    """
+    ${projectDir}/scripts/extract_barcodes_se.R -b ${bam}
+    mv ${sample_id}.filter_se.filtered.sorted.barcodes.txt ${sample_id}.filter_se.barcodes.txt
     """
 }
