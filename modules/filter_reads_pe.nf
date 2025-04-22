@@ -45,7 +45,10 @@ process bwa_align_pe_reads {
     script:
     """
     bwa index ${exon_fasta}
-    bwa mem -t 32 -O ${params.bwa_gap_open} -E ${params.bwa_gap_ext} -L ${params.bwa_clip} ${exon_fasta} ${not_combined_1} ${not_combined_2} > ${sample_id}.filter_pe.sam
+    bwa mem -t 32 -O ${params.bwa_gap_open} \
+                  -E ${params.bwa_gap_ext} \
+                  -L ${params.bwa_clip} \
+                  ${exon_fasta} ${not_combined_1} ${not_combined_2} > ${sample_id}.filter_pe.sam
     samtools fastq -@ 32 -F 2 -c 9 -1 ${sample_id}.filter_pe.unmapped.r1.fastq.gz -2 ${sample_id}.filter_pe.unmapped.r2.fastq.gz -n ${sample_id}.filter_pe.sam
     samtools view -b -f 2 -F 256 -F 2048 ${sample_id}.filter_pe.sam > ${sample_id}.filter_pe.unique.bam
     samtools sort -@ 32 -o ${sample_id}.filter_pe.unique.sorted.bam ${sample_id}.filter_pe.unique.bam
