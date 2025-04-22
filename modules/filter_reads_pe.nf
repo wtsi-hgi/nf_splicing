@@ -1,4 +1,4 @@
-workflow filtering_reads_pe {
+workflow filter_reads_pe {
     take:
     ch_sample
 

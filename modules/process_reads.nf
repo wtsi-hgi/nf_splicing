@@ -1,4 +1,4 @@
-workflow processing_reads {
+workflow process_reads {
     take:
     ch_sample
 

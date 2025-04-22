@@ -4,9 +4,9 @@
 include { check_required } from '../modules/check_software.nf'
 include { check_input_files } from '../modules/check_input_files.nf'
 include { prepare_files } from '../modules/prepare_files.nf'
-include { processing_reads } from '../modules/processing_reads.nf'
-include { filtering_reads_se } from '../modules/filtering_reads_se.nf'
-include { filtering_reads_pe } from '../modules/filtering_reads_pe.nf'
+include { process_reads } from '../modules/process_reads.nf'
+include { filter_reads_se } from '../modules/filter_reads_se.nf'
+include { filter_reads_pe } from '../modules/filter_reads_pe.nf'
 
 /* -- define functions -- */
 def helpMessage() {
@@ -90,8 +90,8 @@ workflow splicing {
 
     /* -- step 1: process reads by fastqc and flash2 -- */
     ch_sample_step1 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, read1, read2) }
-    processing_reads(ch_sample_step1)
-    ch_processed_reads = processing_reads.out.ch_merge
+    process_reads(ch_sample_step1)
+    ch_processed_reads = process_reads.out.ch_merge
 
     /* -- step 2: align reads to canonical splicing reference by bwa -- */
     ch_sample_step2 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) }
@@ -105,15 +105,18 @@ workflow splicing {
     ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
                                                 tuple(sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos) }
 
-    filtering_reads_se(ch_sample_step2_se)
-    ch_fail_reads_se = filtering_reads_se.out.ch_bwa_se_fail
+    filter_reads_se(ch_sample_step2_se)
+    ch_fail_reads_se = filter_reads_se.out.ch_bwa_se_fail
 
     if (params.do_pe_reads) {
-        filtering_reads_pe(ch_sample_step2_pe)
-        ch_fail_reads_pe = filtering_reads_pe.out.ch_bwa_pe_fail
+        filter_reads_pe(ch_sample_step2_pe)
+        ch_fail_reads_pe = filter_reads_pe.out.ch_bwa_pe_fail
     }
 
     /* -- step 3: align reads to novel splicing reference by hisat2 -- */
     ch_sample_step3_se = ch_fail_reads_se.join(ch_hisat2_ref)
 
+    if (params.do_pe_reads) {
+        ch_sample_step3_pe = ch_fail_reads_pe.join(ch_hisat2_ref)
+    }
 }
