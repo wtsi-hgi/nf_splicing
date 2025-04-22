@@ -53,7 +53,15 @@ process check_files {
     }
 
     if (file_barcode.exists()) {
-
+        def firstLine = file_barcode.withReader { it.readLine() }
+        if (firstLine.contains("\t")) {
+            def header = firstLine.split("\t").collect { it.toLowerCase() }
+            if (header[0] != "barcode" || header[1] != "varid" || header[2] != "variant" || header[3] != "count") {
+                log.error("Error: ${barcode} file format is incorrect. Expected header: barcode\tvarid\tvariant\tcount")
+            }
+        } else {
+            log.error("Error: expect ${barcode} is a tab separted file.")
+        }
     } else {
         log.error("Error: ${barcode} is not found in ${directory}.")
     }
