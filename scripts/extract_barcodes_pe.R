@@ -5,11 +5,12 @@ invisible(lapply(packages, quiet_library))
 
 #-- options --#
 option_list <- list(make_option(c("-b", "--input_bam"),          type = "character", help = "input bam"),
-                    make_option(c("-p", "--barcode_template"),   type = "character", help = "barcode template",   default = "NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN"),
-                    make_option(c("-m", "--barcode_marker"),     type = "character", help = "barcode marker",     default = "CTACTGATTCGATGCAAGCTTG"),
-                    make_option(c("-o", "--output_dir"),         type = "character", help = "output directory",   default = getwd()),
-                    make_option(c("-t", "--threads"),            type = "integer",   help = "number of threads",  default = 64),
-                    make_option(c("-c", "--chunk_size"),         type = "integer",   help = "chunk size",         default = 10000))
+                    make_option(c("-a", "--barcode_variant"),    type = "character", help = "barcode assocation file",   default = NULL),
+                    make_option(c("-p", "--barcode_template"),   type = "character", help = "barcode template",          default = "NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN"),
+                    make_option(c("-m", "--barcode_marker"),     type = "character", help = "barcode marker",            default = "CTACTGATTCGATGCAAGCTTG"),
+                    make_option(c("-o", "--output_dir"),         type = "character", help = "output directory",          default = getwd()),
+                    make_option(c("-t", "--threads"),            type = "integer",   help = "number of threads",         default = 64),
+                    make_option(c("-c", "--chunk_size"),         type = "integer",   help = "chunk size",                default = 10000))
 # Parse arguments
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
@@ -178,11 +179,21 @@ close(bam_file_handle)
 for(i in 1:length(barcodes_list))
 {
     barcodes_list[[i]] <- as.data.table(table(barcodes_list[[i]]))
-    colnames(barcodes_list[[i]]) <- c("barcode", "counts")
+    colnames(barcodes_list[[i]]) <- c("barcode", "count")
 
     barcodes_list[[i]]$name <- names(barcodes_list)[i]
-    barcodes_list[[i]] <- barcodes_list[[i]][, c("name", "barcode", "counts")]
+    barcodes_list[[i]] <- barcodes_list[[i]][, c("name", "barcode", "count")]
 }
 
-barcodes_out <- do.call(rbind, barcodes_list)
-write.table(barcodes_out, output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+barcodes_out <- as.data.table(do.call(rbind, barcodes_list))
+if(is.null(opt$barcode_variant))
+{
+    fwrite(barcodes_out, output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+} else {
+    barcode_variant <- fread(opt$barcode_variant, sep = "\t", header = TRUE)
+    barcodes_out <- merge(barcodes_out, barcode_variant[, .(barcode, varid)], by = "barcode", all.x = TRUE)
+    barcodes_out$varid[is.na(barcodes_out$varid)] <- "NA"
+    barcodes_out <- barcodes_out[, .(name, barcode, varid, count)]
+    setorder(barcodes_out, name)
+    fwrite(barcodes_out, output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+}

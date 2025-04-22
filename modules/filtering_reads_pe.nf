@@ -18,7 +18,9 @@ workflow filtering_reads_pe {
     merge_fastqs(ch_bwa_pe_joined)
     ch_bwa_pe_fail = merge_fastqs.out.ch_bwa_pe_fail
 
-    extract_barcodes_pe(ch_bwa_pe_filtered)
+    ch_bwa_pe_filtered_joined = ch_bwa_pe_filtered.join(ch_sample.map { sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
+                                                                        tuple(sample_id, barcode) })
+    extract_barcodes_pe(ch_bwa_pe_filtered_joined)
     ch_bwa_pe_barcodes = extract_barcodes_pe.out.ch_bwa_pe_barcodes
 
     emit:
@@ -101,14 +103,14 @@ process extract_barcodes_pe {
     publishDir "${params.outdir}/extracted_barcodes", mode: "copy", overwrite: true
 
     input:
-    tuple val(sample_id), path(bam), path(bai)
+    tuple val(sample_id), path(bam), path(bai), path(barcode)
 
     output:
     tuple val(sample_id), path("${sample_id}.filter_pe.barcodes.txt"), emit: ch_bwa_pe_barcodes
 
     script:
     """
-    ${projectDir}/scripts/extract_barcodes_pe.R -b ${bam} -p ${params.barcode_template} -m ${params.barcode_marker}
+    ${projectDir}/scripts/extract_barcodes_pe.R -b ${bam} -a ${barcode} -p ${params.barcode_template} -m ${params.barcode_marker}
     mv ${sample_id}.filter_pe.filtered.sorted.barcodes.txt ${sample_id}.filter_pe.barcodes.txt
     """
 }
