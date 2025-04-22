@@ -38,6 +38,11 @@ params.flash2_max_overlap          = params.flash2_max_overlap          ?: 250
 params.flash2_min_overlap_outie    = params.flash2_min_overlap_outie    ?: 20
 params.flash2_max_mismatch_density = params.flash2_max_mismatch_density ?: 0.25
 
+params.bwa_gap_open                = params.bwa_gap_open                ?: "10,10"
+params.bwa_gap_ext                 = params.bwa_gap_ext                 ?: "5,5"
+params.bwa_clip                    = params.bwa_clip                    ?: "1,1"
+params.barcode_template            = params.barcode_template            ?: "NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN"
+params.barcode_marker              = params.barcode_marker              ?: "CTACTGATTCGATGCAAGCTTG"
 
 /* -- check parameters -- */
 if (params.help) {
@@ -101,8 +106,14 @@ workflow splicing {
                                                 tuple(sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos) }
 
     filtering_reads_se(ch_sample_step2_se)
+    ch_fail_reads_se = filtering_reads_se.out.ch_bwa_se_fail
 
     if (params.do_pe_reads) {
         filtering_reads_pe(ch_sample_step2_pe)
+        ch_fail_reads_pe = filtering_reads_pe.out.ch_bwa_pe_fail
     }
+
+    /* -- step 3: align reads to novel splicing reference by hisat2 -- */
+    ch_sample_step3_se = ch_fail_reads_se.join(ch_hisat2_ref)
+
 }
