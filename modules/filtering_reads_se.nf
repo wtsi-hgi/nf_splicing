@@ -43,7 +43,7 @@ process bwa_align_se_reads {
     script:
     """
     bwa index ${exon_fasta}
-    bwa mem -t 32 -O 10,10 -E 5,5 -L 1,1 ${exon_fasta} ${extended_frags} > ${sample_id}.filter_se.sam
+    bwa mem -t 32 -O ${params.bwa_gap_open} -E ${params.bwa_gap_ext} -L ${params.bwa_clip} ${exon_fasta} ${extended_frags} > ${sample_id}.filter_se.sam
     samtools fastq -@ 32 -f 4 -c 9 -0 ${sample_id}.filter_se.unmapped.fastq.gz ${sample_id}.filter_se.sam
     samtools view -@ 32 -b -F 4 -F 256 -F 2048 ${sample_id}.filter_se.sam > ${sample_id}.filter_se.unique.bam
     samtools sort -@ 32 -o ${sample_id}.filter_se.unique.sorted.bam ${sample_id}.filter_se.unique.bam
@@ -105,7 +105,7 @@ process extract_barcodes_se {
 
     script:
     """
-    ${projectDir}/scripts/extract_barcodes_se.R -b ${bam}
+    ${projectDir}/scripts/extract_barcodes_se.R -b ${bam} -p ${params.barcode_template} -m ${params.barcode_marker}
     mv ${sample_id}.filter_se.filtered.sorted.barcodes.txt ${sample_id}.filter_se.barcodes.txt
     """
 }
