@@ -5,7 +5,7 @@ invisible(lapply(packages, quiet_library))
 
 #-- options --#
 option_list <- list(make_option(c("-b", "--input_bam"),          type = "character", help = "input bam"),
-                    make_option(c("-a", "--barcode_variant"),    type = "character", help = "barcode assocation file",   default = NULL),
+                    make_option(c("-a", "--input_association"),  type = "character", help = "barcode association file",  default = NULL),
                     make_option(c("-p", "--barcode_template"),   type = "character", help = "barcode template",          default = "NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN"),
                     make_option(c("-m", "--barcode_marker"),     type = "character", help = "barcode marker",            default = "CTACTGATTCGATGCAAGCTTG"),
                     make_option(c("-o", "--output_dir"),         type = "character", help = "output directory",          default = getwd()),
@@ -186,11 +186,11 @@ for(i in 1:length(barcodes_list))
 }
 
 barcodes_out <- as.data.table(do.call(rbind, barcodes_list))
-if(is.null(opt$barcode_variant))
+if(is.null(opt$input_association))
 {
     fwrite(barcodes_out, output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 } else {
-    barcode_variant <- fread(opt$barcode_variant, sep = "\t", header = TRUE)
+    barcode_variant <- fread(opt$input_association, sep = "\t", header = TRUE)
     barcodes_out <- merge(barcodes_out, barcode_variant[, .(barcode, varid)], by = "barcode", all.x = TRUE)
     barcodes_out$varid[is.na(barcodes_out$varid)] <- "NA"
     barcodes_out <- barcodes_out[, .(name, barcode, varid, count)]
