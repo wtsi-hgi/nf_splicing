@@ -44,6 +44,12 @@ params.bwa_clip                    = params.bwa_clip                    ?: "1,1"
 params.barcode_template            = params.barcode_template            ?: "NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN"
 params.barcode_marker              = params.barcode_marker              ?: "CTACTGATTCGATGCAAGCTTG"
 
+params.hisat2_score_min            = params.hisat2_score_min            ?: "L,0,-0.3"
+params.hisat2_mp                   = params.hisat2_mp                   ?: "5,2"
+params.hisat2_sp                   = params.hisat2_sp                   ?: "2,1"
+params.hisat2_np                   = params.hisat2_np                   ?: 0
+params.hisat2_pen_noncansplice     = params.hisat2_pen_noncansplice     ?: 0
+
 /* -- check parameters -- */
 if (params.help) {
     helpMessage()
@@ -114,9 +120,15 @@ workflow splicing {
     }
 
     /* -- step 3: align reads to novel splicing reference by hisat2 -- */
-    ch_sample_step3_se = ch_fail_reads_se.join(ch_hisat2_ref)
+    ch_sample_step3_se = ch_sample_step2_se.map { sample_id, barcode, extended_frags, exon_fasta, exon_pos -> tuple(sample_id, barcode, exon_pos) }
+                                           .join(ch_fail_reads_se)
+                                           .join(ch_hisat2_ref)
+
+
 
     if (params.do_pe_reads) {
-        ch_sample_step3_pe = ch_fail_reads_pe.join(ch_hisat2_ref)
+        ch_sample_step3_pe = ch_sample_step2_pe.map { ssample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos -> tuple(sample_id, barcode, exon_pos) }
+                                               .join(ch_fail_reads_pe)
+                                               .join(ch_hisat2_ref)
     }
 }
