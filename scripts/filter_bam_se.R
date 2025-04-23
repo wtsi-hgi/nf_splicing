@@ -60,8 +60,6 @@ write_to_sam_file <- function(bam_data, index, output_sam)
 
 process_read <- function(i, bam_data)
 {
-    # if(i %% 1000 == 0) cat("\r", paste0("  |--> processed: ", i, "/", length(bam_data[[1]]$seq)))
-
     read_name <- bam_data[[1]]$qname[i]
     read_start_pos <- bam_data[[1]]$pos[i]
     read_cigar <- bam_data[[1]]$cigar[i]

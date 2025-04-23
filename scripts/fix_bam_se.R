@@ -120,12 +120,6 @@ write_to_sam_file <- function(bam_data, index, output_sam)
 
 process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_length, barcode_map, ref_fasta, variant_map)
 {
-    # progress
-    if(i %% 1000 == 0)
-    {
-        cat("\r", paste0("processed: ", i, "/", length(bam_data[[1]]$seq)))
-    }
-
     # get the original read mapping info
     ref_id <- bam_data[[1]]$rname[i]
     ref_pos <- bam_data[[1]]$pos[i]
@@ -259,7 +253,7 @@ if(opt$library == "muta")
 }
 
 bam_fields <- c("qname", "flag", "rname", "pos", "mapq", "cigar", "mrnm", "mpos", "isize", "seq", "qual")
-tag_fields <- c("NM", "AS", "XS")
+tag_fields <- c("NM", "AS", "XS", "NH", "MD")
 param <- ScanBamParam(what = bam_fields, tag = tag_fields)
 
 bam_read_handle <- open(BamFile(bam_file, yieldSize = bam_chunk_size))

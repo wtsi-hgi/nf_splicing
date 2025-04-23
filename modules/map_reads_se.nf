@@ -91,7 +91,7 @@ process fix_se_reads {
     samtools view -@ 64 -b -o ${sample_id}.map_se.fixed.bam ${sample_id}.map_se.fixed.sam
     samtools sort -@ 64 -o ${sample_id}.map_se.fixed.sorted.bam ${sample_id}.map_se.fixed.bam
     samtools index -@ 64 ${sample_id}.map_se.fixed.sorted.bam
-    rm ${sample_id}.map_se.fixed.bam
+    rm ${sample_id}.map_se.fixed.sam ${sample_id}.map_se.fixed.bam
     """
 }
 
