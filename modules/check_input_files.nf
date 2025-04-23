@@ -69,15 +69,13 @@ process check_files {
     """
     echo "Checking: ${sample_id}"
 
-    if [[ "${file_read1}" == "*.fq" || "${file_read1}" == "*.fastq" ]]
-    then
+    if [[ "${file_read1}" == "*.fq" || "${file_read1}" == "*.fastq" ]]; then
         gzip -c ${file_read1} > ${sample_id}.read_1.fastq.gz
     else
         ln -s ${file_read1} ${sample_id}.read_1.fastq.gz
     fi
 
-    if [[ "${file_read2}" == "*.fq" || "${file_read2}" == "*.fastq" ]]
-    then
+    if [[ "${file_read2}" == "*.fq" || "${file_read2}" == "*.fastq" ]]; then
         gzip -c ${file_read2} > ${sample_id}.read_2.fastq.gz
     else
         ln -s ${file_read2} ${sample_id}.read_2.fastq.gz
