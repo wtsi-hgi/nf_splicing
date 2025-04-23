@@ -1,12 +1,13 @@
 /* ---- splicing analysis pipeline ---- */
 
 /* -- load modules -- */
-include { check_required } from '../modules/check_software.nf'
+include { check_required }    from '../modules/check_software.nf'
 include { check_input_files } from '../modules/check_input_files.nf'
-include { prepare_files } from '../modules/prepare_files.nf'
-include { process_reads } from '../modules/process_reads.nf'
-include { filter_reads_se } from '../modules/filter_reads_se.nf'
-include { filter_reads_pe } from '../modules/filter_reads_pe.nf'
+include { prepare_files }     from '../modules/prepare_files.nf'
+include { process_reads }     from '../modules/process_reads.nf'
+include { filter_reads_se }   from '../modules/filter_reads_se.nf'
+include { filter_reads_pe }   from '../modules/filter_reads_pe.nf'
+include { map_reads_se }      from '../modules/map_reads_se.nf'
 
 /* -- define functions -- */
 def helpMessage() {
@@ -50,6 +51,7 @@ params.hisat2_mp                   = params.hisat2_mp                   ?: "5,2"
 params.hisat2_sp                   = params.hisat2_sp                   ?: "2,1"
 params.hisat2_np                   = params.hisat2_np                   ?: 0
 params.hisat2_pen_noncansplice     = params.hisat2_pen_noncansplice     ?: 0
+params.do_spliced_products         = params.do_spliced_products         ?: false
 
 /* -- check parameters -- */
 if (params.help) {
@@ -124,7 +126,7 @@ workflow splicing {
     ch_sample_step3_se = ch_sample_step2_se.map { sample_id, barcode, extended_frags, exon_fasta, exon_pos -> tuple(sample_id, barcode, exon_pos) }
                                            .join(ch_fail_reads_se)
                                            .join(ch_hisat2_ref)
-
+    map_reads_se(ch_sample_step3_se)
 
 
     if (params.do_pe_reads) {
