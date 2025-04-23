@@ -84,6 +84,6 @@ process check_files {
     fi
 
     ln -s ${file_reference} ${sample_id}.ref.fasta
-    ln -s ${file_barcode} ${sample_id}.barcodes.txt
+    ln -s ${file_barcode} ${sample_id}.associated_barcodes.txt
     """
 }
