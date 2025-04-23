@@ -51,7 +51,10 @@ params.hisat2_mp                   = params.hisat2_mp                   ?: "5,2"
 params.hisat2_sp                   = params.hisat2_sp                   ?: "2,1"
 params.hisat2_np                   = params.hisat2_np                   ?: 0
 params.hisat2_pen_noncansplice     = params.hisat2_pen_noncansplice     ?: 0
+
 params.do_spliced_products         = params.do_spliced_products         ?: false
+params.regtools_min_anchor         = params.regtools_min_anchor         ?: 5
+params.regtools_min_intron         = params.regtools_min_intron         ?: 20
 
 /* -- check parameters -- */
 if (params.help) {
@@ -133,5 +136,6 @@ workflow splicing {
         ch_sample_step3_pe = ch_sample_step2_pe.map { sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos -> tuple(sample_id, barcode, exon_pos) }
                                                .join(ch_fail_reads_pe)
                                                .join(ch_hisat2_ref)
+        map_reads_pe(ch_sample_step3_pe)
     }
 }
