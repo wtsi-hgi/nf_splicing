@@ -71,14 +71,14 @@ process filter_se_reads {
     script:
     """
     ${projectDir}/scripts/filter_bam_se.R -b ${bam} -e ${exon_pos}
-    samtools view -@ 80 -b -o ${sample_id}.filter_se.filtered.bam ${sample_id}.filter_se.unique.sorted.filtered.sam
-    samtools sort -@ 80 -o ${sample_id}.filter_se.filtered.sorted.bam ${sample_id}.filter_se.filtered.bam
-    samtools index -@ 80 ${sample_id}.filter_se.filtered.sorted.bam
+    samtools view -@ 64 -b -o ${sample_id}.filter_se.filtered.bam ${sample_id}.filter_se.unique.sorted.filtered.sam
+    samtools sort -@ 64 -o ${sample_id}.filter_se.filtered.sorted.bam ${sample_id}.filter_se.filtered.bam
+    samtools index -@ 64 ${sample_id}.filter_se.filtered.sorted.bam
     rm ${sample_id}.filter_se.filtered.bam ${sample_id}.filter_se.unique.sorted.filtered.sam
     samtools idxstats ${sample_id}.filter_se.filtered.sorted.bam > ${sample_id}.filter_se.filtered.idxstats.txt
 
     mv ${sample_id}.filter_se.unique.sorted.wrongmap.fastq ${sample_id}.filter_se.wrongmap.fastq
-    pigz --best -p 80 ${sample_id}.filter_se.wrongmap.fastq
+    pigz --best -p 64 ${sample_id}.filter_se.wrongmap.fastq
     """
 }
 

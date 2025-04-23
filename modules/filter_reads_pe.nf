@@ -71,16 +71,16 @@ process filter_pe_reads {
     script:
     """
     ${projectDir}/scripts/filter_bam_pe.R -b ${bam} -e ${exon_pos}
-    samtools view -@ 80 -b -o ${sample_id}.filter_pe.filtered.bam ${sample_id}.filter_pe.unique.sorted.filtered.sam
-    samtools sort -@ 80 -o ${sample_id}.filter_pe.filtered.sorted.bam ${sample_id}.filter_pe.filtered.bam
-    samtools index -@ 80 ${sample_id}.filter_pe.filtered.sorted.bam
+    samtools view -@ 64 -b -o ${sample_id}.filter_pe.filtered.bam ${sample_id}.filter_pe.unique.sorted.filtered.sam
+    samtools sort -@ 64 -o ${sample_id}.filter_pe.filtered.sorted.bam ${sample_id}.filter_pe.filtered.bam
+    samtools index -@ 64 ${sample_id}.filter_pe.filtered.sorted.bam
     rm ${sample_id}.filter_pe.filtered.bam ${sample_id}.filter_pe.unique.sorted.filtered.sam
     samtools idxstats ${sample_id}.filter_pe.filtered.sorted.bam > ${sample_id}.filter_pe.filtered.idxstats.txt
 
     mv ${sample_id}.filter_pe.unique.sorted.wrongmap.r1.fastq ${sample_id}.filter_pe.wrongmap.r1.fastq
-    pigz --best -p 80 ${sample_id}.filter_pe.wrongmap.r1.fastq
+    pigz --best -p 64 ${sample_id}.filter_pe.wrongmap.r1.fastq
     mv ${sample_id}.filter_pe.unique.sorted.wrongmap.r2.fastq ${sample_id}.filter_pe.wrongmap.r2.fastq
-    pigz --best -p 80 ${sample_id}.filter_pe.wrongmap.r2.fastq
+    pigz --best -p 64 ${sample_id}.filter_pe.wrongmap.r2.fastq
     """
 }
 
