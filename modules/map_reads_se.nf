@@ -11,8 +11,24 @@ workflow map_reads_se {
     ch_hisat2_se_bam_join = ch_sample.map { sample_id, barcode, exon_pos, read, ref_fasta ->
                                             tuple(sample_id, barcode, ref_fasta) }
                                      .join(ch_hisat2_se_bam)
+    fix_se_reads(ch_hisat2_se_bam_join)
+    ch_hisat2_se_barcodes = fix_se_reads.out.ch_hisat2_se_barcodes
+    ch_hisat2_se_fixed = fix_se_reads.out.ch_hisat2_se_fixed
+
+    if (params.do_spliced_products) {
+        ch_hisat2_se_spliced = fix_se_reads.out.ch_hisat2_se_spliced
+    }
+    
+    ch_hisat2_se_fixed_join = ch_hisat2_se_fixed.join(ch_exon_pos)
+    extract_se_junctions(ch_hisat2_se_fixed_join)
+    ch_se_junctions = extract_se_junctions.out.ch_se_junctions
 
     emit:
+    ch_exon_pos
+    ch_hisat2_se_barcodes
+    ch_hisat2_se_fixed
+    ch_hisat2_se_spliced, optional: true
+    ch_se_junctions
 }
 
 process hisat2_align_se_reads {
@@ -53,13 +69,43 @@ process fix_se_reads {
     label 'process_high'
 
     input:
-    
+    tuple val(sample_id), path(barcode), path(ref_fasta), path(bam), path(bai)
 
     output:
+    tuple val(sample_id), path("${sample_id}.map_se.barcodes.txt"), emit: ch_hisat2_se_barcodes
+    tuple val(sample_id), path("${sample_id}.map_se.fixed.sorted.bam"), path("${sample_id}.map_se.fixed.sorted.bam.bai"), emit: ch_hisat2_se_fixed
+    tuple val(sample_id), path("${sample_id}.map_se.spliced_products.txt", optional: true), emit: ch_hisat2_se_spliced
 
+    script:
+    def do_spliced_products = params.do_spliced_products ? '-s' : ''
+
+    """
+    ${projectDir}/scripts/fix_bam_se.R -b ${bam} -a ${barcode} -r ${ref_fasta} -l ${params.library} ${do_spliced_products}
+    mv ${sample_id}.map_se.unique.sorted.barcodes.txt ${sample_id}.map_se.barcodes.txt
+    mv ${sample_id}.map_se.unique.sorted.fixed.sam ${sample_id}.map_se.fixed.sam
+
+    if [[ -f "${sample_id}.map_se.unique.sorted.spliced_products.txt" ]]; then
+        mv ${sample_id}.map_se.unique.sorted.spliced_products.txt ${sample_id}.map_se.spliced_products.txt
+    fi
+
+    samtools view -@ 64 -b -o ${sample_id}.map_se.fixed.bam ${sample_id}.map_se.fixed.sam
+    samtools sort -@ 64 -o ${sample_id}.map_se.fixed.sorted.bam ${sample_id}.map_se.fixed.bam
+    samtools index -@ 64 ${sample_id}.map_se.fixed.sorted.bam
+    rm ${sample_id}.map_se.fixed.bam
+    """
+}
+
+process extract_se_junctions {
+    label 'process_single'
+
+    input:
+    tuple val(sample_id), path(bam), path(bai), path(exon_pos)
+
+    output:
+    tuple val(sample_id), path("${sample_id}.map_se.junctions.bed"), emit: ch_se_junctions
 
     script:
     """
-
+    regtools junctions extract -s XS -a ${params.regtools_min_anchor} -m ${params.regtools_min_intron} -o ${sample_id}.map_se.junctions.bed ${bam}
     """
 }
