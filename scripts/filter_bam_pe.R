@@ -80,8 +80,6 @@ calc_softclip_lens <- function(cigar)
 
 process_read <- function(i, bam_data)
 {
-    # if(i %% 1000 == 0) cat("\r", paste0("  |--> processed: ", i, "/", length(bam_data[[1]]$seq)))
-
     read1_index <- i
     read2_index <- i + 1
 
