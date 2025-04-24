@@ -170,24 +170,29 @@ repeat
 }
 close(bam_file_handle)
 
-for(i in 1:length(barcodes_list))
+if(length(barcodes_list) == 0)
 {
-    barcodes_list[[i]] <- as.data.table(table(barcodes_list[[i]]))
-    colnames(barcodes_list[[i]]) <- c("barcode", "count")
-
-    barcodes_list[[i]]$name <- names(barcodes_list)[i]
-    barcodes_list[[i]] <- barcodes_list[[i]][, c("name", "barcode", "count")]
-}
-
-barcodes_out <- as.data.table(do.call(rbind, barcodes_list))
-if(is.null(opt$input_association))
-{
-    fwrite(barcodes_out, output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+    fwrite(data.table(), output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 } else {
-    barcode_variant <- fread(opt$input_association, sep = "\t", header = TRUE)
-    barcodes_out <- merge(barcodes_out, barcode_variant[, .(barcode, varid)], by = "barcode", all.x = TRUE)
-    barcodes_out$varid[is.na(barcodes_out$varid)] <- "NA"
-    barcodes_out <- barcodes_out[, .(name, barcode, varid, count)]
-    setorder(barcodes_out, name)
-    fwrite(barcodes_out, output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+    for(i in 1:length(barcodes_list))
+    {
+        barcodes_list[[i]] <- as.data.table(table(barcodes_list[[i]]))
+        colnames(barcodes_list[[i]]) <- c("barcode", "count")
+
+        barcodes_list[[i]]$name <- names(barcodes_list)[i]
+        barcodes_list[[i]] <- barcodes_list[[i]][, c("name", "barcode", "count")]
+    }
+
+    barcodes_out <- as.data.table(do.call(rbind, barcodes_list))
+    if(is.null(opt$input_association))
+    {
+        fwrite(barcodes_out, output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+    } else {
+        barcode_variant <- fread(opt$input_association, sep = "\t", header = TRUE)
+        barcodes_out <- merge(barcodes_out, barcode_variant[, .(barcode, varid)], by = "barcode", all.x = TRUE)
+        barcodes_out$varid[is.na(barcodes_out$varid)] <- "NA"
+        barcodes_out <- barcodes_out[, .(name, barcode, varid, count)]
+        setorder(barcodes_out, name)
+        fwrite(barcodes_out, output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+    }
 }
