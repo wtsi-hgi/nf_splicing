@@ -111,7 +111,6 @@ write_to_sam_file <- function(bam_data, index, output_sam)
                   data.frame(bam_data$qual[index])[1,1],
                   paste0("NM:i:", bam_data$tag$NM[index]),
                   paste0("AS:i:", bam_data$tag$AS[index]),
-                  paste0("XS:i:", bam_data$tag$XS[index]),
                   paste0("NH:i:", bam_data$tag$NH[index]),
                   paste0("MD:i:", bam_data$tag$MD[index]))
 
@@ -308,7 +307,7 @@ if(opt$library == "muta")
 }
 
 bam_fields <- c("qname", "flag", "rname", "pos", "mapq", "cigar", "mrnm", "mpos", "isize", "seq", "qual")
-tag_fields <- c("NM", "AS", "XS", "NH", "MD")
+tag_fields <- c("NM", "AS", "NH", "MD")
 param <- ScanBamParam(what = bam_fields, tag = tag_fields)
 
 bam_read_handle <- open(BamFile(bam_file, yieldSize = bam_chunk_size))
