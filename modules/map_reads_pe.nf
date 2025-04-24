@@ -46,7 +46,7 @@ process hisat2_align_pe_reads {
     """
     hisat2-build ${ref_fasta} ${ref_fasta}
     hisat2 -x ${ref_fasta} \
-           -1 ${read1} -2 {$read2} --fr \
+           -1 ${read1} -2 ${read2} --fr \
            --score-min ${params.hisat2_score_min} \
            --mp ${params.hisat2_mp} \
            --sp ${params.hisat2_sp} \
