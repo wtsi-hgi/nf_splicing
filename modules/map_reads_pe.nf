@@ -68,16 +68,17 @@ process hisat2_align_pe_reads {
 process fix_pe_reads {
     label 'process_high'
 
+    publishDir "${params.outdir}/extracted_barcodes/${sample_id}", pattern: "*.barcodes.txt", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_bams/${sample_id}", pattern: "*.bam*", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.spliced_products.txt", mode: "copy", overwrite: true
+
     input:
     tuple val(sample_id), path(barcode), path(ref_fasta), path(bam), path(bai)
 
     output:
     tuple val(sample_id), path("${sample_id}.map_pe.barcodes.txt"), emit: ch_hisat2_pe_barcodes
-        publishDir "${params.outdir}/extracted_barcodes", mode: "copy", overwrite: true
     tuple val(sample_id), path("${sample_id}.map_pe.fixed.sorted.bam"), path("${sample_id}.map_pe.fixed.sorted.bam.bai"), emit: ch_hisat2_pe_fixed
-        publishDir "${params.outdir}/novel_splicing_bams", mode: "copy", overwrite: true
     tuple val(sample_id), path("${sample_id}.map_pe.spliced_products.txt"), emit: ch_hisat2_pe_spliced
-        publishDir "${params.outdir}/novel_splicing_results", mode: "copy", overwrite: true
 
     script:
     def do_spliced_products = params.do_spliced_products ? '-s' : ''
@@ -104,7 +105,7 @@ process fix_pe_reads {
 process extract_pe_junctions {
     label 'process_single'
 
-    publishDir "${params.outdir}/novel_splicing_results", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(bam), path(bai), path(exon_pos)

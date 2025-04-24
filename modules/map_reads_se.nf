@@ -68,17 +68,18 @@ process hisat2_align_se_reads {
 process fix_se_reads {
     label 'process_high'
 
+    publishDir "${params.outdir}/extracted_barcodes/${sample_id}", pattern: "*.barcodes.txt", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_bams/${sample_id}", pattern: "*.bam*", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.spliced_products.txt", mode: "copy", overwrite: true
+
     input:
     tuple val(sample_id), path(barcode), path(ref_fasta), path(bam), path(bai)
 
     output:
     tuple val(sample_id), path("${sample_id}.map_se.barcodes.txt"), emit: ch_hisat2_se_barcodes
-        publishDir "${params.outdir}/extracted_barcodes", mode: "copy", overwrite: true
-    tuple val(sample_id), path("${sample_id}.map_se.fixed.sorted.bam"), path("${sample_id}.map_se.fixed.sorted.bam.bai"), emit: ch_hisat2_se_fixed
-        publishDir "${params.outdir}/novel_splicing_bams", mode: "copy", overwrite: true
+    tuple val(sample_id), path("${sample_id}.map_se.fixed.sorted.bam"), path("${sample_id}.map_se.fixed.sorted.bam.bai"), emit: ch_hisat2_se_fixed 
     tuple val(sample_id), path("${sample_id}.map_se.spliced_products.txt"), emit: ch_hisat2_se_spliced
-        publishDir "${params.outdir}/novel_splicing_results", mode: "copy", overwrite: true
-
+        
     script:
     def do_spliced_products = params.do_spliced_products ? '-s' : ''
 
@@ -103,7 +104,7 @@ process fix_se_reads {
 process extract_se_junctions {
     label 'process_single'
 
-    publishDir "${params.outdir}/novel_splicing_results", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(bam), path(bai), path(exon_pos)
