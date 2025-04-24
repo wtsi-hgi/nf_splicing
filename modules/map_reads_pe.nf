@@ -8,16 +8,16 @@ workflow map_reads_pe {
     ch_hisat2_pe_bam = hisat2_align_pe_reads.out.ch_hisat2_pe_bam
     ch_exon_pos = hisat2_align_pe_reads.out.ch_exon_pos
 
-    ch_hisat2_pe_bam_join = ch_sample.map { sample_id, barcode, exon_pos, read, ref_fasta ->
+    ch_hisat2_pe_bam_join = ch_sample.map { sample_id, barcode, exon_pos, read1, read2, ref_fasta ->
                                             tuple(sample_id, barcode, ref_fasta) }
                                      .join(ch_hisat2_pe_bam)
     fix_pe_reads(ch_hisat2_pe_bam_join)
     ch_hisat2_pe_barcodes = fix_pe_reads.out.ch_hisat2_pe_barcodes
     ch_hisat2_pe_fixed = fix_pe_reads.out.ch_hisat2_pe_fixed
 
-    if (params.do_spliced_products) {
-        ch_hisat2_pe_spliced = fix_pe_reads.out.ch_hisat2_pe_spliced
-    }
+    ch_hisat2_pe_spliced = params.do_spliced_products 
+                            ? fix_pe_reads.out.ch_hisat2_pe_spliced
+                            : Channel.empty()
     
     ch_hisat2_pe_fixed_join = ch_hisat2_pe_fixed.join(ch_exon_pos)
     extract_pe_junctions(ch_hisat2_pe_fixed_join)
@@ -27,7 +27,7 @@ workflow map_reads_pe {
     ch_exon_pos
     ch_hisat2_pe_barcodes
     ch_hisat2_pe_fixed
-    ch_hisat2_pe_spliced, optional: true
+    ch_hisat2_pe_spliced
     ch_pe_junctions
 }
 
@@ -73,8 +73,11 @@ process fix_pe_reads {
 
     output:
     tuple val(sample_id), path("${sample_id}.map_pe.barcodes.txt"), emit: ch_hisat2_pe_barcodes
+        publishDir "${params.outdir}/extracted_barcodes", mode: "copy", overwrite: true
     tuple val(sample_id), path("${sample_id}.map_pe.fixed.sorted.bam"), path("${sample_id}.map_pe.fixed.sorted.bam.bai"), emit: ch_hisat2_pe_fixed
-    tuple val(sample_id), path("${sample_id}.map_pe.spliced_products.txt", optional: true), emit: ch_hisat2_pe_spliced
+        publishDir "${params.outdir}/novel_splicing_bams", mode: "copy", overwrite: true
+    tuple val(sample_id), path("${sample_id}.map_pe.spliced_products.txt"), emit: ch_hisat2_pe_spliced
+        publishDir "${params.outdir}/novel_splicing_results", mode: "copy", overwrite: true
 
     script:
     def do_spliced_products = params.do_spliced_products ? '-s' : ''
@@ -87,6 +90,8 @@ process fix_pe_reads {
 
     if [[ -f "${sample_id}.map_pe.unique.sorted_name.spliced_products.txt" ]]; then
         mv ${sample_id}.map_pe.unique.sorted_name.spliced_products.txt ${sample_id}.map_pe.spliced_products.txt
+    else
+        echo "Empty due to no --do_spliced_products when run the pipeline" > ${sample_id}.map_pe.spliced_products.txt
     fi
 
     samtools view -@ 64 -b -o ${sample_id}.map_pe.fixed.bam ${sample_id}.map_pe.fixed.sam
@@ -98,6 +103,8 @@ process fix_pe_reads {
 
 process extract_pe_junctions {
     label 'process_single'
+
+    publishDir "${params.outdir}/novel_splicing_results", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(bam), path(bai), path(exon_pos)

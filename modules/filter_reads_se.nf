@@ -77,7 +77,11 @@ process filter_se_reads {
     rm ${sample_id}.filter_se.filtered.bam ${sample_id}.filter_se.unique.sorted.filtered.sam
     samtools idxstats ${sample_id}.filter_se.filtered.sorted.bam > ${sample_id}.filter_se.filtered.idxstats.txt
 
-    mv ${sample_id}.filter_se.unique.sorted.wrongmap.fastq ${sample_id}.filter_se.wrongmap.fastq
+    if [[ -f "${sample_id}.filter_se.unique.sorted.wrongmap.fastq" ]]; then
+        mv ${sample_id}.filter_se.unique.sorted.wrongmap.fastq ${sample_id}.filter_se.wrongmap.fastq
+    else
+        touch ${sample_id}.filter_se.wrongmap.fastq
+    fi
     pigz --best -p 64 ${sample_id}.filter_se.wrongmap.fastq
     """
 }

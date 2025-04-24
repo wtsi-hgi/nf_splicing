@@ -15,9 +15,9 @@ workflow map_reads_se {
     ch_hisat2_se_barcodes = fix_se_reads.out.ch_hisat2_se_barcodes
     ch_hisat2_se_fixed = fix_se_reads.out.ch_hisat2_se_fixed
 
-    if (params.do_spliced_products) {
-        ch_hisat2_se_spliced = fix_se_reads.out.ch_hisat2_se_spliced
-    }
+    ch_hisat2_se_spliced = params.do_spliced_products 
+                            ? fix_se_reads.out.ch_hisat2_se_spliced
+                            : Channel.empty()
     
     ch_hisat2_se_fixed_join = ch_hisat2_se_fixed.join(ch_exon_pos)
     extract_se_junctions(ch_hisat2_se_fixed_join)
@@ -27,7 +27,7 @@ workflow map_reads_se {
     ch_exon_pos
     ch_hisat2_se_barcodes
     ch_hisat2_se_fixed
-    ch_hisat2_se_spliced, optional: true
+    ch_hisat2_se_spliced
     ch_se_junctions
 }
 
@@ -73,8 +73,11 @@ process fix_se_reads {
 
     output:
     tuple val(sample_id), path("${sample_id}.map_se.barcodes.txt"), emit: ch_hisat2_se_barcodes
+        publishDir "${params.outdir}/extracted_barcodes", mode: "copy", overwrite: true
     tuple val(sample_id), path("${sample_id}.map_se.fixed.sorted.bam"), path("${sample_id}.map_se.fixed.sorted.bam.bai"), emit: ch_hisat2_se_fixed
-    tuple val(sample_id), path("${sample_id}.map_se.spliced_products.txt", optional: true), emit: ch_hisat2_se_spliced
+        publishDir "${params.outdir}/novel_splicing_bams", mode: "copy", overwrite: true
+    tuple val(sample_id), path("${sample_id}.map_se.spliced_products.txt"), emit: ch_hisat2_se_spliced
+        publishDir "${params.outdir}/novel_splicing_results", mode: "copy", overwrite: true
 
     script:
     def do_spliced_products = params.do_spliced_products ? '-s' : ''
@@ -86,6 +89,8 @@ process fix_se_reads {
 
     if [[ -f "${sample_id}.map_se.unique.sorted.spliced_products.txt" ]]; then
         mv ${sample_id}.map_se.unique.sorted.spliced_products.txt ${sample_id}.map_se.spliced_products.txt
+    else
+        echo "Empty due to no --do_spliced_products when run the pipeline" > ${sample_id}.map_se.spliced_products.txt
     fi
 
     samtools view -@ 64 -b -o ${sample_id}.map_se.fixed.bam ${sample_id}.map_se.fixed.sam
@@ -97,6 +102,8 @@ process fix_se_reads {
 
 process extract_se_junctions {
     label 'process_single'
+
+    publishDir "${params.outdir}/novel_splicing_results", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(bam), path(bai), path(exon_pos)

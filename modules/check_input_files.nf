@@ -17,7 +17,7 @@ process check_files {
     tuple val(sample_id), val(sample), val(replicate), val(directory), val(read1), val(read2), val(reference), val(barcode)
 
     output:
-    tuple val(sample_id), path("${sample_id}.read_1.fastq.gz"), path("${sample_id}.read_2.fastq.gz"), path("${sample_id}.ref.fasta"), path("${sample_id}.barcodes.txt"), emit: ch_checked
+    tuple val(sample_id), path("${sample_id}.read_1.fastq.gz"), path("${sample_id}.read_2.fastq.gz"), path("${sample_id}.ref.fasta"), path("${sample_id}.associated_barcodes.txt"), emit: ch_checked
 
     script:
     def file_read1 = file("${directory}/${read1}")

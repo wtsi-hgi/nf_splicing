@@ -77,9 +77,18 @@ process filter_pe_reads {
     rm ${sample_id}.filter_pe.filtered.bam ${sample_id}.filter_pe.unique.sorted.filtered.sam
     samtools idxstats ${sample_id}.filter_pe.filtered.sorted.bam > ${sample_id}.filter_pe.filtered.idxstats.txt
 
-    mv ${sample_id}.filter_pe.unique.sorted.wrongmap.r1.fastq ${sample_id}.filter_pe.wrongmap.r1.fastq
+    if [[ -f "${sample_id}.filter_pe.unique.sorted.wrongmap.r1.fastq" ]]; then
+        mv ${sample_id}.filter_pe.unique.sorted.wrongmap.r1.fastq ${sample_id}.filter_pe.wrongmap.r1.fastq
+    else
+        touch ${sample_id}.filter_pe.wrongmap.r1.fastq
+    fi
     pigz --best -p 64 ${sample_id}.filter_pe.wrongmap.r1.fastq
-    mv ${sample_id}.filter_pe.unique.sorted.wrongmap.r2.fastq ${sample_id}.filter_pe.wrongmap.r2.fastq
+
+    if [[ -f "${sample_id}.filter_pe.unique.sorted.wrongmap.r2.fastq" ]]; then
+        mv ${sample_id}.filter_pe.unique.sorted.wrongmap.r2.fastq ${sample_id}.filter_pe.wrongmap.r2.fastq
+    else
+        touch ${sample_id}.filter_pe.wrongmap.r2.fastq
+    fi
     pigz --best -p 64 ${sample_id}.filter_pe.wrongmap.r2.fastq
     """
 }

@@ -8,6 +8,7 @@ include { process_reads }     from '../modules/process_reads.nf'
 include { filter_reads_se }   from '../modules/filter_reads_se.nf'
 include { filter_reads_pe }   from '../modules/filter_reads_pe.nf'
 include { map_reads_se }      from '../modules/map_reads_se.nf'
+include { map_reads_pe }      from '../modules/map_reads_pe.nf'
 
 /* -- define functions -- */
 def helpMessage() {
@@ -130,7 +131,6 @@ workflow splicing {
                                            .join(ch_fail_reads_se)
                                            .join(ch_hisat2_ref)
     map_reads_se(ch_sample_step3_se)
-
 
     if (params.do_pe_reads) {
         ch_sample_step3_pe = ch_sample_step2_pe.map { sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos -> tuple(sample_id, barcode, exon_pos) }
