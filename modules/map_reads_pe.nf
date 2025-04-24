@@ -114,6 +114,6 @@ process extract_pe_junctions {
 
     script:
     """
-    regtools junctions extract -s XS -a ${params.regtools_min_anchor} -m ${params.regtools_min_intron} -o ${sample_id}.map_pe.junctions.bed ${bam}
+    regtools junctions extract -s RF -a ${params.regtools_min_anchor} -m ${params.regtools_min_intron} -o ${sample_id}.map_pe.junctions.bed ${bam}
     """
 }
