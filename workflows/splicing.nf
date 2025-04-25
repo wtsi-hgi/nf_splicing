@@ -59,6 +59,10 @@ params.do_spliced_products         = params.do_spliced_products         ?: false
 params.regtools_min_anchor         = params.regtools_min_anchor         ?: 5
 params.regtools_min_intron         = params.regtools_min_intron         ?: 20
 
+params.classify_min_overlap        = params.classify_min_overlap        ?: 2
+params.classify_min_cov            = params.classify_min_cov            ?: 2
+params.classify_reduce             = params.classify_reduce             ?: 2
+
 /* -- check parameters -- */
 if (params.help) {
     helpMessage()

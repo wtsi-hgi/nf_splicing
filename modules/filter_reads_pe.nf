@@ -70,7 +70,7 @@ process filter_pe_reads {
 
     script:
     """
-    ${projectDir}/scripts/filter_bam_pe.R -b ${bam} -e ${exon_pos}
+    ${projectDir}/scripts/filter_bam_pe.R -b ${bam} -e ${exon_pos} -s ${params.filter_softclip_base}
     samtools view -@ 64 -b -o ${sample_id}.filter_pe.filtered.bam ${sample_id}.filter_pe.unique.sorted.filtered.sam
     samtools sort -@ 64 -o ${sample_id}.filter_pe.filtered.sorted.bam ${sample_id}.filter_pe.filtered.bam
     samtools index -@ 64 ${sample_id}.filter_pe.filtered.sorted.bam
