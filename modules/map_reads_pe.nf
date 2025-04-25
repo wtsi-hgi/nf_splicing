@@ -24,7 +24,6 @@ workflow map_reads_pe {
     ch_pe_junctions = extract_pe_junctions.out.ch_pe_junctions
 
     emit:
-    ch_exon_pos
     ch_hisat2_pe_barcodes
     ch_hisat2_pe_fixed
     ch_hisat2_pe_spliced

@@ -24,7 +24,6 @@ workflow filter_reads_pe {
     ch_bwa_pe_barcodes = extract_barcodes_pe.out.ch_bwa_pe_barcodes
 
     emit:
-    ch_exon_pos
     ch_bwa_pe_filtered
     ch_bwa_pe_filtered_idxstats
     ch_bwa_pe_fail
