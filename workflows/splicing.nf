@@ -47,6 +47,8 @@ params.bwa_gap_open                = params.bwa_gap_open                ?: "10,1
 params.bwa_gap_ext                 = params.bwa_gap_ext                 ?: "5,5"
 params.bwa_clip                    = params.bwa_clip                    ?: "1,1"
 
+params.filter_softclip_base        = params.filter_softclip_base        ?: 5
+
 params.hisat2_score_min            = params.hisat2_score_min            ?: "L,0,-0.3"
 params.hisat2_mp                   = params.hisat2_mp                   ?: "5,2"
 params.hisat2_sp                   = params.hisat2_sp                   ?: "2,1"
