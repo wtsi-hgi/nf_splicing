@@ -91,7 +91,7 @@ process fix_se_reads {
     if [[ -f "${sample_id}.map_se.unique.sorted.spliced_products.txt" ]]; then
         mv ${sample_id}.map_se.unique.sorted.spliced_products.txt ${sample_id}.map_se.spliced_products.txt
     else
-        echo "Empty due to no --do_spliced_products when run the pipeline" > ${sample_id}.map_se.spliced_products.txt
+        echo "No data due to missing --do_spliced_products in the pipeline run." > ${sample_id}.map_se.spliced_products.txt
     fi
 
     samtools view -@ 64 -b -o ${sample_id}.map_se.fixed.bam ${sample_id}.map_se.fixed.sam
