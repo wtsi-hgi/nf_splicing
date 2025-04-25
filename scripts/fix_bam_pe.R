@@ -238,7 +238,7 @@ num_cores <- opt$threads
 bam_chunk_size <- opt$chunk_size
 
 barcode_length <- nchar(barcode_template)
-bam_prefix <- tools::file_path_sans_ext(basename(opt$input_bam))
+bam_prefix <- tools::file_path_sans_ext(basename(bam_file))
 
 barcode_var <- fread(association_file, header = T, sep = '\t')
 barcode_map <- setNames(barcode_var$varid, barcode_var$barcode)

@@ -128,7 +128,7 @@ barcode_template <- opt$barcode_template
 barcode_marker <- opt$barcode_marker
 
 barcode_length <- nchar(barcode_template)
-bam_prefix <- tools::file_path_sans_ext(basename(opt$input_bam))
+bam_prefix <- tools::file_path_sans_ext(basename(bam_file))
 
 #-- outputs --#
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)

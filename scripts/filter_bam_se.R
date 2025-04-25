@@ -90,7 +90,7 @@ pos_tolerance <- opt$softclip
 num_cores <- opt$threads
 bam_chunk_size <- opt$chunk_size
 
-bam_prefix <- tools::file_path_sans_ext(basename(opt$input_bam))
+bam_prefix <- tools::file_path_sans_ext(basename(bam_file))
 
 exon_positions <- read.table(opt$exon_pos, header = FALSE, sep = "\t")
 colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
