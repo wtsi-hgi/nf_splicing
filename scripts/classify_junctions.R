@@ -1,12 +1,12 @@
 #!/usr/bin/env Rscript
 quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, character.only = TRUE))) }
-packages <- c("tidyverse", "data.table", "UpSetR")
+packages <- c("tidyverse", "data.table", "UpSetR", "optparse")
 invisible(lapply(packages, quiet_library))
 
 #-- options --#
 option_list <- list(make_option(c("-b", "--input_bed"),   type = "character", help = "input bed"),
                     make_option(c("-e", "--exon_pos"),    type = "character", help = "exon position file"),
-                    make_option(c("-m", "--min_overlap"), type = "integer",   help = "min anchor for partial splicing",  default = 3),
+                    make_option(c("-m", "--min_overlap"), type = "integer",   help = "min anchor for partial splicing",  default = 2),
                     make_option(c("-c", "--min_cov"),     type = "integer",   help = "minimum coverage cutoff",          default = 2),
                     make_option(c("-r", "--reduce"),      type = "integer",   help = "the number of bases for reducing", default = 2),
                     make_option(c("-o", "--output_dir"),  type = "character", help = "output directory",                 default = getwd()))
@@ -107,9 +107,9 @@ set(exon_positions, j = "exon_start", value = as.integer(exon_positions$exon_sta
 set(exon_positions, j = "exon_end", value = as.integer(exon_positions$exon_end))
 exon_positions$length <- exon_positions$exon_end - exon_positions$exon_start + 1
 
-intron_positions <- data.table(intron_id = paste0("I", 1:(nrow(exons) - 1)),
-                               intron_start = exons$exon_end[1:(nrow(exons) - 1)] + 1,
-                               intron_end = exons$exon_start[2:nrow(exons)] - 1)
+intron_positions <- data.table(intron_id = paste0("I", 1:(nrow(exon_positions) - 1)),
+                               intron_start = exon_positions$exon_end[1:(nrow(exon_positions) - 1)] + 1,
+                               intron_end = exon_positions$exon_start[2:nrow(exon_positions)] - 1)
 intron_positions[, length := intron_end - intron_start + 1]
 
 categories <- c(paste0("intron_retention_", intron_positions$intron_id),
