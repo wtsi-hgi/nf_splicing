@@ -6,8 +6,10 @@ invisible(lapply(packages, quiet_library))
 #-- options --#
 option_list <- list(make_option(c("-b", "--input_bed"),   type = "character", help = "input bed"),
                     make_option(c("-e", "--exon_pos"),    type = "character", help = "exon position file"),
-                    make_option(c("-m", "--min_overlap"), type = "integer",   help = "min anchor for partial splicing", default = 3),
-                    make_option(c("-o", "--output_dir"),  type = "character", help = "output directory",   default = getwd()))
+                    make_option(c("-m", "--min_overlap"), type = "integer",   help = "min anchor for partial splicing",  default = 3),
+                    make_option(c("-c", "--min_cov"),     type = "integer",   help = "minimum coverage cutoff",          default = 2),
+                    make_option(c("-r", "--reduce"),      type = "integer",   help = "the number of bases for reducing", default = 2),
+                    make_option(c("-o", "--output_dir"),  type = "character", help = "output directory",                 default = getwd()))
 # Parse arguments
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
@@ -34,52 +36,49 @@ annotate_junction <- function(start, end, exon_pos, intron_pos)
         }
     } 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     annostr <- ""
     annotmp <- ""
+    # for exon splicing
     for(i in 1:nrow(exon_pos))
     {
-        if(start > exon_pos[i,]$exon_start & start < exon_pos[i,]$exon_end)
+        cond1 <- start > (exon_pos[i,]$exon_start + opt$min_overlap)
+        cond2 <- start < (exon_pos[i,]$exon_end - opt$min_overlap)
+        if(cond1 & cond2)
         {
             annotmp <- paste0("exon_splicing_3p_", exon_pos[i,]$exon_id)
             annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
         }
 
-        if(end > exon_pos[i,]$exon_start & end < exon_pos[i,]$exon_end)
+        cond1 <- end > (exon_pos[i,]$exon_start + opt$min_overlap)
+        cond2 <- end < (exon_pos[i,]$exon_end - opt$min_overlap)
+        if(cond1 & cond2)
         {
             annotmp <- paste0("exon_splicing_5p_", exon_pos[i,]$exon_id)
             annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
         }
 
-        if(start < exon_pos[i,]$exon_start & end > exon_pos[i,]$exon_end)
+        cond1 <- start < (exon_pos[i,]$exon_start + opt$min_overlap)
+        cond2 <- end > (exon_pos[i,]$exon_end - opt$min_overlap)
+        if(cond1 & cond2)
         {
             annotmp <- paste0("exon_skipping_", exon_pos[i,]$exon_id)
             annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
         }
     }
+    # for intron splicing
     for(i in 1:nrow(intron_pos))
     {
-        if(start > intron_pos[i,]$intron_start & start < intron_pos[i,]$intron_end)
+        cond1 <- start > intron_pos[i,]$intron_start + opt$min_overlap
+        cond2 <- start < intron_pos[i,]$intron_end - opt$min_overlap
+        if(cond1 & cond2)
         {
             annotmp <- paste0("intron_retension_5p_", intron_pos[i,]$intron_id)
             annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
         }
 
-        if(end > intron_pos[i,]$intron_start & end < intron_pos[i,]$intron_end)
+        cond1 <- end > intron_pos[i,]$intron_start + opt$min_overlap
+        cond2 <- end < intron_pos[i,]$intron_end - opt$min_overlap
+        if(cond1 & cond2)
         {
             annotmp <- paste0("intron_retension_3p_", intron_pos[i,]$intron_id)
             annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
@@ -89,57 +88,56 @@ annotate_junction <- function(start, end, exon_pos, intron_pos)
     return(annostr)
 }
 
+cov_filter <- function(row, cov_threshold)
+{
+    return(as.integer(row["Cov"]) > cov_threshold)
+}
 
+#-- inputs --#
+junction_bed_file <- opt$input_bed
+junction_cov_cutoff <- opt$min_cov
 
+junction_prefix <- tools::file_path_sans_ext(basename(junction_bed_file))
 
-
-
-
-
-
-# initialization
-exon_positions <- rbind(c("E10", 1, 210),
-                        c("E11", 298, 444),
-                        c("E12", 525, 690))
+exon_positions <- read.table(opt$exon_pos, header = FALSE, sep = "\t")
 colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
 exon_positions <- as.data.table(exon_positions)
 set(exon_positions, j = "exon_id", value = as.character(exon_positions$exon_id))
 set(exon_positions, j = "exon_start", value = as.integer(exon_positions$exon_start))
 set(exon_positions, j = "exon_end", value = as.integer(exon_positions$exon_end))
+exon_positions$length <- exon_positions$exon_end - exon_positions$exon_start + 1
 
-intron_positions <- rbind(c("I10", 211, 297),
-                          c("I11", 445, 524))
-colnames(intron_positions) <- c("intron_id", "intron_start", "intron_end")
-intron_positions <- as.data.table(intron_positions)
-set(intron_positions, j = "intron_id", value = as.character(intron_positions$intron_id))
-set(intron_positions, j = "intron_start", value = as.integer(intron_positions$intron_start))
-set(intron_positions, j = "intron_end", value = as.integer(intron_positions$intron_end))
+intron_positions <- data.table(intron_id = paste0("I", 1:(nrow(exons) - 1)),
+                               intron_start = exons$exon_end[1:(nrow(exons) - 1)] + 1,
+                               intron_end = exons$exon_start[2:nrow(exons)] - 1)
+intron_positions[, length := intron_end - intron_start + 1]
 
-categories <- c("intron_retention_I10",
-                "intron_retention_I11",
-                "intron_retension_5p_I10",
-                "intron_retension_5p_I11",
-                "intron_retension_3p_I10",
-                "intron_retension_3p_I11",
-                "exon_splicing_3p_E10",
-                "exon_splicing_3p_E11",
-                "exon_splicing_3p_E12",
-                "exon_splicing_5p_E10",
-                "exon_splicing_5p_E11",
-                "exon_splicing_5p_E12",
-                "exon_skipping_E11")
+categories <- c(paste0("intron_retention_", intron_positions$intron_id),
+                paste0("intron_retension_5p_", intron_positions$intron_id),
+                paste0("intron_retension_3p_", intron_positions$intron_id),
+                paste0("exon_splicing_3p_", exon_positions$exon_id),
+                paste0("exon_splicing_5p_", exon_positions$exon_id),
+                paste0("exon_skipping_", exon_positions$exon_id[2]))
 
-# read file
-junction_dir <- "/lustre/scratch127/humgen/teams/hgi/fs18/splicing_analysis/benchmark/RON/3_mapping/HEK293T_Rep3"
-junction_bed_file <- "HEK293T_Rep3.junctions.bed"
-junction_cov_cutoff <- 2
+#-- outputs --#
+if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
+setwd(opt$output_dir)
 
-junction_prefix <- strsplit(junction_bed_file, ".", fixed = T)[[1]][1]
-setwd(junction_dir)
+output_junction <- paste0(junction_prefix, ".junctions.txt")
+if(file.exists(output_junction)) invisible(file.remove(output_junction))
 
-junction_bed <- as.data.table(read.table(junction_bed_file)) 
+png_junction <- paste0(junction_prefix, ".junctions.png")
+if(file.exists(png_junction)) invisible(file.remove(png_junction))
 
-# convert bed to junction table
+png_variant <- paste0(junction_prefix, ".variants.png")
+if(file.exists(png_variant)) invisible(file.remove(png_variant))
+
+output_junction_reduce <- paste0(junction_prefix, ".junctions.reduce.txt")
+if(file.exists(output_junction_reduce)) invisible(file.remove(output_junction_reduce))
+
+#-- processing --#
+junction_bed <- fread(junction_bed_file, header = FALSE, sep = '\t')
+
 junction_data <- junction_bed %>%
                  separate(V11, into = c("block_length1", "block_length2"), sep = ",") %>%
                  separate(V12, into = c("block_start1", "block_start2"), sep = ",") %>%
@@ -153,78 +151,13 @@ junction_data <- junction_bed %>%
                  filter(as.numeric(Cov) >= junction_cov_cutoff) %>%
                  as_tibble()
 
-# classify junctions
-annotate_junction <- function(start, end, exon_pos, intron_pos)
-{
-    if(start < min(exon_pos$exon_start) | end > max(exon_pos$exon_end))
-    {
-        return("out_of_range")
-    }
-
-    for(i in 1:nrow(intron_pos))
-    {
-        check_start <- (start >= (intron_pos[i,]$intron_start - 1) & start <= (intron_pos[i,]$intron_start + 1))
-        check_end <- (end >= (intron_pos[i,]$intron_end - 1) & end <= (intron_pos[i,]$intron_end + 1))
-        if(check_start & check_end)
-        {
-            if(i == 1)
-            {
-                return(paste0("intron_retention_", intron_pos[i + 1,]$intron_id))
-            } else {
-                return(paste0("intron_retention_", intron_pos[i - 1,]$intron_id))
-            }
-        }
-    } 
-
-    annostr <- ""
-    annotmp <- ""
-    for(i in 1:nrow(exon_pos))
-    {
-        if(start > exon_pos[i,]$exon_start & start < exon_pos[i,]$exon_end)
-        {
-            annotmp <- paste0("exon_splicing_3p_", exon_pos[i,]$exon_id)
-            annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
-        }
-
-        if(end > exon_pos[i,]$exon_start & end < exon_pos[i,]$exon_end)
-        {
-            annotmp <- paste0("exon_splicing_5p_", exon_pos[i,]$exon_id)
-            annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
-        }
-
-        if(start < exon_pos[i,]$exon_start & end > exon_pos[i,]$exon_end)
-        {
-            annotmp <- paste0("exon_skipping_", exon_pos[i,]$exon_id)
-            annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
-        }
-    }
-    for(i in 1:nrow(intron_pos))
-    {
-        if(start > intron_pos[i,]$intron_start & start < intron_pos[i,]$intron_end)
-        {
-            annotmp <- paste0("intron_retension_5p_", intron_pos[i,]$intron_id)
-            annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
-        }
-
-        if(end > intron_pos[i,]$intron_start & end < intron_pos[i,]$intron_end)
-        {
-            annotmp <- paste0("intron_retension_3p_", intron_pos[i,]$intron_id)
-            annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
-        }
-    }
-
-    return(annostr)
-}
-
 junction_annotation <- junction_data %>%
                        rowwise() %>%
                        mutate(Annotation = annotate_junction(Start, End, exon_positions, intron_positions)) %>%
                        ungroup()
 
-write.table(junction_annotation, paste0(junction_prefix, ".junctions.txt"), sep = '\t', quote = FALSE, row.names = FALSE)
+write.table(junction_annotation, output_junction, sep = '\t', quote = FALSE, row.names = FALSE)
 
-# junction_annotation <- read.table("I1_Rep1/I1_Rep1_map_se.junctions.txt", header = T, sep = "\t", stringsAsFactors = FALSE, quote = "")
-# junction_annotation <- as_tibble(junction_annotation)
 junction_input <- junction_annotation %>%
                   separate_rows(Annotation, sep = ";", convert = TRUE) %>%
                   mutate(Annotation = str_trim(Annotation)) %>%
@@ -242,12 +175,7 @@ variant_input <- junction_input %>%
                            across(all_of(categories), ~ as.integer(any(.x == 1, na.rm = TRUE)))) %>%
                  ungroup()
 
-cov_filter <- function(row, cov_threshold)
-{
-    return(as.integer(row["Cov"]) > cov_threshold)
-}
-
-png(paste0(junction_prefix, ".junctions.png"), width = 1600, height = 1600, units = "px", res = 250)
+png(png_junction, width = 1600, height = 1600, units = "px", res = 250)
 upset(as.data.frame(junction_input), 
       nsets = length(categories), 
       order.by = "freq", 
@@ -257,7 +185,7 @@ upset(as.data.frame(junction_input),
       queries = list(list(query = cov_filter, params = list(10), color = "tomato", active = TRUE)))
 dev.off()
 
-png(paste0(junction_prefix, ".variants.png"), width = 2000, height = 1600, units = "px", res = 250)
+png(png_variant, width = 2000, height = 1600, units = "px", res = 250)
 upset(as.data.frame(variant_input), 
       nsets = length(categories), 
       order.by = "freq", 
@@ -267,11 +195,13 @@ upset(as.data.frame(variant_input),
       queries = list(list(query = cov_filter, params = list(10), color = "tomato", active = TRUE)))
 dev.off()
 
-# create unique junction table
-junction_annotation_unique <- junction_annotation %>%
+# merge junctions with similar start and end positions to reduce the number of junctions
+# eg: Junc1: 100-200, Junc2: 101-201, Junc3: 102-202
+# merge them into one junction: 100-202
+junction_annotation_reduce<- junction_annotation %>%
                               arrange(Start, End) %>%
-                              mutate(group = cumsum(lag(Start, default = first(Start)) + 2 < Start | 
-                                                    lag(End, default = first(End)) + 2 < End)) %>%
+                              mutate(group = cumsum(lag(Start, default = first(Start)) + opt$reduce < Start | 
+                                                    lag(End, default = first(End)) + opt$reduce < End)) %>%
                               group_by(group) %>%
                               summarize(VarID = first(VarID),
                                         Cov = sum(as.numeric(Cov), na.rm = TRUE),
@@ -281,5 +211,5 @@ junction_annotation_unique <- junction_annotation %>%
                               ungroup() %>%
                               select(-group) 
                            
-write.table(junction_annotation_unique, paste0(junction_prefix, ".junctions.unique.txt"), sep = '\t', quote = FALSE, row.names = FALSE)
+write.table(junction_annotation_reduce, output_junction_reduce, sep = '\t', quote = FALSE, row.names = FALSE)
                            
