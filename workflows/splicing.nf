@@ -10,7 +10,6 @@ include { filter_reads_pe }   from '../modules/filter_reads_pe.nf'
 include { map_reads_se }      from '../modules/map_reads_se.nf'
 include { map_reads_pe }      from '../modules/map_reads_pe.nf'
 include { summarise_results } from '../modules/summarise_results.nf'
-include { cat_bed_file }      from '../modules/utilities.nf'
 
 /* -- define functions -- */
 def helpMessage() {
@@ -140,6 +139,7 @@ workflow splicing {
                                            .join(ch_hisat2_ref)
     map_reads_se(ch_sample_step3_se)
     ch_se_junctions = map_reads_se.out.ch_se_junctions
+    ch_se_spliced = map_reads_se.out.ch_se_spliced
 
     if (params.do_pe_reads) {
         ch_sample_step3_pe = ch_sample_step2_pe.map { sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos -> tuple(sample_id, barcode, exon_pos) }
@@ -147,15 +147,19 @@ workflow splicing {
                                                .join(ch_hisat2_ref)
         map_reads_pe(ch_sample_step3_pe)
         ch_pe_junctions = map_reads_pe.out.ch_pe_junctions
+        ch_pe_spliced = map_reads_pe.out.ch_pe_spliced
     }
 
     /* -- step 4: summarise results -- */
-    ch_bed = ch_se_junctions.join(ch_exon_pos)
+    // ch_bed = ch_se_junctions.join(ch_exon_pos)
     
-    if (params.do_pe_reads) {
-        cat_bed_file(ch_se_junctions.join(ch_pe_junctions))
-        ch_bed = cat_bed_file.out.ch_bed.join(ch_exon_pos)
-    }
+    // if (params.do_pe_reads) {
+    //     cat_bed_file(ch_se_junctions.join(ch_pe_junctions))
+    //     ch_bed = cat_bed_file.out.ch_bed.join(ch_exon_pos)
+
+    //     cat_spliced_file(ch_se_spliced.join(ch_pe_spliced))
+    //     ch_spliced = cat_spliced_file.out.ch_spliced
+    // }
 
     
 }

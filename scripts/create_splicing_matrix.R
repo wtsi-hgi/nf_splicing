@@ -13,8 +13,12 @@ opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
 # Check if required arguments are provided
-if(is.null(opt$input_bed)) stop("-b, input bed file is required!", call. = FALSE)
-if(is.null(opt$exon_pos))  stop("-e, exon position file is required!", call. = FALSE)
+if(is.null(opt$input_association)) stop("-a, barcode association file is required!", call. = FALSE)
+if(is.null(opt$input_barcode))  stop("-b, canonical barcode file is required!", call. = FALSE)
+if(is.null(opt$input_junction))  stop("-j, novel classified junction file is required!", call. = FALSE)
+
+#-- inputs --#
+junction_prefix <- tools::file_path_sans_ext(basename(junction_bed_file))
 
 
 
@@ -30,9 +34,10 @@ if(is.null(opt$exon_pos))  stop("-e, exon position file is required!", call. = F
 
 
 
-library(tidyverse)
-library(data.table)
-library(Biostrings)
+
+
+
+
 
 sample_id <- "HEK293T_Rep1"
 associate_file <- "/lustre/scratch127/humgen/teams/hgi/fs18/splicing_analysis/benchmark/RON/refseqs/varid_barcodes.unique.txt"

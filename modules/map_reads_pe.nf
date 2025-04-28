@@ -15,8 +15,8 @@ workflow map_reads_pe {
     ch_hisat2_pe_barcodes = fix_pe_reads.out.ch_hisat2_pe_barcodes
     ch_hisat2_pe_fixed = fix_pe_reads.out.ch_hisat2_pe_fixed
 
-    ch_hisat2_pe_spliced = params.do_spliced_products 
-                            ? fix_pe_reads.out.ch_hisat2_pe_spliced
+    ch_pe_spliced = params.do_spliced_products 
+                            ? fix_pe_reads.out.ch_pe_spliced
                             : Channel.empty()
     
     ch_hisat2_pe_fixed_join = ch_hisat2_pe_fixed.join(ch_exon_pos)
@@ -26,7 +26,7 @@ workflow map_reads_pe {
     emit:
     ch_hisat2_pe_barcodes
     ch_hisat2_pe_fixed
-    ch_hisat2_pe_spliced
+    ch_pe_spliced
     ch_pe_junctions
 }
 
@@ -77,7 +77,7 @@ process fix_pe_reads {
     output:
     tuple val(sample_id), path("${sample_id}.map_pe.barcodes.txt"), emit: ch_hisat2_pe_barcodes
     tuple val(sample_id), path("${sample_id}.map_pe.fixed.sorted.bam"), path("${sample_id}.map_pe.fixed.sorted.bam.bai"), emit: ch_hisat2_pe_fixed
-    tuple val(sample_id), path("${sample_id}.map_pe.spliced_products.txt"), emit: ch_hisat2_pe_spliced
+    tuple val(sample_id), path("${sample_id}.map_pe.spliced_products.txt"), emit: ch_pe_spliced
 
     script:
     def do_spliced_products = params.do_spliced_products ? '-s' : ''

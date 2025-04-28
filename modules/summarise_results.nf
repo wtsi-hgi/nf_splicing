@@ -9,6 +9,40 @@ workflow summarise_results {
 
 }
 
+process cat_bed_file {
+    label 'process_single'
+
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
+
+    input:
+    tuple val(sample_id), path(se_bed), path(pe_bed)
+
+    output:
+    tuple val(sample_id), path("${sample_id}.junctions.bed"), emit: ch_bed
+
+    script:
+    """
+    cat ${se_bed} ${pe_bed} > ${sample_id}.junctions.bed
+    """
+}
+
+process cat_spliced_file {
+    label 'process_single'
+
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
+
+    input:
+    tuple val(sample_id), path(se_spliced), path(pe_spliced)
+
+    output:
+    tuple val(sample_id), path("${sample_id}.spliced_products.txt"), emit: ch_spliced
+
+    script:
+    """
+    cat ${se_spliced} ${pe_spliced} > ${sample_id}.spliced_products.txt
+    """
+}
+
 process classify_junctions {
     label 'process_single'
 
