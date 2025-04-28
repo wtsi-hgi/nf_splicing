@@ -4,8 +4,8 @@ packages <- c("tidyverse", "data.table", "Rsamtools", "Biostrings", "parallel", 
 invisible(lapply(packages, quiet_library))
 
 #-- options --#
-option_list <- list(make_option(c("-b", "--input_bam"),  type = "character", help = "input bam"),
-                    make_option(c("-e", "--exon_pos"),   type = "character", help = "exon position file"),
+option_list <- list(make_option(c("-b", "--input_bam"),  type = "character", help = "input bam",          default = NULL),
+                    make_option(c("-e", "--exon_pos"),   type = "character", help = "exon position file", default = NULL),
                     make_option(c("-s", "--softclip"),   type = "integer",   help = "softclip tolerance", default = 5),
                     make_option(c("-o", "--output_dir"), type = "character", help = "output directory",   default = getwd()),
                     make_option(c("-t", "--threads"),    type = "integer",   help = "number of threads",  default = 64),

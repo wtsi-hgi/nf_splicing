@@ -4,13 +4,13 @@ packages <- c("tidyverse", "data.table", "Rsamtools", "Biostrings", "parallel", 
 invisible(lapply(packages, quiet_library))
 
 #-- options --#
-option_list <- list(make_option(c("-b", "--input_bam"),          type = "character", help = "input bam"),
-                    make_option(c("-a", "--input_association"),  type = "character", help = "barcode association file",  default = NULL),
-                    make_option(c("-p", "--barcode_template"),   type = "character", help = "barcode template",          default = "NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN"),
-                    make_option(c("-m", "--barcode_marker"),     type = "character", help = "barcode marker",            default = "CTACTGATTCGATGCAAGCTTG"),
-                    make_option(c("-o", "--output_dir"),         type = "character", help = "output directory",          default = getwd()),
-                    make_option(c("-t", "--threads"),            type = "integer",   help = "number of threads",         default = 64),
-                    make_option(c("-c", "--chunk_size"),         type = "integer",   help = "chunk size",                default = 10000))
+option_list <- list(make_option(c("-b", "--input_bam"),         type = "character", help = "input bam",                default = NULL),
+                    make_option(c("-a", "--input_association"), type = "character", help = "barcode association file", default = NULL),
+                    make_option(c("-p", "--barcode_template"),  type = "character", help = "barcode template",         default = "NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN"),
+                    make_option(c("-m", "--barcode_marker"),    type = "character", help = "barcode marker",           default = "CTACTGATTCGATGCAAGCTTG"),
+                    make_option(c("-o", "--output_dir"),        type = "character", help = "output directory",         default = getwd()),
+                    make_option(c("-t", "--threads"),           type = "integer",   help = "number of threads",        default = 64),
+                    make_option(c("-c", "--chunk_size"),        type = "integer",   help = "chunk size",               default = 10000))
 # Parse arguments
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)

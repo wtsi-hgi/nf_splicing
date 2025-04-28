@@ -4,8 +4,8 @@ packages <- c("tidyverse", "data.table", "UpSetR", "optparse")
 invisible(lapply(packages, quiet_library))
 
 #-- options --#
-option_list <- list(make_option(c("-b", "--input_bed"),   type = "character", help = "input bed"),
-                    make_option(c("-e", "--exon_pos"),    type = "character", help = "exon position file"),
+option_list <- list(make_option(c("-b", "--input_bed"),   type = "character", help = "input bed",                        default = NULL),
+                    make_option(c("-e", "--exon_pos"),    type = "character", help = "exon position file",               default = NULL),
                     make_option(c("-m", "--min_overlap"), type = "integer",   help = "min anchor for partial splicing",  default = 2),
                     make_option(c("-c", "--min_cov"),     type = "integer",   help = "minimum coverage cutoff",          default = 2),
                     make_option(c("-r", "--reduce"),      type = "integer",   help = "the number of bases for reducing", default = 2),
