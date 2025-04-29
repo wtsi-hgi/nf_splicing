@@ -9,7 +9,8 @@ option_list <- list(make_option(c("-b", "--input_bed"),   type = "character", he
                     make_option(c("-m", "--min_overlap"), type = "integer",   help = "min anchor for partial splicing",  default = 2),
                     make_option(c("-c", "--min_cov"),     type = "integer",   help = "minimum coverage cutoff",          default = 2),
                     make_option(c("-r", "--reduce"),      type = "integer",   help = "the number of bases for reducing", default = 2),
-                    make_option(c("-o", "--output_dir"),  type = "character", help = "output directory",                 default = getwd()))
+                    make_option(c("-o", "--output_dir"),  type = "character", help = "output directory",                 default = getwd()),
+                    make_option(c("-p", "--prefix"),      type = "character", help = "output prefix",                    default = NULL))
 # Parse arguments
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
@@ -97,7 +98,9 @@ cov_filter <- function(row, cov_threshold)
 junction_bed_file <- opt$input_bed
 junction_cov_cutoff <- opt$min_cov
 
-junction_prefix <- tools::file_path_sans_ext(basename(junction_bed_file))
+junction_prefix <- ifelse(is.null(opt$prefix), 
+                          tools::file_path_sans_ext(basename(junction_bed_file)), 
+                          opt$prefix)
 
 exon_positions <- read.table(opt$exon_pos, header = FALSE, sep = "\t")
 colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
@@ -123,16 +126,16 @@ categories <- c(paste0("intron_retention_", intron_positions$intron_id),
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
 setwd(opt$output_dir)
 
-output_junction <- paste0(junction_prefix, ".junctions.txt")
+output_junction <- paste0(junction_prefix, ".classified_junctions.txt")
 if(file.exists(output_junction)) invisible(file.remove(output_junction))
 
-png_junction <- paste0(junction_prefix, ".junctions.png")
+png_junction <- paste0(junction_prefix, ".classified_junctions.png")
 if(file.exists(png_junction)) invisible(file.remove(png_junction))
 
-png_variant <- paste0(junction_prefix, ".variants.png")
+png_variant <- paste0(junction_prefix, ".classified_variants.png")
 if(file.exists(png_variant)) invisible(file.remove(png_variant))
 
-output_junction_reduce <- paste0(junction_prefix, ".junctions.reduce.txt")
+output_junction_reduce <- paste0(junction_prefix, ".classified_junctions.reduce.txt")
 if(file.exists(output_junction_reduce)) invisible(file.remove(output_junction_reduce))
 
 #-- processing --#

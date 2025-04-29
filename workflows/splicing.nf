@@ -9,6 +9,7 @@ include { filter_reads_se }   from '../modules/filter_reads_se.nf'
 include { filter_reads_pe }   from '../modules/filter_reads_pe.nf'
 include { map_reads_se }      from '../modules/map_reads_se.nf'
 include { map_reads_pe }      from '../modules/map_reads_pe.nf'
+include { * }                 from '../modules/map_reads_pe.nf'
 
 /* -- define functions -- */
 def helpMessage() {
@@ -166,27 +167,53 @@ workflow splicing {
 
     /* -- step 4: summarise results -- */
     if (params.do_pe_reads) {
-        ch_sample_step4 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, read1, read2) } 
+        idxstats_add_values(ch_bwa_se_filtered_idxstats.join(ch_bwa_pe_filtered_idxstats))
+        ch_sample_idxstats = idxstats_add_values.out.ch_idxstats
+    } else {
+        idxstats_get_values(ch_bwa_se_filtered_idxstats)
+        ch_sample_idxstats = idxstats_get_values.out.ch_idxstats
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ch_sample_step4 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) }
+                               .join(ch_exon_pos)
+                               .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
+                                                                tuple(sample_id, merge_stats, trim_stats) })
+                               .join(ch_bwa_se_filtered_idxstats)
+                               .join(ch_bwa_se_barcodes)
+                               .join(ch_hisat2_se_summary)
+                               .join(ch_hisat2_se_barcodes)
+                               .join(ch_se_junctions)
+                               
+    
+    
+    
+    if (params.do_pe_reads) {
+        ch_sample_step4 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) } 
+                                   .join(ch_exon_pos)
                                    .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
                                                                     tuple(sample_id, merge_stats, trim_stats) })
                                    .join(ch_bwa_se_filtered_idxstats)
                                    .join(ch_bwa_se_barcodes)
                                    .join(ch_hisat2_se_summary)
                                    .join(ch_hisat2_se_barcodes)
+                                   .join(ch_se_junctions)
                                    .join(ch_bwa_pe_filtered_idxstats)
                                    .join(ch_bwa_pe_barcodes)
                                    .join(ch_hisat2_pe_summary)
                                    .join(ch_hisat2_pe_barcodes)
-    } else {
-        ch_sample_step4 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) } 
-                                   .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
-                                                                    tuple(sample_id, merge_stats, trim_stats) })
-                                   .join(ch_bwa_se_filtered_idxstats)
-                                   .join(ch_bwa_se_barcodes)
-                                   .join(ch_hisat2_se_summary)
-                                   .join(ch_hisat2_se_barcodes)
+                                   .join(ch_pe_junctions)
     }
-
-
-        
 }
