@@ -4,6 +4,7 @@ workflow map_reads_pe {
 
     main:
     hisat2_align_pe_reads(ch_sample)
+    ch_hisat2_pe_summary = hisat2_align_pe_reads.out.ch_hisat2_pe_summary
     ch_hisat2_pe_unmapped = hisat2_align_pe_reads.out.ch_hisat2_pe_unmapped
     ch_hisat2_pe_bam = hisat2_align_pe_reads.out.ch_hisat2_pe_bam
     ch_exon_pos = hisat2_align_pe_reads.out.ch_exon_pos
@@ -24,6 +25,7 @@ workflow map_reads_pe {
     ch_pe_junctions = extract_pe_junctions.out.ch_pe_junctions
 
     emit:
+    ch_hisat2_pe_summary
     ch_hisat2_pe_barcodes
     ch_hisat2_pe_fixed
     ch_pe_spliced
@@ -37,6 +39,7 @@ process hisat2_align_pe_reads {
     tuple val(sample_id), path(barcode), path(exon_pos), path(read1), path(read2), path(ref_fasta)
 
     output:
+    tuple val(sample_id), path("${sample_id}.map_pe.summary.txt"), emit: ch_hisat2_pe_summary
     tuple val(sample_id), path("${sample_id}.map_pe.unmapped.R1.fastq.gz"), path("${sample_id}.map_pe.unmapped.R2.fastq.gz"), emit: ch_hisat2_pe_unmapped
     tuple val(sample_id), path("${sample_id}.map_pe.unique.sorted.bam"), path("${sample_id}.map_pe.unique.sorted.bam.bai"), emit: ch_hisat2_pe_bam
     tuple val(sample_id), path(exon_pos), emit: ch_exon_pos
