@@ -136,11 +136,10 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
         if(!is.na(barcode_map[barcode_seq])) 
         {
             bam_data[[1]]$rname[i] <- barcode_map[barcode_seq]
-            output_line <- data.frame(barcode_map[barcode_seq], barcode_seq)
+            dt_out <- data.table(barcode = barcode_seq, varid = barcode_map[barcode_seq])
         } else {
-            output_line <- data.frame("NA", barcode_seq)
+            dt_out <- data.table(barcode = barcode_seq, varid = "NA")
         }
-        fwrite(output_line, output_barcode, append = TRUE, quote = FALSE, sep = '\t', row.names = FALSE, col.names = FALSE)
     }
 
     write_to_sam_file(bam_data[[1]], i, output_sam)
@@ -171,6 +170,8 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
         output_line <- data.frame(output_id, variant_map[output_id], as.character(unlist(spliced_seq)))
         fwrite(output_line, output_tmp, append = TRUE, quote = FALSE, sep = '\t', row.names = FALSE, col.names = FALSE)
     }
+
+    return(dt_out)
 }
 
 #-- inputs --#
@@ -197,7 +198,7 @@ if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
 setwd(opt$output_dir)
 
 output_barcode <- paste0(bam_prefix, ".barcodes.txt")
-if(file.exists(output_barcode)) invisible(file.remove(output_file))
+if(file.exists(output_barcode)) invisible(file.remove(output_barcode))
 
 output_sam <- paste0(bam_prefix, ".fixed.sam")
 if(file.exists(output_sam)) invisible(file.remove(output_sam))
@@ -255,11 +256,13 @@ bam_fields <- c("qname", "flag", "rname", "pos", "mapq", "cigar", "mrnm", "mpos"
 tag_fields <- c("NM", "AS", "NH", "MD")
 param <- ScanBamParam(what = bam_fields, tag = tag_fields)
 
+dt_barcodes <- data.table(barcode = character(), varid = character()) 
 bam_read_handle <- open(BamFile(bam_file, yieldSize = bam_chunk_size))
 open(ref_fasta)
 bam_chunk_index <- 1
 repeat
 {
+    chunk_results <- list()
     bam_chunk <- scanBam(bam_read_handle, param = param, nThreads = num_cores)
 
     if(opt$library == "muta")
@@ -279,13 +282,20 @@ repeat
         bam_chunk_index <- bam_chunk_index + 1
     }
 
-    mclapply(1:length(bam_chunk[[1]]$seq), 
-             function(i) process_read(i, bam_chunk, barcode_marker, barcode_template, barcode_length, barcode_map, ref_fasta, variant_map), 
-             mc.cores = num_cores)
+    # mclapply cannot modify global variables, so we need to pass all the variables to the function
+    # and then collect the results in a list
+    chunk_results <- mclapply(1:length(bam_chunk[[1]]$seq), 
+                              function(i) process_read(i, bam_chunk, barcode_marker, barcode_template, barcode_length, barcode_map, ref_fasta, variant_map), 
+                              mc.cores = num_cores)
+    dt_barcodes <- rbind(dt_barcodes, rbindlist(chunk_results))
 }
 
 close(ref_fasta)
 close(bam_read_handle)
+
+dt_barcodes <- dt_barcodes[, .N, by = .(barcode, varid)]
+colnames(dt_barcodes) <- c("barcode", "varid", "count")
+fwrite(dt_barcodes, output_barcode, append = FALSE, quote = FALSE, sep = '\t', row.names = FALSE, col.names = TRUE)
 
 if(opt$spliced)
 {
