@@ -152,18 +152,15 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
                           get_barcode_by_marker(read_seq, barcode_marker, barcode_length),
                           get_barcode_by_template(read_seq, barcode_marker, barcode_template))
 
-    if(!(barcode_seq %in% c("no barcode", "duplicate barcode")))
+    if(!is.na(barcode_map[barcode_seq])) 
     {
-        if(!is.na(barcode_map[barcode_seq])) 
-        {
-            bam_data[[1]]$rname[read1_index] <- barcode_map[barcode_seq]
-            bam_data[[1]]$rname[read2_index] <- barcode_map[barcode_seq]
-            bam_data[[1]]$mrnm[read1_index] <- barcode_map[barcode_seq]
-            bam_data[[1]]$mrnm[read2_index] <- barcode_map[barcode_seq]
-            dt_out <- data.table(barcode = barcode_seq, varid = barcode_map[barcode_seq])
-        } else {
-            dt_out <- data.table(barcode = barcode_seq, varid = "NA")
-        }
+        bam_data[[1]]$rname[read1_index] <- barcode_map[barcode_seq]
+        bam_data[[1]]$rname[read2_index] <- barcode_map[barcode_seq]
+        bam_data[[1]]$mrnm[read1_index] <- barcode_map[barcode_seq]
+        bam_data[[1]]$mrnm[read2_index] <- barcode_map[barcode_seq]
+        dt_out <- data.table(barcode = barcode_seq, varid = barcode_map[barcode_seq])
+    } else {
+        dt_out <- data.table(barcode = barcode_seq, varid = "NA")
     }
 
     write_to_sam_file(bam_data[[1]], read1_index, output_sam)
