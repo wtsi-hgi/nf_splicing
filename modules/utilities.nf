@@ -5,7 +5,7 @@ process idxstats_get_values {
     tuple val(sample_id), path(idxstats_se)
     
     output:
-    tuple val(sample_id), path("${sample_id}.idxstats.txt") emit: ch_idxstats
+    tuple val(sample_id), path("${sample_id}.idxstats.txt"), emit: ch_idxstats
     
     script:
     """
@@ -22,7 +22,7 @@ process idxstats_add_values {
     tuple val(sample_id), path(idxstats_se), path(idxstats_pe)
     
     output:
-    tuple val(sample_id), path("${sample_id}.idxstats.txt") emit: ch_idxstats
+    tuple val(sample_id), path("${sample_id}.idxstats.txt"), emit: ch_idxstats
     
     script:
     """
