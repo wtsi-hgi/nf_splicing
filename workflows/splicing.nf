@@ -4,7 +4,9 @@
 include { check_required }      from '../modules/check_software.nf'
 include { check_input_files }   from '../modules/check_input_files.nf'
 include { idxstats_get_values; 
-          idxstats_add_values } from '../modules/utilities.nf'
+          idxstats_add_values } from '../modules/format_idxstats.nf'
+include { cat_filter_barcodes; 
+          cat_map_barcodes }    from '../modules/cat_files.nf'
 
 include { prepare_files }       from '../subworkflows/prepare_files.nf'
 include { process_reads }       from '../subworkflows/process_reads.nf'
@@ -209,9 +211,16 @@ workflow splicing {
     if (params.do_pe_reads) {
         idxstats_add_values(ch_bwa_se_filtered_idxstats.join(ch_bwa_pe_filtered_idxstats))
         ch_sample_idxstats = idxstats_add_values.out.ch_idxstats
+
+        cat_filter_barcodes(ch_bwa_se_barcodes.join(ch_bwa_pe_barcodes))
+        ch_sample_filter_barcodes = cat_filter_barcodes.out.ch_filter_barcodes
+
+
     } else {
         idxstats_get_values(ch_bwa_se_filtered_idxstats)
         ch_sample_idxstats = idxstats_get_values.out.ch_idxstats
+
+        ch_sample_filter_barcodes = ch_bwa_se_barcodes
     }
 
 
