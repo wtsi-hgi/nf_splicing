@@ -1,19 +1,22 @@
 /* ---- splicing analysis pipeline ---- */
 
 /* -- load modules -- */
-include { check_required }      from '../modules/check_software.nf'
-include { check_input_files }   from '../modules/check_input_files.nf'
+include { check_required }            from '../modules/check_software.nf'
+include { check_input_files }         from '../modules/check_input_files.nf'
 include { idxstats_get_values; 
-          idxstats_add_values } from '../modules/format_idxstats.nf'
+          idxstats_add_values }       from '../modules/format_idxstats.nf'
 include { cat_filter_barcodes; 
-          cat_map_barcodes }    from '../modules/cat_files.nf'
+          cat_map_barcodes;
+          cat_beds }                  from '../modules/cat_files.nf'
+include { hisat2_summary_get_values; 
+          hisat2_summary_add_values } from '../modules/format_hisat2_summary.nf'
 
-include { prepare_files }       from '../subworkflows/prepare_files.nf'
-include { process_reads }       from '../subworkflows/process_reads.nf'
-include { filter_reads_se }     from '../subworkflows/filter_reads_se.nf'
-include { filter_reads_pe }     from '../subworkflows/filter_reads_pe.nf'
-include { map_reads_se }        from '../subworkflows/map_reads_se.nf'
-include { map_reads_pe }        from '../subworkflows/map_reads_pe.nf'
+include { prepare_files }             from '../subworkflows/prepare_files.nf'
+include { process_reads }             from '../subworkflows/process_reads.nf'
+include { filter_reads_se }           from '../subworkflows/filter_reads_se.nf'
+include { filter_reads_pe }           from '../subworkflows/filter_reads_pe.nf'
+include { map_reads_se }              from '../subworkflows/map_reads_se.nf'
+include { map_reads_pe }              from '../subworkflows/map_reads_pe.nf'
 
 /* -- define functions -- */
 def helpMessage() {
@@ -215,54 +218,36 @@ workflow splicing {
         cat_filter_barcodes(ch_bwa_se_barcodes.join(ch_bwa_pe_barcodes))
         ch_sample_filter_barcodes = cat_filter_barcodes.out.ch_filter_barcodes
 
+        cat_map_barcodes(ch_hisat2_se_barcodes.join(ch_hisat2_pe_barcodes))
+        ch_sample_map_barcodes = cat_map_barcodes.out.ch_map_barcodes
 
+        hisat2_summary_add_values(ch_hisat2_se_summary.join(ch_hisat2_pe_summary))
+        ch_sample_summary = hisat2_summary_add_values.out.ch_hisat2_summary
+
+        cat_beds(ch_se_junctions.join(ch_pe_junctions))
+        ch_junctions = cat_beds.out.ch_bed
     } else {
         idxstats_get_values(ch_bwa_se_filtered_idxstats)
         ch_sample_idxstats = idxstats_get_values.out.ch_idxstats
 
         ch_sample_filter_barcodes = ch_bwa_se_barcodes
+        
+        ch_sample_map_barcodes = ch_hisat2_se_barcodes
+
+        hisat2_summary_get_values(ch_hisat2_se_summary)
+        ch_sample_summary = hisat2_summary_get_values.out.ch_hisat2_summary
+
+        ch_junctions = ch_se_junctions
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     ch_sample_step4 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) }
                                .join(ch_exon_pos)
                                .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
-                                                                tuple(sample_id, merge_stats, trim_stats) })
-                               .join(ch_bwa_se_filtered_idxstats)
-                               .join(ch_bwa_se_barcodes)
-                               .join(ch_hisat2_se_summary)
-                               .join(ch_hisat2_se_barcodes)
-                               .join(ch_se_junctions)
-                               
-    
-    
-    
-    if (params.do_pe_reads) {
-        ch_sample_step4 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) } 
-                                   .join(ch_exon_pos)
-                                   .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
-                                                                    tuple(sample_id, merge_stats, trim_stats) })
-                                   .join(ch_bwa_se_filtered_idxstats)
-                                   .join(ch_bwa_se_barcodes)
-                                   .join(ch_hisat2_se_summary)
-                                   .join(ch_hisat2_se_barcodes)
-                                   .join(ch_se_junctions)
-                                   .join(ch_bwa_pe_filtered_idxstats)
-                                   .join(ch_bwa_pe_barcodes)
-                                   .join(ch_hisat2_pe_summary)
-                                   .join(ch_hisat2_pe_barcodes)
-                                   .join(ch_pe_junctions)
-    }
+                                                                tuple(sample_id, merge_stats, trim_stats) })   
+                               .join(ch_sample_idxstats)
+                               .join(ch_sample_filter_barcodes)
+                               .join(ch_sample_map_barcodes)
+                               .join(ch_sample_summary)
+                               .join(ch_junctions)
+                                 
 }

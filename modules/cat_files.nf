@@ -35,3 +35,18 @@ process cat_map_barcodes {
     rm header.txt se.txt pe.txt
     """
 }
+
+process cat_beds {
+    label 'process_single'
+    
+    input:
+    tuple val(sample_id), path(bed_se), path(bed_pe)
+    
+    output:
+    tuple val(sample_id), path("${sample_id}.junctions.bed"), emit: ch_bed
+    
+    script:
+    """
+    cat ${bed_se} ${bed_pe} > ${sample_id}.junctions.bed
+    """
+}
