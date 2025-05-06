@@ -15,6 +15,12 @@ option_list <- list(make_option(c("-b", "--input_bam"),         type = "characte
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
+if(length(commandArgs(trailingOnly = TRUE)) == 0)
+{
+  print_help(opt_parser)
+  quit(status = 1)
+}
+
 # Check if required arguments are provided
 if(is.null(opt$input_bam)) stop("-b, input bam file is required!", call. = FALSE)
 

@@ -15,6 +15,12 @@ option_list <- list(make_option(c("-b", "--input_bed"),   type = "character", he
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
+if(length(commandArgs(trailingOnly = TRUE)) == 0)
+{
+  print_help(opt_parser)
+  quit(status = 1)
+}
+
 # Check if required arguments are provided
 if(is.null(opt$input_bed)) stop("-b, input bed file is required!", call. = FALSE)
 if(is.null(opt$exon_pos))  stop("-e, exon position file is required!", call. = FALSE)
@@ -179,23 +185,25 @@ variant_input <- junction_input %>%
                  ungroup()
 
 png(png_junction, width = 1600, height = 1600, units = "px", res = 250)
-upset(as.data.frame(junction_input), 
-      nsets = length(categories), 
-      order.by = "freq", 
-      matrix.color = "yellowgreen", 
-      main.bar.color = "royalblue", 
-      sets.bar.color = "yellowgreen",
-      queries = list(list(query = cov_filter, params = list(10), color = "tomato", active = TRUE)))
+plot(1:10, 1:10, type = "n", xlab = "", ylab = "")
+# upset(as.data.frame(junction_input), 
+#       nsets = length(categories), 
+#       order.by = "freq", 
+#       matrix.color = "yellowgreen", 
+#       main.bar.color = "royalblue", 
+#       sets.bar.color = "yellowgreen",
+#       queries = list(list(query = cov_filter, params = list(10), color = "tomato", active = TRUE)))
 dev.off()
 
 png(png_variant, width = 2000, height = 1600, units = "px", res = 250)
-upset(as.data.frame(variant_input), 
-      nsets = length(categories), 
-      order.by = "freq", 
-      matrix.color = "yellowgreen", 
-      main.bar.color = "royalblue", 
-      sets.bar.color = "yellowgreen",
-      queries = list(list(query = cov_filter, params = list(10), color = "tomato", active = TRUE)))
+plot(1:10, 1:10, type = "n", xlab = "", ylab = "")
+# upset(as.data.frame(variant_input), 
+#       nsets = length(categories), 
+#       order.by = "freq", 
+#       matrix.color = "yellowgreen", 
+#       main.bar.color = "royalblue", 
+#       sets.bar.color = "yellowgreen",
+#       queries = list(list(query = cov_filter, params = list(10), color = "tomato", active = TRUE)))
 dev.off()
 
 # merge junctions with similar start and end positions to reduce the number of junctions
