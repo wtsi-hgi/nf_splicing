@@ -11,12 +11,14 @@ include { cat_filter_barcodes;
 include { hisat2_summary_get_values; 
           hisat2_summary_add_values } from '../modules/format_hisat2_summary.nf'
 
+/* -- load subworkflows -- */
 include { prepare_files }             from '../subworkflows/prepare_files.nf'
 include { process_reads }             from '../subworkflows/process_reads.nf'
 include { filter_reads_se }           from '../subworkflows/filter_reads_se.nf'
 include { filter_reads_pe }           from '../subworkflows/filter_reads_pe.nf'
 include { map_reads_se }              from '../subworkflows/map_reads_se.nf'
 include { map_reads_pe }              from '../subworkflows/map_reads_pe.nf'
+include { summarise_results }         from '../subworkflows/summarise_results.nf'
 
 /* -- define functions -- */
 def helpMessage() {
@@ -249,5 +251,6 @@ workflow splicing {
                                .join(ch_sample_map_barcodes)
                                .join(ch_sample_summary)
                                .join(ch_junctions)
-                                 
+
+    summarise_results(ch_sample_step4)
 }
