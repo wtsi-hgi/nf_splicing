@@ -4,90 +4,74 @@ packages <- c("tidyverse", "data.table", "Biostrings", "optparse")
 invisible(lapply(packages, quiet_library))
 
 #-- options --#
-option_list <- list(make_option(c("-a", "--input_association"),  type = "character", help = "barcode association file",       default = NULL),
-                    make_option(c("-b", "--input_barcode"),      type = "character", help = "canonical barcode file",         default = NULL),
-                    make_option(c("-j", "--input_junction"),     type = "character", help = "novel classified junction file", default = NULL),
-                    make_option(c("-o", "--output_dir"),         type = "character", help = "output directory",               default = getwd()))
+option_list <- list(make_option(c("-b", "--barcode_association"), type = "character", help = "barcode association file",       default = NULL),
+                    make_option(c("-c", "--canonical_barcodes"),  type = "character", help = "canonical barcode file",         default = NULL),
+                    make_option(c("-n", "--novel_junctions"),     type = "character", help = "novel classified junction file", default = NULL),
+                    make_option(c("-o", "--output_dir"),          type = "character", help = "output directory",               default = getwd()),
+                    make_option(c("-p", "--prefix"),              type = "character", help = "output prefix",                  default = NULL))
 # Parse arguments
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
+if(length(commandArgs(trailingOnly = TRUE)) == 0)
+{
+  print_help(opt_parser)
+  quit(status = 1)
+}
+
 # Check if required arguments are provided
-if(is.null(opt$input_association)) stop("-a, barcode association file is required!", call. = FALSE)
-if(is.null(opt$input_barcode))  stop("-b, canonical barcode file is required!", call. = FALSE)
-if(is.null(opt$input_junction))  stop("-j, novel classified junction file is required!", call. = FALSE)
+if(is.null(opt$barcode_association)) stop("-a, barcode association file is required!", call. = FALSE)
+if(is.null(opt$canonical_barcodes))  stop("-b, canonical barcode file is required!", call. = FALSE)
+if(is.null(opt$novel_junctions))  stop("-j, novel classified junction file is required!", call. = FALSE)
 
 #-- inputs --#
-junction_prefix <- tools::file_path_sans_ext(basename(junction_bed_file))
+barcode_association <- fread(opt$barcode_association, header = TRUE, sep = "\t")
+var_idmap <- unique(barcode_association[, c("varid", "variant")])
+setnames(var_idmap, c("varid", "variant"))
 
+skipping_res <- fread(opt$canonical_barcodes, header = TRUE, sep = "\t")
+novel_res <- fread(opt$novel_junctions, header = TRUE, sep = "\t")
 
+output_prefix <- ifelse(is.null(opt$prefix), 
+                        tools::file_path_sans_ext(basename(opt$novel_junctions)), 
+                        opt$prefix)
 
+categories <- c("intron_retention_I1",
+                "intron_retention_I2",
+                "intron_retension_5p_I1",
+                "intron_retension_5p_I2",
+                "intron_retension_3p_I1",
+                "intron_retension_3p_I2",
+                "exon_splicing_3p_E1",
+                "exon_splicing_3p_E2",
+                "exon_splicing_3p_E3",
+                "exon_splicing_5p_E1",
+                "exon_splicing_5p_E2",
+                "exon_splicing_5p_E3",
+                "exon_skipping_E2")
 
+#-- outputs --#
+if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
+setwd(opt$output_dir)
 
+#-- processing --#
+# 1. initialize
+splicing_matrix <- data.table(matrix(0L, nrow = dim(var_idmap)[1], ncol = 3))
+setnames(splicing_matrix, c("varid", "canonical_inclusion_E2", "canonical_skipping_E2"))
+splicing_matrix[, varid := as.character(varid)]
+splicing_matrix$varid <- var_idmap$varid
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-sample_id <- "HEK293T_Rep1"
-associate_file <- "/lustre/scratch127/humgen/teams/hgi/fs18/splicing_analysis/benchmark/RON/refseqs/varid_barcodes.unique.txt"
-filtering_dir <- "/lustre/scratch127/humgen/teams/hgi/fs18/splicing_analysis/benchmark/RON/2_filtering"
-mapping_dir <- "/lustre/scratch127/humgen/teams/hgi/fs18/splicing_analysis/benchmark/RON/3_mapping"
-
-# reading files
-skipping_file <- paste0(filtering_dir, "/", sample_id, "/", sample_id, ".barcodes_var.txt")
-skipping_res <- as.data.table(read.table(skipping_file, header = T, sep = "\t"))
-
-novel_file <- paste0(mapping_dir, "/", sample_id, "/", sample_id, ".junctions.txt")
-novel_res <- as.data.table(read.table(novel_file, header = T, sep = "\t"))
-
-barcode_association <- as.data.table(read.table(associate_file, header = TRUE, sep = "\t"))
-var_idmap <- unique(barcode_association[, c("varid", "exon")])
-setnames(var_idmap, c("varid", "vars"))
-
-novel_res <- merge(novel_res, var_idmap, by.x = "VarID", by.y = "varid", all.x = TRUE)
-
-# initialize
-all_res <- data.table(matrix(0L, nrow = dim(var_idmap)[1], ncol = 3))
-setnames(all_res, c("varid", "canonical_inclusion_E6", "canonical_skipping_E6"))
-all_res[, varid := as.character(varid)]
-all_res$varid <- var_idmap$varid
-
-# integrate canonical events
+# 2. integrate canonical events
 skipping_res <- skipping_res[!is.na(varid)]
 skipping_res_aggregated <- skipping_res[, .(count = sum(.SD$count)), by = .(varid, name)]
 
-all_res_tmp <- merge(all_res, skipping_res_aggregated, by.x = "varid", by.y = "varid", all.x = TRUE)
-all_res_tmp[, canonical_inclusion_E6 := ifelse(name == "e10_e11_e12", count, canonical_inclusion_E6)]
-all_res_tmp[, canonical_skipping_E6 := ifelse(name == "e10_e12", count, canonical_skipping_E6)]
-all_res_canonical <- all_res_tmp[, .(canonical_inclusion_E6 = sum(canonical_inclusion_E6, na.rm = TRUE),
-                                     canonical_skipping_E6 = sum(canonical_skipping_E6, na.rm = TRUE)), by = varid]
+splicing_matrix_tmp <- merge(splicing_matrix, skipping_res_aggregated, by.x = "varid", by.y = "varid", all.x = TRUE)
+splicing_matrix_tmp[, canonical_inclusion_E2 := ifelse(name == "E1_E2_E3", count, canonical_inclusion_E2)]
+splicing_matrix_tmp[, canonical_skipping_E2 := ifelse(name == "E1_E3", count, canonical_skipping_E2)]
+splicing_matrix_canonical <- splicing_matrix_tmp[, .(canonical_inclusion_E2 = sum(canonical_inclusion_E2, na.rm = TRUE),
+                                                     canonical_skipping_E2 = sum(canonical_skipping_E2, na.rm = TRUE)), by = varid]
 
-# integrate novel events
-categories <- c("intron_retention_I10",
-                "intron_retention_I11",
-                "intron_retension_5p_I10",
-                "intron_retension_5p_I11",
-                "intron_retension_3p_I10",
-                "intron_retension_3p_I11",
-                "exon_splicing_3p_E10",
-                "exon_splicing_3p_E11",
-                "exon_splicing_3p_E12",
-                "exon_splicing_5p_E10",
-                "exon_splicing_5p_E11",
-                "exon_splicing_5p_E12",
-                "exon_skipping_E11")
-
+# 3. integrate novel events
 novel_res <- novel_res[Annotation != "out_of_range"]
 novel_res_split <- novel_res[, .(Annotation = unlist(strsplit(Annotation, ";")), 
                                  Cov = rep(Cov, lengths(strsplit(Annotation, ";")))), by = VarID]
@@ -97,14 +81,14 @@ novel_res_wide <- dcast(novel_res_split, VarID ~ Annotation, value.var = "Cov", 
 missing_categories <- setdiff(categories, names(novel_res_wide))
 for(miss_cat in missing_categories)
 {
-  novel_res_wide[, (miss_cat) := as.integer(0)]
+    novel_res_wide[, (miss_cat) := as.integer(0)]
 }
 
 setcolorder(novel_res_wide, c("VarID", categories))
 
-# integrate all together
-all_res_final <- merge(all_res_canonical, novel_res_wide, by.x = "varid", by.y = "VarID", all.x = TRUE)
-all_res_final[is.na(all_res_final)] <- 0
-setcolorder(all_res_final, c("varid", "canonical_inclusion_E6", "canonical_skipping_E6", categories))
+# 4. integrate all together
+splicing_matrix_final <- merge(splicing_matrix_canonical, novel_res_wide, by.x = "varid", by.y = "VarID", all.x = TRUE)
+splicing_matrix_final[is.na(splicing_matrix_final)] <- 0
+setcolorder(splicing_matrix_final, c("varid", "canonical_inclusion_E2", "canonical_skipping_E2", categories))
 
-write.table(all_res_final, paste0(sample_id, ".allres_by_var.txt"), row.names = F, col.names = T, sep = "\t", quote = F)
+fwrite(splicing_matrix_final, paste0(output_prefix, ".splicing_matrix.txt"), row.names = F, col.names = T, sep = "\t", quote = F)
