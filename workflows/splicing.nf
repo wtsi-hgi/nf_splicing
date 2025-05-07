@@ -242,15 +242,16 @@ workflow splicing {
         ch_junctions = ch_se_junctions
     }
 
-    ch_sample_step4 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) }
-                               .join(ch_exon_pos)
-                               .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
+    ch_sample_step4 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode -> tuple(sample_id, sample) }
+                              .join(ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) })
+                              .join(ch_exon_pos)
+                              .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
                                                                 tuple(sample_id, merge_stats, trim_stats) })   
-                               .join(ch_sample_idxstats)
-                               .join(ch_sample_filter_barcodes)
-                               .join(ch_sample_map_barcodes)
-                               .join(ch_sample_summary)
-                               .join(ch_junctions)
-
+                              .join(ch_sample_idxstats)
+                              .join(ch_sample_filter_barcodes)
+                              .join(ch_sample_map_barcodes)
+                              .join(ch_sample_summary)
+                              .join(ch_junctions)
+                              
     summarise_results(ch_sample_step4)
 }
