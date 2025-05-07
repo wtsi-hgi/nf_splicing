@@ -5,14 +5,14 @@ workflow prepare_files {
     main:
     ch_ref = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, reference, barcode) }
 
-    /* -- create bwa reference of exon fasta -- */
+    /* -- 1. create bwa reference of exon fasta -- */
     create_bwa_reference(ch_ref)
     ch_bwa_ref = create_bwa_reference.out.ch_bwa_ref
 
-    /* -- user has to create hisat2 reference by himself -- */
+    /* -- 2. user has to create hisat2 reference by himself -- */
     ch_hisat2_ref = ch_ref.map { sample_id, reference, barcode -> tuple(sample_id, reference) }
 
-    /* -- create exon positions -- */
+    /* -- 3. create exon positions -- */
     create_exon_positions(ch_ref)
     ch_exon_pos = create_exon_positions.out.ch_exon_pos
 

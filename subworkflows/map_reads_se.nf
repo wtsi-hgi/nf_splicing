@@ -3,12 +3,14 @@ workflow map_reads_se {
     ch_sample
 
     main:
+    /* -- 1. align reads -- */
     hisat2_align_se_reads(ch_sample)
     ch_hisat2_se_summary = hisat2_align_se_reads.out.ch_hisat2_se_summary
     ch_hisat2_se_unmapped = hisat2_align_se_reads.out.ch_hisat2_se_unmapped
     ch_hisat2_se_bam = hisat2_align_se_reads.out.ch_hisat2_se_bam
     ch_exon_pos = hisat2_align_se_reads.out.ch_exon_pos
 
+    /* -- 2. fix alignments -- */
     ch_hisat2_se_bam_join = ch_sample.map { sample_id, barcode, exon_pos, read, ref_fasta ->
                                             tuple(sample_id, barcode, ref_fasta) }
                                      .join(ch_hisat2_se_bam)
@@ -20,6 +22,7 @@ workflow map_reads_se {
                             ? fix_se_reads.out.ch_se_spliced
                             : Channel.empty()
     
+    /* -- 3. extract junctions -- */
     ch_hisat2_se_fixed_join = ch_hisat2_se_fixed.join(ch_exon_pos)
     extract_se_junctions(ch_hisat2_se_fixed_join)
     ch_se_junctions = extract_se_junctions.out.ch_se_junctions

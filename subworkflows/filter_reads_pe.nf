@@ -3,21 +3,25 @@ workflow filter_reads_pe {
     ch_sample
 
     main:
+    /* -- 1. align reads -- */
     bwa_align_pe_reads(ch_sample)
     ch_bwa_pe_unmapped = bwa_align_pe_reads.out.ch_bwa_pe_unmapped
     ch_bwa_pe_bam = bwa_align_pe_reads.out.ch_bwa_pe_bam
     ch_exon_pos = bwa_align_pe_reads.out.ch_exon_pos
     
+    /* -- 2. filter reads -- */
     ch_bwa_pe_bam = ch_bwa_pe_bam.join(ch_exon_pos)
     filter_pe_reads(ch_bwa_pe_bam)
     ch_bwa_pe_wrongmap = filter_pe_reads.out.ch_bwa_pe_wrongmap
     ch_bwa_pe_filtered = filter_pe_reads.out.ch_bwa_pe_filtered
     ch_bwa_pe_filtered_idxstats = filter_pe_reads.out.ch_bwa_pe_filtered_idxstats
 
+    /* -- 3. cat reads -- */
     ch_bwa_pe_joined = ch_bwa_pe_unmapped.join(ch_bwa_pe_wrongmap)
     merge_fastqs(ch_bwa_pe_joined)
     ch_bwa_pe_fail = merge_fastqs.out.ch_bwa_pe_fail
 
+    /* -- 4. extract barcodes -- */
     ch_bwa_pe_filtered_joined = ch_bwa_pe_filtered.join(ch_sample.map { sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
                                                                         tuple(sample_id, barcode) })
     extract_barcodes_pe(ch_bwa_pe_filtered_joined)

@@ -3,21 +3,25 @@ workflow filter_reads_se {
     ch_sample
 
     main:
+    /* -- 1. align reads -- */
     bwa_align_se_reads(ch_sample)
     ch_bwa_se_unmapped = bwa_align_se_reads.out.ch_bwa_se_unmapped
     ch_bwa_se_bam = bwa_align_se_reads.out.ch_bwa_se_bam
     ch_exon_pos = bwa_align_se_reads.out.ch_exon_pos
     
+    /* -- 2. filter reads -- */
     ch_bwa_se_bam = ch_bwa_se_bam.join(ch_exon_pos)
     filter_se_reads(ch_bwa_se_bam)
     ch_bwa_se_wrongmap = filter_se_reads.out.ch_bwa_se_wrongmap
     ch_bwa_se_filtered = filter_se_reads.out.ch_bwa_se_filtered
     ch_bwa_se_filtered_idxstats = filter_se_reads.out.ch_bwa_se_filtered_idxstats
 
+    /* -- 3. cat reads -- */
     ch_bwa_se_joined = ch_bwa_se_unmapped.join(ch_bwa_se_wrongmap)
     merge_fastqs(ch_bwa_se_joined)
     ch_bwa_se_fail = merge_fastqs.out.ch_bwa_se_fail
 
+    /* -- 4. extract barcodes -- */
     ch_bwa_se_filtered_joined = ch_bwa_se_filtered.join(ch_sample.map { sample_id, barcode, extended_frags, exon_fasta, exon_pos -> 
                                                                         tuple(sample_id, barcode) })
     extract_barcodes_se(ch_bwa_se_filtered_joined)

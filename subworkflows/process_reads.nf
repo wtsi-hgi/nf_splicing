@@ -3,9 +3,11 @@ workflow process_reads {
     ch_sample
 
     main:
+    /* -- 1. trim reads -- */
     trimming_reads(ch_sample)
     ch_trim = trimming_reads.out.ch_trim
 
+    /* -- 2. merge reads -- */
     merging_reads(ch_trim)
     ch_merge = merging_reads.out.ch_merge
 
