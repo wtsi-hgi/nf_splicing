@@ -84,26 +84,24 @@ select_colorblind <- function(col_id)
 }
 
 #-- inputs --#
-sample_prefix <- opt$prefix
+reps <- unlist(strsplit(opt$sample_id, ","))
+trim_files <- unlist(strsplit(opt$trim_stats, ","))
+merge_files <- unlist(strsplit(opt$merge_stats, ","))
+filter_files <- unlist(strsplit(opt$filter_idxstats, ","))
+map_files  <- unlist(strsplit(opt$map_stats, ","))
 
-
-
-trim_files <- vector()
-merge_files <- vector()
-stat_files <- vector()
-canonical_barcode_files <- vector()
-map_files  <- vector()
-novel_barcode_files <- vector()
-
-
+canonical_barcode_files <- unlist(strsplit(opt$canonical_barcodes, ","))
+novel_barcode_files <- unlist(strsplit(opt$novel_barcodes, ","))
 
 #-- outputs --#
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
 setwd(opt$output_dir)
 
-
+sample_prefix <- opt$prefix
 
 #-- reading files --#
+barcode_association <- as.data.table(vroom(opt$barcode_association, delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+
 total_reads <- vector()
 merged_reads <- vector()
 unmerged_reads <- vector()
@@ -116,137 +114,35 @@ map_reads <- vector()
 unexplain_reads <- vector()
 novel_barcodes <- list()
 
-
-for(i in 1:length(reps))
+for(i in 1:3)
 {
+    tmp_value <- as.numeric(str_extract(grep("reads passed filter:", readLines(trim_files[i]), value = TRUE), "\\d+"))
+    total_reads <- append(total_reads, tmp_value / 2)
 
+    tmp_value <- as.numeric(str_extract(grep("Combined pairs:", readLines(merge_files[i]), value = TRUE), "\\d+"))
+    merged_reads <- append(merged_reads, tmp_value)
+
+    tmp_value <- as.numeric(str_extract(grep("Uncombined pairs:", readLines(merge_files[i]), value = TRUE), "\\d+"))
+    unmerged_reads <- append(unmerged_reads, tmp_value)
+
+    inclusion_reads <- append(inclusion_reads, as.numeric(read.table(filter_files[i])[1, 2]))
+    skipping_reads <- append(skipping_reads, as.numeric(read.table(filter_files[i])[2, 2]))
+    canonical_barcodes[[reps[i]]] <- as.data.table(vroom(canonical_barcode_files[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+
+    map_reads <- append(map_reads, as.numeric(read.table(map_files[i])[1, 2]))
+    unexplain_reads <- append(unexplain_reads, as.numeric(read.table(map_files[i])[2, 2]) - as.numeric(read.table(map_files[i])[1, 2]))
+    novel_barcodes[[reps[i]]] <- as.data.table(vroom(novel_barcode_files[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 }
-
-
-
-
 
 #-- processing --#
-
-
-
-
-
-
-
-
-
-#~~~~~~~~~~#
-# function #
-#~~~~~~~~~~#
-
-
-
-#~~~~~~~~~~~~~~~#
-# prepare files #
-#~~~~~~~~~~~~~~~#
-sample_prefix <- "HEK293T"
-reps <- c(paste0(sample_prefix, "_Rep1"), paste0(sample_prefix, "_Rep2"), paste0(sample_prefix, "_Rep3"))
-
-processing_dir <- "/lustre/scratch127/humgen/teams/hgi/fs18/splicing_analysis/benchmark/RON/1_processing"
-trim_files <- vector()
-merge_files <- vector()
-
-filtering_dir <- "/lustre/scratch127/humgen/teams/hgi/fs18/splicing_analysis/benchmark/RON/2_filtering"
-se_stat_files <- vector()
-se_canonical_barcode_files <- vector()
-pe_stat_files <- vector()
-pe_canonical_barcode_files <- vector()
-
-mapping_dir <- "/lustre/scratch127/humgen/teams/hgi/fs18/splicing_analysis/benchmark/RON/3_mapping"
-se_map_files  <- vector()
-se_novel_barcode_files <- vector()
-pe_map_files  <- vector()
-pe_novel_barcode_files <- vector()
-
-for(i in 1:length(reps))
-{
-    trim_files <- append(trim_files, paste0(paste(processing_dir, reps[i], sep = "/"), "/", reps[i], ".trim.txt"))
-    merge_files <- append(merge_files, paste0(paste(processing_dir, reps[i], sep = "/"), "/", reps[i], ".merge.txt"))
-
-    se_stat_files <- append(se_stat_files, paste0(paste(filtering_dir, reps[i], sep = "/"), "/", reps[i], "_filter_se.filtered.idxstat.txt"))
-    se_canonical_barcode_files <- append(se_canonical_barcode_files, paste0(paste(filtering_dir, reps[i], sep = "/"), "/", reps[i], "_filter_se.barcodes.txt"))
-    pe_stat_files <- append(pe_stat_files, paste0(paste(filtering_dir, reps[i], sep = "/"), "/", reps[i], "_filter_pe.filtered.idxstat.txt"))
-    pe_canonical_barcode_files <- append(pe_canonical_barcode_files, paste0(paste(filtering_dir, reps[i], sep = "/"), "/", reps[i], "_filter_pe.barcodes.txt"))
-
-    se_map_files  <- append(se_map_files , paste0(paste(mapping_dir, reps[i], sep = "/"), "/", reps[i], "_map_se.summary.txt"))
-    se_novel_barcode_files <- append(se_novel_barcode_files, paste0(paste(mapping_dir, reps[i], sep = "/"), "/", reps[i], "_map_se.barcodes.txt"))
-    pe_map_files  <- append(pe_map_files , paste0(paste(mapping_dir, reps[i], sep = "/"), "/", reps[i], "_map_pe.summary.txt"))
-    pe_novel_barcode_files <- append(pe_novel_barcode_files, paste0(paste(mapping_dir, reps[i], sep = "/"), "/", reps[i], "_map_pe.barcodes.txt"))
-}
-
-barcode_association_dir <- "/lustre/scratch127/humgen/teams/hgi/fs18/splicing_analysis/benchmark/RON/refseqs/"
-barcode_association_file <- paste(barcode_association_dir, "varid_barcodes.unique.txt", sep = "/")
-
-#~~~~~~~~~~~~#
-# read files #
-#~~~~~~~~~~~~#
-total_reads <- vector()
-merged_reads <- vector()
-unmerged_reads <- vector()
-
-se_inclusion_reads <- vector()
-se_skipping_reads <- vector()
-se_canonical_barcodes <- list()
-pe_inclusion_reads <- vector()
-pe_skipping_reads <- vector()
-pe_canonical_barcodes <- list()
-
-se_map_reads <- vector()
-se_unexplain_reads <- vector()
-se_novel_barcodes <- list()
-pe_map_reads <- vector()
-pe_unexplain_reads <- vector()
-pe_novel_barcodes <- list()
-
-for(i in 1:length(reps))
-{
-    total_reads <- append(total_reads, as.numeric(str_extract(readLines(trim_files[i], n = 2)[2], "\\d+")))
-    merged_reads <- append(merged_reads, as.numeric(sub(".*Combined pairs:\\s*", "", grep("Combined pairs:", readLines(merge_files[i]), value = TRUE))))
-    unmerged_reads <- append(unmerged_reads, as.numeric(sub(".*Uncombined pairs:\\s*", "", grep("Uncombined pairs:", readLines(merge_files[i]), value = TRUE))))
-
-    se_inclusion_reads <- append(se_inclusion_reads, read.table(se_stat_files[i])[1, 3])
-    se_skipping_reads <- append(se_skipping_reads, read.table(se_stat_files[i])[2, 3])
-    se_canonical_barcodes[[reps[i]]] <- as.data.table(vroom(se_canonical_barcode_files[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
-    pe_inclusion_reads <- append(pe_inclusion_reads, read.table(pe_stat_files[i])[1, 3])
-    pe_skipping_reads <- append(pe_skipping_reads, read.table(pe_stat_files[i])[2, 3])
-    pe_canonical_barcodes[[reps[i]]] <- as.data.table(vroom(pe_canonical_barcode_files[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
-
-    reads_tmp <- as.numeric(str_extract(readLines(se_map_files[i], n = 4)[4], "(?<=: )\\d+"))
-    se_map_reads <- append(se_map_reads, reads_tmp)
-    se_unexplain_reads <- append(se_unexplain_reads, as.numeric(str_extract(readLines(se_map_files[i], n = 2)[2], "(?<=: )\\d+")) - reads_tmp)
-    reads_tmp <- as.numeric(str_extract(readLines(pe_map_files[i], n = 4)[4], "(?<=: )\\d+"))
-    pe_map_reads <- append(pe_map_reads, reads_tmp)
-    pe_unexplain_reads <- append(pe_unexplain_reads, as.numeric(str_extract(readLines(pe_map_files[i], n = 2)[2], "(?<=: )\\d+")) - reads_tmp)
-
-    se_novel_barcodes[[reps[i]]] <- as.data.table(vroom(se_novel_barcode_files[i], delim = "\t", comment = "#", col_names = FALSE, show_col_types = FALSE))
-    colnames(se_novel_barcodes[[reps[i]]]) <- c("var", "barcode")
-    se_novel_barcodes[[reps[i]]] <- se_novel_barcodes[[reps[i]]][, .N, by = .(var, barcode)]
-    setnames(se_novel_barcodes[[reps[i]]], "N", "count")
-    pe_novel_barcodes[[reps[i]]] <- as.data.table(vroom(pe_novel_barcode_files[i], delim = "\t", comment = "#", col_names = FALSE, show_col_types = FALSE))
-    colnames(pe_novel_barcodes[[reps[i]]]) <- c("var", "barcode")
-    pe_novel_barcodes[[reps[i]]] <- pe_novel_barcodes[[reps[i]]][, .N, by = .(var, barcode)]
-    setnames(pe_novel_barcodes[[reps[i]]], "N", "count")
-}
-
-barcode_association <- as.data.table(vroom(barcode_association_file, delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
-
-#~~~~~~~~~#
-# process #
-#~~~~~~~~~#
 summary_reads <- as.data.table(cbind(reps,
                                      total_reads, 
                                      merged_reads,
                                      unmerged_reads,
-                                     se_inclusion_reads + pe_inclusion_reads,
-                                     se_skipping_reads + pe_skipping_reads,
-                                     se_map_reads + pe_map_reads,
-                                     se_unexplain_reads + pe_unexplain_reads))
+                                     inclusion_reads,
+                                     skipping_reads,
+                                     map_reads,
+                                     unexplain_reads))
 colnames(summary_reads) <- c("reps", 
                              "total_reads", 
                              "merged_reads", 
@@ -391,9 +287,7 @@ colnames(variant_counts) <- c("reps", "variants", "detected_variants")
 variant_counts_out <- paste0(sample_prefix, ".variants_stats.txt")
 fwrite(variant_counts, variant_counts_out, append = FALSE, quote = FALSE, sep = '\t', row.names = FALSE, col.names = TRUE)
 
-#~~~~~~~~#
-# report #
-#~~~~~~~~#
+#-- reporting --#
 reads_image_list <- paste0("c(", "\"", paste0(sample_prefix, ".total_reads_pct.png"), "\",", 
                                  "\"", paste0(sample_prefix, ".canonical_reads_pct.png"), "\",", 
                                  "\"", paste0(sample_prefix, ".novel_reads_pct.png"), "\"", ")")
