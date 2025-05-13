@@ -73,8 +73,7 @@ process hisat2_align_pe_reads {
 process fix_pe_reads {
     label 'process_high'
 
-    publishDir "${params.outdir}/extracted_barcodes/${sample_id}", pattern: "*.barcodes.txt", mode: "copy", overwrite: true
-    publishDir "${params.outdir}/novel_splicing_bams/${sample_id}", pattern: "*.bam*", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.bam*", mode: "copy", overwrite: true
     publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.spliced_products.txt", mode: "copy", overwrite: true
 
     input:
@@ -110,7 +109,7 @@ process fix_pe_reads {
 process extract_pe_junctions {
     label 'process_single'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_junctions/${sample_id}", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(bam), path(bai), path(exon_pos)

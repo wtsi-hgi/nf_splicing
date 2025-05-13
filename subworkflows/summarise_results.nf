@@ -63,7 +63,7 @@ workflow summarise_results {
 process classify_junctions {
     label 'process_single'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_junctions/${sample_id}", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(exon_pos), path(bed)
@@ -81,7 +81,7 @@ process classify_junctions {
 process create_junction_plots {
     label 'process_single'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample}", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/splicing_reports/${sample}", mode: "copy", overwrite: true
 
     input:
     tuple val(sample), val(sample_id), val(classified_junctions), path(exon_pos)
@@ -98,7 +98,7 @@ process create_junction_plots {
 process create_splicing_matrix {
     label 'process_single'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/splicing_counts", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(barcode), path(filter_barcodes), path(classified_junctions)
@@ -115,7 +115,7 @@ process create_splicing_matrix {
 process create_html_report {
     label 'process_single'
 
-    publishDir "${params.outdir}", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/splicing_reports/${sample}", mode: "copy", overwrite: true
 
     input:
     tuple val(sample), path(barcode), val(sample_id), 

@@ -248,9 +248,6 @@ workflow splicing {
         ch_junctions = ch_se_junctions
     }
 
-    publish_canonical_barcodes(ch_sample_filter_barcodes)
-    publish_novel_barcodes(ch_sample_map_barcodes)
-
     ch_sample_step4 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode -> tuple(sample_id, sample) }
                               .join(ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) })
                               .join(ch_exon_pos)
@@ -263,4 +260,7 @@ workflow splicing {
                               .join(ch_junctions)
                               
     summarise_results(ch_sample_step4)
+
+    publish_canonical_barcodes(ch_sample_filter_barcodes)
+    publish_novel_barcodes(ch_sample_map_barcodes)
 }
