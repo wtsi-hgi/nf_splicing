@@ -181,12 +181,12 @@ tib_total_cov$type <- "coverage"
 select_colors <- select_colorblind("col15")[1:2]
 fill_colors <- sapply(select_colors, function(x) t_col(x, 0.5), USE.NAMES = FALSE)
 y_scale <- max(tib_total_cov$library_coverage) * 2
-png(paste0(sample_prefix, ".total_reads_pct.png"), width = 1200, height = 1600, units = "px", res = 300)
+png(paste0(sample_prefix, ".total_reads_pct.png"), width = 1000, height = 1600, units = "px", res = 300)
 ggplot(tib_total_pct,  aes(x = reps, y = pct, fill = type)) +
     geom_bar(stat = "identity", position = "fill") +
-    geom_line(data = tib_total_cov, aes(x = reps, y = library_coverage / y_scale, group = 1), linetype = "dashed", color = "red", inherit.aes = FALSE) +
-    geom_point(data = tib_total_cov, aes(x = reps, y = library_coverage / y_scale, color = type), shape = 18, size = 3, inherit.aes = FALSE) +
-    scale_y_continuous(labels = scales::percent, sec.axis = sec_axis(~. * y_scale, name = "library coverage")) +
+    # geom_line(data = tib_total_cov, aes(x = reps, y = library_coverage / y_scale, group = 1), linetype = "dashed", color = "red", inherit.aes = FALSE) +
+    # geom_point(data = tib_total_cov, aes(x = reps, y = library_coverage / y_scale, color = type), shape = 18, size = 3, inherit.aes = FALSE) +
+    # scale_y_continuous(labels = scales::percent, sec.axis = sec_axis(~. * y_scale, name = "library coverage")) +
     scale_fill_manual(values = fill_colors) +
     scale_color_manual(values = "red") +
     labs(x = NULL, y = "percent", title = sample_prefix) +
