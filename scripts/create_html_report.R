@@ -12,6 +12,7 @@ option_list <- list(make_option(c("-b", "--barcode_association"), type = "charac
                     make_option(c("-a", "--map_stats"),           type = "character", help = "list of hisat2 map summary files",          default = NULL),
                     make_option(c("-c", "--canonical_barcodes"),  type = "character", help = "list of extracted canonical barcode files", default = NULL),
                     make_option(c("-n", "--novel_barcodes"),      type = "character", help = "list of extracted novel barcode files",     default = NULL),
+                    make_option(c("-j", "--junction_plots"),      type = "character", help = "list of junction plots",                    default = NULL),
                     make_option(c("-o", "--output_dir"),          type = "character", help = "output directory",                          default = getwd()),
                     make_option(c("-p", "--prefix"),              type = "character", help = "output prefix",                             default = "sample"))
 # Parse arguments
@@ -165,7 +166,7 @@ summary_reads <- summary_reads %>%
 summary_reads <- summary_reads %>%
                     mutate(merged_pct = round((merged_reads / total_reads) * 100, 1),
                            unmerged_pct = round((unmerged_reads / total_reads) * 100, 1),
-                           library_coverage = as.integer(total_reads / length(unique(barcode_association$exon))),
+                           library_coverage = as.integer(total_reads / length(unique(barcode_association$varid))),
                            inclusion_pct = round((inclusion_reads / total_reads) * 100, 1),
                            skipping_pct = round((skipping_reads / total_reads) * 100, 1),
                            map_pct = round((map_reads / total_reads) * 100, 1),
@@ -242,8 +243,8 @@ barcode_all_ass_counts <- vector()
 variant_shared_counts <- vector()
 for(i in 1:length(reps))
 {
-    venn_list <- list(unique(c(se_canonical_barcodes[[i]]$barcode, pe_canonical_barcodes[[i]]$barcode)), 
-                      unique(c(se_novel_barcodes[[i]]$barcode, pe_novel_barcodes[[i]]$barcode)),
+    venn_list <- list(unique(canonical_barcodes[[i]]$barcode), 
+                      unique(novel_barcodes[[i]]$barcode),
                       barcode_association$barcode)
     names(venn_list) <- c("canonical", "novel", "association")
 
@@ -258,17 +259,13 @@ for(i in 1:length(reps))
     barcode_nol_ass_only <- venn_data$regionData %>% slice(6) %>% pull(item) %>% reduce(c)
     barcode_all_ass_only <- venn_data$regionData %>% slice(7) %>% pull(item) %>% reduce(c)
 
-    barcode_can_ass_counts <- append(barcode_can_ass_counts, sum(se_canonical_barcodes[[i]][barcode %in% barcode_can_ass_only]$count) + 
-                                                             sum(pe_canonical_barcodes[[i]][barcode %in% barcode_can_ass_only]$count))
-    barcode_nol_ass_counts <- append(barcode_nol_ass_counts, sum(se_novel_barcodes[[i]][barcode %in% barcode_nol_ass_only]$count) +
-                                                             sum(pe_novel_barcodes[[i]][barcode %in% barcode_nol_ass_only]$count))
-    barcode_all_ass_counts <- append(barcode_all_ass_counts, sum(se_canonical_barcodes[[i]][barcode %in% barcode_all_ass_only]$count) + 
-                                                             sum(pe_canonical_barcodes[[i]][barcode %in% barcode_all_ass_only]$count) +
-                                                             sum(se_novel_barcodes[[i]][barcode %in% barcode_all_ass_only]$count) + 
-                                                             sum(pe_novel_barcodes[[i]][barcode %in% barcode_all_ass_only]$count))
+    barcode_can_ass_counts <- append(barcode_can_ass_counts, sum(canonical_barcodes[[i]][barcode %in% barcode_can_ass_only]$count))
+    barcode_nol_ass_counts <- append(barcode_nol_ass_counts, sum(novel_barcodes[[i]][barcode %in% barcode_nol_ass_only]$count))
+    barcode_all_ass_counts <- append(barcode_all_ass_counts, sum(canonical_barcodes[[i]][barcode %in% barcode_all_ass_only]$count) + 
+                                                             sum(novel_barcodes[[i]][barcode %in% barcode_all_ass_only]$count))
 
     barcode_shared <- unique(c(barcode_can_ass_only, barcode_nol_ass_only, barcode_all_ass_only))
-    variant_shared_counts <- append(variant_shared_counts, length(unique(barcode_association[barcode %in% barcode_shared]$exon)))
+    variant_shared_counts <- append(variant_shared_counts, length(unique(barcode_association[barcode %in% barcode_shared]$varid)))
 }
 
 barcode_counts <- as.data.table(cbind(reps,
@@ -281,7 +278,7 @@ barcode_counts_out <- paste0(sample_prefix, ".barcodes_stats.txt")
 fwrite(barcode_counts, barcode_counts_out, append = FALSE, quote = FALSE, sep = '\t', row.names = FALSE, col.names = TRUE)
 
 variant_counts <- as.data.table(cbind(reps,
-                                      length(unique(barcode_association$exon)), 
+                                      length(unique(barcode_association$varid)), 
                                       variant_shared_counts))
 colnames(variant_counts) <- c("reps", "variants", "detected_variants")
 variant_counts_out <- paste0(sample_prefix, ".variants_stats.txt")
@@ -296,9 +293,10 @@ barcode_venn_list <- paste0("c(", "\"", paste0(reps[1], ".barcodes_venn.png"), "
                                   "\"", paste0(reps[2], ".barcodes_venn.png"), "\",", 
                                   "\"", paste0(reps[3], ".barcodes_venn.png"), "\"", ")")
 
-junction_image_list <- paste0("c(", "\"", paste0(mapping_dir, "/", sample_prefix, ".junction_venn.png"), "\",", 
-                                    "\"", paste0(mapping_dir, "/", sample_prefix, ".junction_corr.png"), "\",", 
-                                    "\"", paste0(mapping_dir, "/", sample_prefix, ".junction_scatter.png"), "\"", ")")
+junction_plots <- strsplit(opt$junction_plots, ",")[[1]]
+junction_image_list <- paste0("c(", "\"", junction_plots[1], "\",", 
+                                    "\"", junction_plots[2], "\",", 
+                                    "\"", junction_plots[3], "\"", ")")
 
 report_path <- paste0(sample_prefix, ".splicing_report.Rmd")
 sink(report_path)
