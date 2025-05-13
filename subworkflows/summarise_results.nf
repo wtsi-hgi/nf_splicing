@@ -8,16 +8,30 @@ workflow summarise_results {
                                     tuple(sample_id, exon_pos, junctions) }
     classify_junctions(ch_junctions)
     ch_classified_junctions = classify_junctions.out.ch_classified_junctions
-    ch_classified_png = classify_junctions.out.ch_classified_png
+    ch_classified_plots = classify_junctions.out.ch_classified_plots
 
-    /* -- 2. create count matrix -- */
+    /* -- 2. create junction plots -- */
+    ch_plots = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions -> 
+                                tuple(sample_id, sample) }
+                        .join(ch_classified_junctions.map { sample_id, classified_junctions, reduced_junctions -> tuple(sample_id, classified_junctions) })
+                        .map { sample_id, sample, classified_junctions ->  tuple(sample, sample_id, classified_junctions)}
+                        .groupTuple()
+    ch_exon_pos = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions -> 
+                                tuple(sample, exon_pos) }
+                           .distinct()
+    ch_plots = ch_plots.join(ch_exon_pos)
+
+    create_junction_plots(ch_plots)
+    ch_junction_plots = create_junction_plots.out.ch_junction_plots
+
+    /* -- 3. create count matrix -- */
     ch_input = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions -> 
                                 tuple(sample_id, barcode, filter_barcodes) }
                         .join(ch_classified_junctions.map { sample_id, classified_junctions, reduced_junctions -> tuple(sample_id, classified_junctions) })
     create_splicing_matrix(ch_input)
     ch_splicing_matrix = create_splicing_matrix.out.ch_splicing_matrix
 
-    /* -- 3. create summary report -- */
+    /* -- 4. create summary report -- */
     ch_barcode_association = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions -> 
                                                 tuple(sample, barcode) }
                                       .distinct()
@@ -32,11 +46,12 @@ workflow summarise_results {
 
     ch_report_filtered = ch_barcode_association.join(ch_report_filtered)
     
-    create_html_report(ch_report_filtered)
+    // create_html_report(ch_report_filtered)
 
     emit:
     ch_classified_junctions
-    ch_classified_png
+    ch_classified_plots
+    ch_junction_plots
     ch_splicing_matrix
 }
 
@@ -50,11 +65,28 @@ process classify_junctions {
 
     output:
     tuple val(sample_id), path("${sample_id}.classified_junctions.txt"), path("${sample_id}.classified_junctions.reduce.txt"), emit: ch_classified_junctions
-    tuple val(sample_id), path("${sample_id}.classified_junctions.png"), path("${sample_id}.classified_variants.png"), emit: ch_classified_png
+    tuple val(sample_id), path("${sample_id}.classified_junctions.png"), path("${sample_id}.classified_variants.png"), emit: ch_classified_plots
 
     script:
     """
     ${projectDir}/scripts/classify_junctions.R -b ${bed} -e ${exon_pos} -m ${params.classify_min_overlap} -c ${params.classify_min_cov} -r ${params.classify_reduce} -p ${sample_id}
+    """
+}
+
+process create_junction_plots {
+    label 'process_single'
+
+    publishDir "${params.outdir}/novel_splicing_results/${sample}", mode: "copy", overwrite: true
+
+    input:
+    tuple val(sample), val(sample_id), val(classified_junctions), path(exon_pos)
+
+    output:
+    tuple val(sample), path("${sample}.junction_venn.png"), path("${sample}.junction_scatter.png"), path("${sample}.junction_corr.png"), emit: ch_junction_plots
+
+    script:
+    """
+    ${projectDir}/scripts/create_junction_plots.R -s ${sample_id.join(',')} -n ${classified_junctions.join(',')} -e ${exon_pos} -p ${sample}
     """
 }
 
