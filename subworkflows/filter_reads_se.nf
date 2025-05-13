@@ -105,7 +105,7 @@ process merge_fastqs {
 }
 
 process extract_barcodes_se {
-    label 'process_medium'
+    label 'process_high'
 
     publishDir "${params.outdir}/extracted_barcodes/${sample_id}", mode: "copy", overwrite: true
 
