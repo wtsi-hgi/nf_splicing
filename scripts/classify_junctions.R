@@ -213,13 +213,14 @@ junction_annotation_reduce<- junction_annotation %>%
                               mutate(group = cumsum(lag(Start, default = first(Start)) + opt$reduce < Start | 
                                                     lag(End, default = first(End)) + opt$reduce < End)) %>%
                               group_by(group) %>%
-                              summarize(VarID = first(VarID),
+                              summarize(VarID = paste(VarID, collapse = ","),
                                         Cov = sum(as.numeric(Cov), na.rm = TRUE),
                                         Start = as.integer(median(Start, na.rm = TRUE)),
                                         End = as.integer(median(End, na.rm = TRUE)),
                                         Annotation = first(Annotation)) %>%
                               ungroup() %>%
-                              select(-group) 
+                              select(-group) %>%
+                              filter(Annotation != "out_of_range")
                            
 write.table(junction_annotation_reduce, output_junction_reduce, sep = '\t', quote = FALSE, row.names = FALSE)
                            
