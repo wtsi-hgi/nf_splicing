@@ -1,18 +1,19 @@
 /* ---- splicing analysis pipeline ---- */
 
 /* -- load modules -- */
-include { check_required }            from '../modules/check_software.nf'
-include { check_input_files }         from '../modules/check_input_files.nf'
+include { check_required }             from '../modules/check_software.nf'
+include { check_input_files }          from '../modules/check_input_files.nf'
 include { idxstats_get_values; 
-          idxstats_add_values }       from '../modules/format_idxstats.nf'
+          idxstats_add_values }        from '../modules/format_idxstats.nf'
 include { cat_filter_barcodes; 
           cat_map_barcodes;
-          cat_beds }                  from '../modules/summary_cat_files.nf'
+          cat_beds }                   from '../modules/summary_cat_files.nf'
 include { rename_filter_barcodes;
-          rename_map_barcodes }       from '../modules/summary_rename_files.nf'
+          rename_map_barcodes }        from '../modules/summary_rename_files.nf'
 include { hisat2_summary_get_values; 
-          hisat2_summary_add_values } from '../modules/format_hisat2_summary.nf'
-include { publish_barcodes }          from '../modules/publish_files.nf'
+          hisat2_summary_add_values }  from '../modules/format_hisat2_summary.nf'
+include { publish_canonical_barcodes;
+          publish_novel_barcodes}      from '../modules/summary_publish_files.nf'
 
 /* -- load subworkflows -- */
 include { prepare_files }             from '../subworkflows/prepare_files.nf'
@@ -247,8 +248,8 @@ workflow splicing {
         ch_junctions = ch_se_junctions
     }
 
-    publish_barcodes(ch_sample_filter_barcodes)
-    publish_barcodes(ch_sample_map_barcodes)
+    publish_canonical_barcodes(ch_sample_filter_barcodes)
+    publish_novel_barcodes(ch_sample_map_barcodes)
 
     ch_sample_step4 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode -> tuple(sample_id, sample) }
                               .join(ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) })
