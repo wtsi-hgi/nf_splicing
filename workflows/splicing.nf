@@ -7,9 +7,12 @@ include { idxstats_get_values;
           idxstats_add_values }       from '../modules/format_idxstats.nf'
 include { cat_filter_barcodes; 
           cat_map_barcodes;
-          cat_beds }                  from '../modules/cat_files.nf'
+          cat_beds }                  from '../modules/summary_cat_files.nf'
+include { rename_filter_barcodes;
+          rename_map_barcodes }       from '../modules/summary_rename_files.nf'
 include { hisat2_summary_get_values; 
           hisat2_summary_add_values } from '../modules/format_hisat2_summary.nf'
+include { publish_barcodes }          from '../modules/publish_files.nf'
 
 /* -- load subworkflows -- */
 include { prepare_files }             from '../subworkflows/prepare_files.nf'
@@ -232,15 +235,20 @@ workflow splicing {
         idxstats_get_values(ch_bwa_se_filtered_idxstats)
         ch_sample_idxstats = idxstats_get_values.out.ch_idxstats
 
-        ch_sample_filter_barcodes = ch_bwa_se_barcodes
-        
-        ch_sample_map_barcodes = ch_hisat2_se_barcodes
+        rename_filter_barcodes(ch_bwa_se_barcodes)
+        ch_sample_filter_barcodes = rename_filter_barcodes.out.ch_filter_barcodes
+
+        rename_map_barcodes(ch_hisat2_se_barcodes)
+        ch_sample_map_barcodes = rename_map_barcodes.out.ch_map_barcodes
 
         hisat2_summary_get_values(ch_hisat2_se_summary)
         ch_sample_summary = hisat2_summary_get_values.out.ch_hisat2_summary
 
         ch_junctions = ch_se_junctions
     }
+
+    publish_barcodes(ch_sample_filter_barcodes)
+    publish_barcodes(ch_sample_map_barcodes)
 
     ch_sample_step4 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode -> tuple(sample_id, sample) }
                               .join(ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) })

@@ -115,8 +115,6 @@ process merge_fastqs {
 process extract_barcodes_pe {
     label 'process_high'
 
-    publishDir "${params.outdir}/extracted_barcodes/${sample_id}", mode: "copy", overwrite: true
-
     input:
     tuple val(sample_id), path(bam), path(bai), path(barcode)
 
