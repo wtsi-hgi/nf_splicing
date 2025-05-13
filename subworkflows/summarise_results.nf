@@ -50,12 +50,14 @@ workflow summarise_results {
                                                     tuple(sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, [junction_venn, junction_scatter, junction_corr]) }
     
     create_html_report(ch_report_filtered)
+    ch_html_report = create_html_report.out.ch_html_report
 
     emit:
     ch_classified_junctions
     ch_classified_plots
     ch_junction_plots
     ch_splicing_matrix
+    ch_html_report
 }
 
 process classify_junctions {
