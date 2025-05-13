@@ -163,7 +163,8 @@ junction_data <- junction_bed %>%
 junction_annotation <- junction_data %>%
                        rowwise() %>%
                        mutate(Annotation = annotate_junction(Start, End, exon_positions, intron_positions)) %>%
-                       ungroup()
+                       ungroup() %>%
+                       filter(Annotation != "")
 
 write.table(junction_annotation, output_junction, sep = '\t', quote = FALSE, row.names = FALSE)
 
@@ -185,25 +186,23 @@ variant_input <- junction_input %>%
                  ungroup()
 
 png(png_junction, width = 1600, height = 1600, units = "px", res = 250)
-plot(1:10, 1:10, type = "n", xlab = "", ylab = "")
-# upset(as.data.frame(junction_input), 
-#       nsets = length(categories), 
-#       order.by = "freq", 
-#       matrix.color = "yellowgreen", 
-#       main.bar.color = "royalblue", 
-#       sets.bar.color = "yellowgreen",
-#       queries = list(list(query = cov_filter, params = list(10), color = "tomato", active = TRUE)))
+upset(as.data.frame(junction_input), 
+      nsets = length(categories), 
+      order.by = "freq", 
+      matrix.color = "yellowgreen", 
+      main.bar.color = "royalblue", 
+      sets.bar.color = "yellowgreen",
+      queries = list(list(query = cov_filter, params = list(10), color = "tomato", active = TRUE)))
 dev.off()
 
 png(png_variant, width = 2000, height = 1600, units = "px", res = 250)
-plot(1:10, 1:10, type = "n", xlab = "", ylab = "")
-# upset(as.data.frame(variant_input), 
-#       nsets = length(categories), 
-#       order.by = "freq", 
-#       matrix.color = "yellowgreen", 
-#       main.bar.color = "royalblue", 
-#       sets.bar.color = "yellowgreen",
-#       queries = list(list(query = cov_filter, params = list(10), color = "tomato", active = TRUE)))
+upset(as.data.frame(variant_input), 
+      nsets = length(categories), 
+      order.by = "freq", 
+      matrix.color = "yellowgreen", 
+      main.bar.color = "royalblue", 
+      sets.bar.color = "yellowgreen",
+      queries = list(list(query = cov_filter, params = list(10), color = "tomato", active = TRUE)))
 dev.off()
 
 # merge junctions with similar start and end positions to reduce the number of junctions
