@@ -149,7 +149,7 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
     
     if(opt$spliced)
     {
-        getseq_id <- ifelse(opt$library == "muta", ref_id, bam_data[[1]]$rname[i])
+        getseq_id <- ifelse(opt$library == "muta", as.character(ref_id), as.character(bam_data[[1]]$rname[i]))
 
         spliced_seq <- DNAStringSet()
         for(j in seq_along(cigar_ops))

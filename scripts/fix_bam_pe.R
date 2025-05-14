@@ -175,7 +175,7 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
     if(opt$spliced)
     {
         # read1 and read2 should be in the same reference
-        getseq_ref_id <- ifelse(opt$library == "muta", read1_ref, bam_data[[1]]$rname[read1_index])
+        getseq_ref_id <- ifelse(opt$library == "muta", as.character(read1_ref), as.character(bam_data[[1]]$rname[read1_index]))
         
         read1_spliced_seq <- DNAStringSet()
         for(j in seq_along(read1_cigar_ops))
