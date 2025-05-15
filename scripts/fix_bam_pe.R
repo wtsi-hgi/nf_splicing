@@ -178,6 +178,9 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
         getseq_ref_id <- ifelse(opt$library == "muta", as.character(read1_ref), as.character(bam_data[[1]]$rname[read1_index]))
         
         read1_spliced_seq <- DNAStringSet()
+        ref_fasta <- FaFile(reference_file)
+        open(ref_fasta)
+
         for(j in seq_along(read1_cigar_ops))
         {
             op <- read1_cigar_ops[j]
@@ -224,6 +227,8 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
             spliced_seq <- paste0(as.character(unlist(read1_spliced_seq)), as.character(unlist(read2_spliced_seq)))
         }
 
+        close(ref_fasta)
+
         output_id <- bam_data[[1]]$rname[i]
         output_line <- data.frame(output_id, variant_map[output_id], spliced_seq)
         fwrite(output_line, output_tmp, append = TRUE, quote = FALSE, sep = '\t', row.names = FALSE, col.names = FALSE)
@@ -248,8 +253,6 @@ barcode_var <- fread(association_file, header = T, sep = '\t')
 barcode_map <- setNames(barcode_var$varid, barcode_var$barcode)
 variant_map <- setNames(barcode_var$variant, barcode_var$varid)
 variant_map <- variant_map[!duplicated(variant_map)]
-
-ref_fasta <- FaFile(reference_file)
 
 #-- outputs --#
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
@@ -316,7 +319,6 @@ param <- ScanBamParam(what = bam_fields, tag = tag_fields)
 
 dt_barcodes <- data.table(barcode = character(), varid = character()) 
 bam_read_handle <- open(BamFile(bam_file, yieldSize = bam_chunk_size))
-open(ref_fasta)
 bam_chunk_index <- 1
 repeat
 {
@@ -349,7 +351,6 @@ repeat
     dt_barcodes <- rbind(dt_barcodes, rbindlist(chunk_results))
 }
 
-close(ref_fasta)
 close(bam_read_handle)
 
 dt_barcodes <- dt_barcodes[, .N, by = .(barcode, varid)]
