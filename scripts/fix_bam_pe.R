@@ -178,8 +178,6 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
         getseq_ref_id <- ifelse(opt$library == "muta", as.character(read1_ref), as.character(bam_data[[1]]$rname[read1_index]))
         
         read1_spliced_seq <- DNAStringSet()
-        ref_fasta <- FaFile(reference_file)
-        open(ref_fasta)
 
         for(j in seq_along(read1_cigar_ops))
         {
@@ -188,8 +186,8 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
 
             if(op == "M" || op == "D")
             {
-                ref_segment <- getSeq(ref_fasta, GRanges(seqnames = getseq_ref_id, ranges = IRanges(read1_pos, read1_pos + length - 1)))
-                read1_spliced_seq <- c(read1_spliced_seq, ref_segment)
+                ref_segment <- subseq(ref_sequences[[getseq_id]], start = ref_pos, end = ref_pos + length - 1)
+                spliced_seq <- c(spliced_seq, DNAStringSet(ref_segment))
                 read1_pos <- read1_pos + length
             } else if(op == "N") {
                 read1_pos <- read1_pos + length
@@ -227,8 +225,6 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
             spliced_seq <- paste0(as.character(unlist(read1_spliced_seq)), as.character(unlist(read2_spliced_seq)))
         }
 
-        close(ref_fasta)
-
         output_id <- bam_data[[1]]$rname[i]
         output_line <- data.frame(output_id, variant_map[output_id], spliced_seq)
         fwrite(output_line, output_tmp, append = TRUE, quote = FALSE, sep = '\t', row.names = FALSE, col.names = FALSE)
@@ -253,6 +249,8 @@ barcode_var <- fread(association_file, header = T, sep = '\t')
 barcode_map <- setNames(barcode_var$varid, barcode_var$barcode)
 variant_map <- setNames(barcode_var$variant, barcode_var$varid)
 variant_map <- variant_map[!duplicated(variant_map)]
+
+ref_sequences <- readDNAStringSet(reference_file)
 
 #-- outputs --#
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
