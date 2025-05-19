@@ -294,9 +294,15 @@ barcode_venn_list <- paste0("c(", "\"", paste0(reps[1], ".barcodes_venn.png"), "
                                   "\"", paste0(reps[3], ".barcodes_venn.png"), "\"", ")")
 
 junction_plots <- strsplit(opt$junction_plots, ",")[[1]]
-junction_image_list <- paste0("c(", "\"", junction_plots[1], "\",", 
-                                    "\"", junction_plots[2], "\",", 
-                                    "\"", junction_plots[3], "\"", ")")
+junction_image_list <- "c("
+for (i in 1:length(junction_plots)) {
+    junction_image_list <- paste0(junction_image_list, "\"", junction_plots[i], "\"")
+    if (i < length(junction_plots)) {
+        junction_image_list <- paste0(junction_image_list, ",")
+    } else {
+        junction_image_list <- paste0(junction_image_list, ")")
+    }
+}
 
 report_path <- paste0(sample_prefix, ".splicing_report.Rmd")
 sink(report_path)
