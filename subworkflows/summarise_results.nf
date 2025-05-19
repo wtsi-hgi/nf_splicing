@@ -46,8 +46,10 @@ workflow summarise_results {
 
     ch_report_filtered = ch_barcode_association.join(ch_report_filtered)
                                                .join(ch_junction_plots)
-                                               .map{ sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junction_venn, junction_scatter, junction_corr ->
-                                                    tuple(sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, [junction_venn, junction_scatter, junction_corr]) }
+                                               .map{ sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, 
+                                                        junction_venn, junction_scatter, junction_view, junction_distribution, junction_corr ->
+                                                     tuple(sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, 
+                                                        [junction_venn, junction_scatter, junction_view, junction_distribution, junction_corr]) }
     
     create_html_report(ch_report_filtered)
     ch_html_report = create_html_report.out.ch_html_report
@@ -87,7 +89,11 @@ process create_junction_plots {
     tuple val(sample), val(sample_id), val(classified_junctions), path(exon_pos)
 
     output:
-    tuple val(sample), path("${sample}.junction_venn.png"), path("${sample}.junction_scatter.png"), path("${sample}.junction_corr.png"), emit: ch_junction_plots
+    tuple val(sample), path("${sample}.junction_venn.png"), 
+                       path("${sample}.junction_scatter.png"), 
+                       path("${sample}.junction_view.png"),
+                       path("${sample}.junction_distribution.png"), 
+                       path("${sample}.junction_corr.png"), emit: ch_junction_plots
 
     script:
     """
