@@ -9,7 +9,6 @@
 
 1. [Dependencies](#dependencies)
 2. [File Format](#file-format)
-    - [Structure of input directories](#structure)
     - [Sample sheet](#samplesheet)
 3. [Usage](#usage)
     - [Run job](#runjob)
@@ -18,59 +17,68 @@
 
 <!-- Dependencies-->
 ## Dependencies
-* software
-    - pigz = 2.7
-    - BWA = 0.7.17
-    - HISAT2 = 2.2.1
-    - Samtools = 1.21
-    - bamtools = 2.5.2
-    - FLASH2 = 2.2.00
-    - fastp = 0.23.4
-    - RegTools = 1.0.0
-    - R = 4.3.1
-    - nextflow = 23.10.0
-* R packages
-    - data.table = 1.15.4
-    - UpSetR = 1.4.0
-    - gplots = 3.1.3.1
-    - corrplot = 0.92
-    - reshape2 = 1.4.4
-    - optparse = 1.7.4
-    - psych = 2.4.3
-    - reactable = 0.4.4
-    - tidyverse = 2.0.0
-    - stringr = 1.5.1
-    - performanceanalytics = 2.0.4
-    - parallelly = 1.37.1
-    - dendextend = 1.17.1
-    - sparkline = 2.0
-    - ggVennDiagram = 1.5.2
-    - htmltools = 0.5.8
-* Bioconductor packages
+<details>
+<summary><b>Software</b></summary>
+	
+    pigz = 2.7
+    BWA = 0.7.17
+    HISAT2 = 2.2.1
+    Samtools = 1.21
+    bamtools = 2.5.2
+    FLASH2 = 2.2.00
+    fastp = 0.23.4
+    RegTools = 1.0.0
+    R = 4.3.1
+    nextflow = 23.10.0
+</details>
+
+<details>
+<summary><b>R Packages</b></summary>
+
+    data.table = 1.15.4
+    UpSetR = 1.4.0
+    gplots = 3.1.3.1
+    corrplot = 0.92
+    reshape2 = 1.4.4
+    optparse = 1.7.4
+    psych = 2.4.3
+    reactable = 0.4.4
+    tidyverse = 2.0.0
+    stringr = 1.5.1
+    performanceanalytics = 2.0.4
+    parallelly = 1.37.1
+    dendextend = 1.17.1
+    sparkline = 2.0
+    ggVennDiagram = 1.5.2
+    htmltools = 0.5.8
+</details>
+
+<details>
+<summary><b>Bioconductor Packages</b></summary>
+
     - GenomicRanges = 1.54.1
     - Rsamtools = 2.18.0
     - Biostrings = 2.70.3
-    - 
+</details>
 
 <!-- File Format-->
 ## File Format
 
-<a id="structure"></a>
-
-### Structure of input directories
-![example](./image/inputs.png)
-
 <a id="samplesheet"></a>
 
 ### Sample Sheet -- csv
-| sample | replicate | directory | read1 | read2 | reference |
-| - | - | - | - | - | - |
-| s1 | rep1 | /path/of/directory/ | s1rep1_r1.fastq.gz | s1rep1_r2.fastq.gz | ref.fa |
-| s1 | rep2 | /path/of/directory/ | s1rep2_r1.fastq.gz | s1rep2_r2.fastq.gz | ref.fa |
-| s1 | rep3 | /path/of/directory/ | s1rep3_r1.fastq.gz | s1rep3_r2.fastq.gz | ref.fa |
+| sample | replicate | directory | read1 | read2 | reference | barcode |
+| - | - | - | - | - | - | - |
+| s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz | s1_rep1_r2.fastq.gz | s1_ref.fa | s1_barcode.txt |
+| s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz | s1_rep2_r2.fastq.gz | s1_ref.fa | s1_barcode.txt |
+| s1 | rep3 | /path/of/directory/ | s1_rep3_r1.fastq.gz | s1_rep3_r2.fastq.gz | s1_ref.fa | s1_barcode.txt |
+| s2 | rep1 | /path/of/directory/ | s2_rep1_r1.fastq.gz | s2_rep1_r2.fastq.gz | s2_ref.fa | s2_barcode.txt |
+| s2 | rep2 | /path/of/directory/ | s2_rep2_r1.fastq.gz | s2_rep2_r2.fastq.gz | s2_ref.fa | s2_barcode.txt |
+| s2 | rep3 | /path/of/directory/ | s2_rep3_r1.fastq.gz | s2_rep3_r2.fastq.gz | s2_ref.fa | s2_barcode.txt |
 
-> [!Note]  
-> 1. The sample sheet must be a csv file and the header must be like below in the example
+> [!IMPORTANT]
+> 1. The sample sheet must be a csv file and the header must be like above in the example
+> 2. all the files should be in the /path/of/directory for each sample
 
 
 <!-- Usage-->
