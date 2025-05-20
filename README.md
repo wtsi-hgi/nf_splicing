@@ -18,14 +18,39 @@
 
 <!-- Dependencies-->
 ## Dependencies
-* nextflow
-* bwa
-* hisat2
-* samtools
-* bamtools
+* software
+    - pigz = 2.7
+    - BWA = 0.7.17
+    - HISAT2 = 2.2.1
+    - Samtools = 1.21
+    - bamtools = 2.5.2
+    - FLASH2 = 2.2.00
+    - fastp = 0.23.4
+    - RegTools = 1.0.0
+    - R = 4.3.1
+    - nextflow = 23.10.0
 * R packages
-    - Rsamtools
-
+    - data.table = 1.15.4
+    - UpSetR = 1.4.0
+    - gplots = 3.1.3.1
+    - corrplot = 0.92
+    - reshape2 = 1.4.4
+    - optparse = 1.7.4
+    - psych = 2.4.3
+    - reactable = 0.4.4
+    - tidyverse = 2.0.0
+    - stringr = 1.5.1
+    - performanceanalytics = 2.0.4
+    - parallelly = 1.37.1
+    - dendextend = 1.17.1
+    - sparkline = 2.0
+    - ggVennDiagram = 1.5.2
+    - htmltools = 0.5.8
+* Bioconductor packages
+    - GenomicRanges = 1.54.1
+    - Rsamtools = 2.18.0
+    - Biostrings = 2.70.3
+    - 
 
 <!-- File Format-->
 ## File Format
