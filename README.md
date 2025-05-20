@@ -9,10 +9,10 @@
 
 1. [Dependencies](#dependencies)
 2. [File Format](#file-format)
-    - [Sample sheet](#samplesheet)
+    - [Sample Sheet](#samplesheet)
 3. [Usage](#usage)
-    - [Run job](#runjob)
-    - [Usage options](#options)
+    - [Run](#run)
+    - [Options](#options)
 </details>
 
 <!-- Dependencies-->
@@ -61,12 +61,14 @@
     - Biostrings = 2.70.3
 </details>
 
+<br>
+
 <!-- File Format-->
 ## File Format
 
 <a id="samplesheet"></a>
 
-### Sample Sheet -- csv
+### Sample Sheet -- csv file
 | sample | replicate | directory | read1 | read2 | reference | barcode |
 | - | - | - | - | - | - | - |
 | s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz | s1_rep1_r2.fastq.gz | s1_ref.fa | s1_barcode.txt |
@@ -80,13 +82,16 @@
 > 1. The sample sheet must be a csv file and the header must be like above in the example
 > 2. all the files should be in the /path/of/directory for each sample
 
+### Barcode File-- tsv file
+
+<br>
 
 <!-- Usage-->
 ## Usage
 
-<a id="runjob"></a>
+<a id="run"></a>
 
-### Run job
+### Run
 submit the bash script below
 
 ```bash
@@ -116,9 +121,13 @@ export OUTPUTRES=$PWD/outputs
 # pipelines #
 #-----------#
 nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
-	                                     --library      random
+                                         --library      random
 ```
 
 <a id="options"></a>
 
-### Usage options
+### Options
+#### Mandatory arguments
+    --sample_sheet                path of the sample sheet
+    --outdir                      the directory path of output results, default: the current directory
+    --do_pe_reads                 whether to process paired-end reads, default: false
