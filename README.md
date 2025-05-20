@@ -13,6 +13,7 @@
 3. [Usage](#usage)
     - [Run](#run)
     - [Options](#options)
+4. [Note](#note)
 </details>
 
 <!-- Dependencies-->
@@ -131,3 +132,49 @@ nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
     --sample_sheet                path of the sample sheet
     --outdir                      the directory path of output results, default: the current directory
     --do_pe_reads                 whether to process paired-end reads, default: false
+
+#### Optional arguments
+    Basic:
+    --library                     random, muta, default: muta
+    --barcode_template            barcode template, default: NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN
+    --barcode_marker              barcode marker, default: CTACTGATTCGATGCAAGCTTG
+
+    Fastp:
+    --fastp_cut_mean_quality      mean quality for fastp, default: 20
+    
+    Flash2:
+    --flash2_min_overlap          min overlap for flash2, default: 10
+    --flash2_max_overlap          max overlap for flash2, default: 250
+    --flash2_min_overlap_outie    min overlap outie for flash2, default: 20
+    --flash2_max_mismatch_density max mismatch density for flash2, default: 0.25
+    
+    BWA:
+    --bwa_gap_open                gap open penalty for BWA, default: 10,10
+    --bwa_gap_ext                 gap extension penalty for BWA, default: 5,5
+    --bwa_clip                    clip penalty for BWA, default: 1,1
+
+    Barcode extraction:
+    --filter_softclip_base        softclip base for filtering, default: 5
+    
+    HISAT2:
+    --hisat2_score_min            min score for HISAT2, default: L,0,-0.3
+    --hisat2_mp                   min/max mismatch penalty for HISAT2, default: 5,2
+    --hisat2_sp                   min/max splice penalty for HISAT2, default: 2,1
+    --hisat2_np                   non-canonical splicing penalty for HISAT2, default: 0
+    --hisat2_pen_noncansplice     non-canonical splicing penalty for HISAT2, default: 0
+    
+    Spliced products:
+    --do_spliced_products         whether to process spliced products, default: false
+
+    Regtools:
+    --regtools_min_anchor         min anchor length for regtools, default: 5
+    --regtools_min_intron         min intron length for regtools, default: 20
+
+    Junction classification:
+    --classify_min_overlap        min overlap for classification, default: 2
+    --classify_min_cov            min coverage for classification, default: 2
+    --classify_reduce             reduce the number of reads for classification, default: 2
+
+<!-- Note-->
+## Note
+
