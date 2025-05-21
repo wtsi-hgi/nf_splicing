@@ -3,6 +3,10 @@
   <p align="center">A nextflow pipeline of identifying and quantifying splicing events</p>
 </div>
 
+<p align="center">
+  <img src="image/background.png" alt="Splicing Analysis Pipeline Structure">
+</p>
+
 ## Table of Contents
 <details open>
 <summary><b>[Show or Hide]</b></summary>
@@ -20,7 +24,7 @@
 ## Dependencies
 <details>
 <summary><b>Software</b></summary>
-	
+
     pigz = 2.7
     BWA = 0.7.17
     HISAT2 = 2.2.1
@@ -80,8 +84,8 @@
 | s2 | rep3 | /path/of/directory/ | s2_rep3_r1.fastq.gz | s2_rep3_r2.fastq.gz | s2_ref.fa | s2_barcode.txt |
 
 > [!IMPORTANT]
-> 1. The sample sheet must be a csv file and the header must be like above in the example
-> 2. all the files should be in the /path/of/directory for each sample
+> 1. The sample sheet must be a **csv** file and the header must be like above in the example
+> 2. all the files should be in the **directory** for each sample
 
 ### Barcode File-- tsv file
 
