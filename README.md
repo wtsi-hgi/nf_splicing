@@ -215,12 +215,54 @@ nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
     │       ├─── 📄 s1_rep2.splicing_matrix.txt
     │       ├─── 📄 s1_rep3.splicing_matrix.txt
     └─── 📁 splicing_reports
-            ├─── 📁 s1
+            └─── 📁 s1
                     ├─── 📄 splicing_report.html
                     └─── 📄 *.png
 ```
 
 ### File Description
+#### Extracted barcodes
+These files summarize all the barcodes in the sequencing library, categorized by canonical and novel splicing events. Compared to the barcode association file, they typically contain more detected barcodes, as the pipeline permits a one-base mismatch during barcode detection.
+
+* **barcodes of canonical splicing events**
+
+| sample | replicate | directory | read1 |
+| - | - | - | - |
+| s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz |
+| s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz |
+
+
+* **barcodes of novel splicing events**
+
+| sample | replicate | directory | read1 |
+| - | - | - | - |
+| s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz |
+| s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz |
+
+
+#### Novel junctions
+
+* **junction bed file**
+
+
+* **classified junctions of all the variants**
+
+
+* **classified junctions (reduced)**
+
+
+#### Novel splicing results
+
+* **novel splicing bam**
+
+
+
+* **novel splicing products**
+
+
+#### Splicing counts
+
+#### Splicing reports
 
 
 <!-- Note-->
