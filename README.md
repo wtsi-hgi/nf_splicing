@@ -96,8 +96,8 @@
 
 <a id="run"></a>
 
-### Run
-submit the bash script below
+### Run -- Sanger farm
+Please submit the bash script below
 
 ```bash
 #!/bin/bash
