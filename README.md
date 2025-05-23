@@ -9,7 +9,7 @@
 
 ## Table of Contents
 <details open>
-<summary><b>[Show or Hide]</b></summary>
+<summary><b>Catalogue</b></summary>
 
 1. [Dependencies](#dependencies)
 2. [File Format](#file-format)
@@ -17,7 +17,10 @@
 3. [Usage](#usage)
     - [Run](#run)
     - [Options](#options)
-4. [Note](#note)
+4. [Outputs](#outputs)
+    - [Structure](#structure)
+    - [File Description](#file-description)
+5. [Note](#note)
 </details>
 
 <!-- Dependencies-->
@@ -61,9 +64,9 @@
 <details>
 <summary><b>Bioconductor Packages</b></summary>
 
-    - GenomicRanges = 1.54.1
-    - Rsamtools = 2.18.0
-    - Biostrings = 2.70.3
+    GenomicRanges = 1.54.1
+    Rsamtools = 2.18.0
+    Biostrings = 2.70.3
 </details>
 
 <br>
@@ -178,6 +181,47 @@ nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
     --classify_min_overlap        min overlap for classification, default: 2
     --classify_min_cov            min coverage for classification, default: 2
     --classify_reduce             reduce the number of reads for classification, default: 2
+
+
+<!-- Outputs-->
+## Outputs
+### Structure
+
+```bash
+📁 output_directory
+    ├─── 📁 extracted_barcodes
+    │       ├─── 📁 s1_rep1
+    │       │       ├─── 📄 canonical_barcodes.txt
+    │       │       ├─── 📄 novel_barcodes.txt
+    │       ├─── 📁 s1_rep2
+    │       ├─── 📁 s1_rep3
+    ├─── 📁 novel_junctions
+    │       ├─── 📁 s1_rep1
+    │       │       ├─── 📄 junctions.bed
+    │       │       ├─── 📄 classified_junctions.txt
+    │       │       ├─── 📄 classified_junctions.reduce.txt
+    │       │       ├─── 📄 classified_junctions.png
+    │       │       ├─── 📄 classified_variants.png
+    │       ├─── 📁 s1_rep2
+    │       ├─── 📁 s1_rep3
+    ├─── 📁 novel_splicing_results
+    │       ├─── 📁 s1_rep1
+    │       │       ├─── 📄 spliced_alignment.bam
+    │       │       ├─── 📄 spliced_products.txt
+    │       ├─── 📁 s1_rep2
+    │       ├─── 📁 s1_rep3
+    ├─── 📁 splicing_counts
+    │       ├─── 📄 s1_rep1.splicing_matrix.txt
+    │       ├─── 📄 s1_rep2.splicing_matrix.txt
+    │       ├─── 📄 s1_rep3.splicing_matrix.txt
+    └─── 📁 splicing_reports
+            ├─── 📁 s1
+                    ├─── 📄 splicing_report.html
+                    └─── 📄 *.png
+```
+
+### File Description
+
 
 <!-- Note-->
 ## Note
