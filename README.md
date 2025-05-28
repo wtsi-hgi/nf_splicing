@@ -95,8 +95,8 @@
 ### Reference File
 The reference must be the sequence(s) of the minigene with ${\textsf{\color{red}exons in uppercase}}$ and ${\textsf{\color{red}introns in lowercase}}$.
 
-* **Random Intron Library:**  
-* **Mutagenesis Library:**
+* **Random Intron Library:** The reference file should contain all variant sequences. For example, if the library includes 100 random intron sequences, the reference fasta file must include all 100 corresponding sequences.
+* **Mutagenesis Library:** The reference file only needs the wild-type sequence.
 
 ### Barcode File
 
@@ -200,28 +200,28 @@ nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
     ├─── 📁 extracted_barcodes
     │       ├─── 📁 s1_rep1
     │       │       ├─── 📄 canonical_barcodes.txt
-    │       │       ├─── 📄 novel_barcodes.txt
+    │       │       └─── 📄 novel_barcodes.txt
     │       ├─── 📁 s1_rep2
-    │       ├─── 📁 s1_rep3
+    │       └─── 📁 s1_rep3
     ├─── 📁 novel_junctions
     │       ├─── 📁 s1_rep1
     │       │       ├─── 📄 junctions.bed
     │       │       ├─── 📄 classified_junctions.txt
     │       │       ├─── 📄 classified_junctions.reduce.txt
     │       │       ├─── 📄 classified_junctions.png
-    │       │       ├─── 📄 classified_variants.png
+    │       │       └─── 📄 classified_variants.png
     │       ├─── 📁 s1_rep2
-    │       ├─── 📁 s1_rep3
+    │       └─── 📁 s1_rep3
     ├─── 📁 novel_splicing_results
     │       ├─── 📁 s1_rep1
     │       │       ├─── 📄 spliced_alignment.bam
-    │       │       ├─── 📄 spliced_products.txt
+    │       │       └─── 📄 spliced_products.txt
     │       ├─── 📁 s1_rep2
-    │       ├─── 📁 s1_rep3
+    │       └─── 📁 s1_rep3
     ├─── 📁 splicing_counts
     │       ├─── 📄 s1_rep1.splicing_matrix.txt
     │       ├─── 📄 s1_rep2.splicing_matrix.txt
-    │       ├─── 📄 s1_rep3.splicing_matrix.txt
+    │       └─── 📄 s1_rep3.splicing_matrix.txt
     └─── 📁 splicing_reports
             └─── 📁 s1
                     ├─── 📄 splicing_report.html
@@ -232,7 +232,8 @@ nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
 #### Extracted barcodes
 These files summarize all the barcodes in the sequencing library, categorized by canonical and novel splicing events. Compared to the barcode association file, they typically contain more detected barcodes, as the pipeline permits a one-base mismatch during barcode detection.
 
-* **barcodes of canonical splicing events**
+> [!NOTE]
+> 📄 **barcodes of canonical splicing events**
 
 | sample | replicate | directory | read1 |
 | - | - | - | - |
@@ -240,7 +241,7 @@ These files summarize all the barcodes in the sequencing library, categorized by
 | s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz |
 
 
-* **barcodes of novel splicing events**
+📄 **barcodes of novel splicing events**
 
 | sample | replicate | directory | read1 |
 | - | - | - | - |
@@ -251,23 +252,25 @@ These files summarize all the barcodes in the sequencing library, categorized by
 
 #### Novel junctions
 
-* **junction bed file**
+📄 **junction bed file**
 
+This is the bed output file which contains all the junctions detected in the sample.
 
-* **classified junctions of all the variants**
+📄 **classified junctions of all the variants**
 
+This is 
 
-* **classified junctions (reduced)**
+📄 **classified junctions (reduced)**
 
 <br>
 
 #### Novel splicing results
 
-* **novel splicing bam**
+📄 **novel splicing bam**
 
 
 
-* **novel splicing products**
+📄 **novel splicing products**
 
 <br>
 
