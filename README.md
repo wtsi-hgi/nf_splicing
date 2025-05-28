@@ -234,19 +234,18 @@ These files summarize all the barcodes in the sequencing library, categorized by
 
 > [!NOTE]
 > 📄 **barcodes of canonical splicing events**
-
-| sample | replicate | directory | read1 |
-| - | - | - | - |
-| s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz |
-| s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz |
-
-
-📄 **barcodes of novel splicing events**
-
-| sample | replicate | directory | read1 |
-| - | - | - | - |
-| s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz |
-| s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz |
+>  
+> | sample | replicate | directory | read1 |
+> | - | - | - | - |
+> | s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz |
+> | s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz |
+>
+> 📄 **barcodes of novel splicing events**
+> 
+> | sample | replicate | directory | read1 |
+> | - | - | - | - |
+> | s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz |
+> | s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz |
 
 <br>
 
