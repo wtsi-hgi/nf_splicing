@@ -14,6 +14,8 @@
 1. [Dependencies](#dependencies)
 2. [File Format](#file-format)
     - [Sample Sheet](#samplesheet)
+    - [Reference File](#reference-file)
+    - [Barcode File](#barcode-file)
 3. [Usage](#usage)
     - [Run](#run)
     - [Options](#options)
@@ -76,7 +78,7 @@
 
 <a id="samplesheet"></a>
 
-### Sample Sheet -- csv file
+### Sample Sheet
 | sample | replicate | directory | read1 | read2 | reference | barcode |
 | - | - | - | - | - | - | - |
 | s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz | s1_rep1_r2.fastq.gz | s1_ref.fa | s1_barcode.txt |
@@ -87,10 +89,16 @@
 | s2 | rep3 | /path/of/directory/ | s2_rep3_r1.fastq.gz | s2_rep3_r2.fastq.gz | s2_ref.fa | s2_barcode.txt |
 
 > [!IMPORTANT]
-> 1. The sample sheet must be a **csv** file and the header must be like above in the example
-> 2. all the files should be in the **directory** for each sample
+> 1. The sample sheet must be a ${\textsf{\color{red}csv}}$ file and the header must be like above in the example
+> 2. all the files should be in the ${\textsf{\color{red}directory}}$ for each sample
 
-### Barcode File-- tsv file
+### Reference File
+The reference must be the sequence(s) of the minigene with ${\textsf{\color{red}exons in uppercase}}$ and ${\textsf{\color{red}introns in lowercase}}$.
+
+* **Random Intron Library:**  
+* **Mutagenesis Library:**
+
+### Barcode File
 
 <br>
 
@@ -239,6 +247,7 @@ These files summarize all the barcodes in the sequencing library, categorized by
 | s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz |
 | s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz |
 
+<br>
 
 #### Novel junctions
 
@@ -250,6 +259,7 @@ These files summarize all the barcodes in the sequencing library, categorized by
 
 * **classified junctions (reduced)**
 
+<br>
 
 #### Novel splicing results
 
@@ -259,11 +269,16 @@ These files summarize all the barcodes in the sequencing library, categorized by
 
 * **novel splicing products**
 
+<br>
 
 #### Splicing counts
 
+<br>
+
 #### Splicing reports
 
+
+<br>
 
 <!-- Note-->
 ## Note
