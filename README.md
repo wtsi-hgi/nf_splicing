@@ -4,7 +4,7 @@
 </div>
 
 <p align="center">
-  <img src="image/background.png" alt="Splicing Analysis Pipeline Structure">
+  <img src="image/pipeline_structure.gif" alt="Splicing Analysis Pipeline Structure">
 </p>
 
 ## Table of Contents
@@ -23,6 +23,7 @@
     - [Structure](#structure)
     - [File Description](#file-description)
 5. [Note](#note)
+    - [Junction Classification](#junction-classification)
 </details>
 
 <!-- Dependencies-->
@@ -251,37 +252,65 @@ These files summarize all the barcodes in the sequencing library, categorized by
 
 #### Novel junctions
 
-📄 **junction bed file**
-
-This is the bed output file which contains all the junctions detected in the sample.
-
-📄 **classified junctions of all the variants**
-
-This is 
-
-📄 **classified junctions (reduced)**
+> [!NOTE]
+> 📄 **junction bed file**
+> 
+> This is a ${\textsf{\color{red}bed}}$ output file which contains all the junctions detected in the sample.
+> 
+> 📄 **classified junctions of all the variants**
+> 
+> This is a ${\textsf{\color{red}tsv}}$ output file which contains all the classified junctions for all the variants
+> 
+> 📄 **classified junctions (reduced)**
+>
+> This is a ${\textsf{\color{red}tsv}}$ output file which contains all the classified junctions regardless of variants, only based on the splicing sites.
 
 <br>
 
 #### Novel splicing results
 
-📄 **novel splicing bam**
-
-
-
-📄 **novel splicing products**
+> [!NOTE]
+> 📄 **novel splicing bam**
+> 
+> This is the bam output file for novel splicing events.
+>
+> 📄 **novel splicing products**
+> 
+> This is an output file which contains all the spliced products generating from the bam file.
 
 <br>
 
 #### Splicing counts
 
+This is a raw-read-count file for each splicing event.
+
 <br>
 
 #### Splicing reports
 
+This is a summary html file.
 
 <br>
 
 <!-- Note-->
 ## Note
+### Junction Classification
+**Canonical Inclusion E2**
 
+
+
+canonical_inclusion_E6
+canonical_skipping_E6
+intron_retention_I5
+intron_retention_I6
+intron_retension_5p_I5
+intron_retension_5p_I6
+intron_retension_3p_I5
+intron_retension_3p_I6
+exon_splicing_3p_E5
+exon_splicing_3p_E6
+exon_splicing_3p_E7
+exon_splicing_5p_E5
+exon_splicing_5p_E6
+exon_splicing_5p_E7
+exon_skipping_E6
