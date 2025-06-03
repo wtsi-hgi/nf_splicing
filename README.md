@@ -297,6 +297,5 @@ This is a summary html file.
 ### Junction Classification
 
 <p align="center">
-  <img src="image/junction_classification.png
-  " alt="Junction Classification">
+  <img src="image/junction_classification.png" alt="Junction Classification">
 </p>
