@@ -90,11 +90,11 @@
 | s2 | rep3 | /path/of/directory/ | s2_rep3_r1.fastq.gz | s2_rep3_r2.fastq.gz | s2_ref.fa | s2_barcode.txt |
 
 > [!IMPORTANT]
-> 1. The sample sheet must be a ${\textsf{\color{red}csv}}$ file and the header must be like above in the example
-> 2. all the files should be in the ${\textsf{\color{red}directory}}$ for each sample
+> 1. The sample sheet must be a **csv** file and the header must be like above in the example
+> 2. All the files should be in the **directory** for each sample
 
 ### Reference File
-The reference must be the sequence(s) of the minigene with ${\textsf{\color{red}exons in uppercase}}$ and ${\textsf{\color{red}introns in lowercase}}$.
+The reference must be the sequence(s) of the minigene with **exons in uppercase** and **introns in lowercase**.
 
 * **Random Intron Library:** The reference file should contain all variant sequences. For example, if the library includes 100 random intron sequences, the reference fasta file must include all 100 corresponding sequences.
 * **Mutagenesis Library:** The reference file only needs the wild-type sequence.
@@ -255,15 +255,15 @@ These files summarize all the barcodes in the sequencing library, categorized by
 > [!NOTE]
 > 📄 **junction bed file**
 > 
-> This is a ${\textsf{\color{red}bed}}$ output file which contains all the junctions detected in the sample.
+> This is a bed output file which contains all the junctions detected in the sample.
 > 
 > 📄 **classified junctions of all the variants**
 > 
-> This is a ${\textsf{\color{red}tsv}}$ output file which contains all the classified junctions for all the variants
+> This is a tsv output file which contains all the classified junctions for all the variants
 > 
 > 📄 **classified junctions (reduced)**
 >
-> This is a ${\textsf{\color{red}tsv}}$ output file which contains all the classified junctions regardless of variants, only based on the splicing sites.
+> This is a tsv output file which contains all the classified junctions regardless of variants, only based on the splicing sites.
 
 <br>
 
@@ -295,22 +295,8 @@ This is a summary html file.
 <!-- Note-->
 ## Note
 ### Junction Classification
-**Canonical Inclusion E2**
 
-
-
-canonical_inclusion_E6
-canonical_skipping_E6
-intron_retention_I5
-intron_retention_I6
-intron_retension_5p_I5
-intron_retension_5p_I6
-intron_retension_3p_I5
-intron_retension_3p_I6
-exon_splicing_3p_E5
-exon_splicing_3p_E6
-exon_splicing_3p_E7
-exon_splicing_5p_E5
-exon_splicing_5p_E6
-exon_splicing_5p_E7
-exon_skipping_E6
+<p align="center">
+  <img src="image/junction_classification.png
+  " alt="Junction Classification">
+</p>
