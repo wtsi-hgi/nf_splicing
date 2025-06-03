@@ -93,13 +93,24 @@
 > 1. The sample sheet must be a **csv** file and the header must be like above in the example
 > 2. All the files should be in the **directory** for each sample
 
+<br>
+
 ### Reference File
 The reference must be the sequence(s) of the minigene with **exons in uppercase** and **introns in lowercase**.
 
 * **Random Intron Library:** The reference file should contain all variant sequences. For example, if the library includes 100 random intron sequences, the reference fasta file must include all 100 corresponding sequences.
 * **Mutagenesis Library:** The reference file only needs the wild-type sequence.
 
-### Barcode File
+<br>
+
+### Barcode Association File
+Please provide the barcode association file as below
+
+| barcode | variant | varid | count |
+| - | - | - | - |
+| CCAAATAATCATTAGGATCAGCATATTAATCTAGATTC | GTAAGTCGAAGAATTCTTGGGGAAACAGATTGAAATAACTTGGGAAGTAGTTCTTTCTCTTAGTGTGAAAGTATGTTCTCA | var1 | 56 |
+| ATCTATCAGAATGTATATTGGGATAAAAATAGTGATTC | GTAAGTGATTCAGGAGAGTTTCGTTCAGATTGAAATAACTTGGGAAGTAGTTCTTTCTCTTAGTGTGAAAGTATGTTCTCA | var2 | 293 |
+
 
 <br>
 
