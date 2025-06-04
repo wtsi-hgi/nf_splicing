@@ -96,10 +96,15 @@
 <br>
 
 ### Reference File
-The reference must be the sequence(s) of the minigene with **exons in uppercase** and **introns in lowercase**.
+The reference must be the sequence(s) of the minigene.
 
 * **Random Intron Library:** The reference file should contain all variant sequences. For example, if the library includes 100 random intron sequences, the reference fasta file must include all 100 corresponding sequences.
 * **Mutagenesis Library:** The reference file only needs the wild-type sequence.
+
+> [!IMPORTANT]
+> 1. File must be a fasta file
+> 2. **Exons** must be in **Uppercase**
+> 3. **Introns** must be in **Lowercase**
 
 <br>
 
@@ -111,6 +116,8 @@ Please provide the barcode association file as below
 | CCAAATAATCATTAGGATCAGCATATTAATCTAGATTC | GTAAGTCGAAGAATTCTTGGGGAAACAGATTGAAATAACTTGGGAAGTAGTTCTTTCTCTTAGTGTGAAAGTATGTTCTCA | var1 | 56 |
 | ATCTATCAGAATGTATATTGGGATAAAAATAGTGATTC | GTAAGTGATTCAGGAGAGTTTCGTTCAGATTGAAATAACTTGGGAAGTAGTTCTTTCTCTTAGTGTGAAAGTATGTTCTCA | var2 | 293 |
 
+> [!IMPORTANT]
+> 1. The barcode association file must be a **tsv** file and the header must be like above in the example
 
 <br>
 
@@ -247,17 +254,17 @@ These files summarize all the barcodes in the sequencing library, categorized by
 > [!NOTE]
 > 📄 **barcodes of canonical splicing events**
 >  
-> | sample | replicate | directory | read1 |
+> | name | barcode | varid | count |
 > | - | - | - | - |
-> | s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz |
-> | s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz |
+> | E1_E2_E3 | ATTAATAATTATCTCTATAGGCATGACCATGATCATAG | var1 | 23 |
+> | E1_E3 | TTTTATTTCGATATTAATCATGATATAAATGTTCATAC | var2 | 143 |
 >
 > 📄 **barcodes of novel splicing events**
 > 
-> | sample | replicate | directory | read1 |
-> | - | - | - | - |
-> | s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz |
-> | s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz |
+> | barcode | varid | count |
+> | - | - | - |
+> | ATTAATAATTATCTCTATAGGCATGACCATGATCATAG | var1 | 23 |
+> | TTTTATTTCGATATTAATCATGATATAAATGTTCATAC | var2 | 143 |
 
 <br>
 
@@ -267,14 +274,30 @@ These files summarize all the barcodes in the sequencing library, categorized by
 > 📄 **junction bed file**
 > 
 > This is a bed output file which contains all the junctions detected in the sample.
-> 
+>
+> | chrom | chromStart | chromEnd | name | score | strand | thickStart | thickEnd | itemRgb | blockCount | blockSizes | blockStarts |
+> | - | - | - | - | - | - | - | - | - | - | - | - |
+> | var1 | 25 | 451 | JUNC00000001 | 55 | ? | 25 | 451 | 255,0,0 | 2 | 35,29 | 0,397 |
+> | var1 | 28 | 451 | JUNC00000002 | 156 | ? | 28 | 451 | 255,0,0 | 2 | 73,106 | 0,317 |
+> | var2 | 29 | 451 | JUNC00000004 | 225 | ? | 29 | 451 | 255,0,0 | 2 | 37,303 | 0,119 |
+> | var3 | 29 | 451 | JUNC00000006 | 84 | ? | 29 | 451 | 255,0,0 | 2 | 33,101 | 0,321 |
+> | var3 | 29 | 451 | JUNC00000007 | 43 | ? | 29 | 451 | 255,0,0 | 2 | 29,29 | 0,393 |
+>
 > 📄 **classified junctions of all the variants**
 > 
 > This is a tsv output file which contains all the classified junctions for all the variants
+> | varid | start | end | cov | annotation |
+> | - | - | - | - | - | 
+> | var1 | 48 | 139 | 11 | exon_splicing_3p_E1;<br>intron_retension_3p_I1 |
+> | var2 | 77 | 340 | 3578 | exon_skipping_E2;<br>intron_retension_5p_I1;<br>intron_retension_3p_I2 |
 > 
 > 📄 **classified junctions (reduced)**
 >
 > This is a tsv output file which contains all the classified junctions regardless of variants, only based on the splicing sites.
+> | start | end | cov | annotation |
+> | - | - | - | - | 
+> | 48 | 139 | 11 | exon_splicing_3p_E1;<br>intron_retension_3p_I1 |
+> | 77 | 340 | 3578 | exon_skipping_E2;<br>intron_retension_5p_I1;<br>intron_retension_3p_I2 |
 
 <br>
 
@@ -287,19 +310,27 @@ These files summarize all the barcodes in the sequencing library, categorized by
 >
 > 📄 **novel splicing products**
 > 
-> This is an output file which contains all the spliced products generating from the bam file.
+> This is an output file which contains all the spliced products (sequences) generating from the bam file.
 
 <br>
 
-#### Splicing counts
+#### Qauntification of splicing events
 
-This is a raw-read-count file for each splicing event.
+> [!NOTE] 📄 **raw read count file**
+>
+> | varid | canonical_<br>inclusion_<br>E2 | canonical_<br>skipping_<br>E2 | intron_<br>retention_<br>I1 | intron_<br>retention_<br>I2 | intron_<br>retension_<br>5p_I1 | intron_<br>retension_<br>5p_I2 | intron_<br>retension_<br>3p_I1 | intron_<br>retension_<br>3p_I2 | exon_<br>splicing_<br>3p_E1 | exon_<br>splicing_<br>3p_E2 | exon_<br>splicing_<br>3p_E3 | exon_<br>splicing_<br>5p_E1 | exon_<br>splicing_<br>5p_E2 | exon_<br>splicing_<br>5p_E3 | exon_<br>skipping_<br>E2 |
+> | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+> | var1 | 743 | 90 | 47 | 21 | 0 | 0 | 5 | 0 | 5 | 0 | 0 | 0 | 0 | 0 | 10 |
+> | var2 | 235 | 16 | 63 | 18 | 0 | 0 | 6 | 0 | 6 | 0 | 0 | 0 | 0 | 0 | 22 |
+> | var3 | 229 | 20 | 62 | 14 | 0 | 0 | 7 | 0 | 7 | 0 | 0 | 0 | 0 | 0 | 18 |
 
 <br>
 
 #### Splicing reports
 
-This is a summary html file.
+This summary HTML file presents the summary of the statistical analysis and general overviews.
+
+[View an example](example/splicing_report.html)
 
 <br>
 
