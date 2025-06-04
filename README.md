@@ -316,7 +316,8 @@ These files summarize all the barcodes in the sequencing library, categorized by
 
 #### Qauntification of splicing events
 
-> [!NOTE] 📄 **raw read count file**
+> [!NOTE] 
+> 📄 **raw read count file**
 >
 > | varid | canonical_<br>inclusion_<br>E2 | canonical_<br>skipping_<br>E2 | intron_<br>retention_<br>I1 | intron_<br>retention_<br>I2 | intron_<br>retension_<br>5p_I1 | intron_<br>retension_<br>5p_I2 | intron_<br>retension_<br>3p_I1 | intron_<br>retension_<br>3p_I2 | exon_<br>splicing_<br>3p_E1 | exon_<br>splicing_<br>3p_E2 | exon_<br>splicing_<br>3p_E3 | exon_<br>splicing_<br>5p_E1 | exon_<br>splicing_<br>5p_E2 | exon_<br>splicing_<br>5p_E3 | exon_<br>skipping_<br>E2 |
 > | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
@@ -329,8 +330,6 @@ These files summarize all the barcodes in the sequencing library, categorized by
 #### Splicing reports
 
 This summary HTML file presents the summary of the statistical analysis and general overviews.
-
-[View an example](example/splicing_report.html)
 
 <br>
 
