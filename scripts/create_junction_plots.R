@@ -75,7 +75,7 @@ panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
     rect(0, 0, 1, 1, col = bg.col, border = NA)
     
     # Draw correlation text on top
-    text(0.5, 0.5, txt, cex = 1 + cex.cor * Cor)
+    text(0.5, 0.5, txt, cex = 0.6 + cex.cor * Cor)
 }
 
 panel.smooth <- function(x, y, 
@@ -148,11 +148,6 @@ for(i in 1:length(reps))
     venn_junctions[[reps[i]]] <- paste(novel_junctions[[reps[i]]]$VarID, novel_junctions[[reps[i]]]$Start, novel_junctions[[reps[i]]]$End, sep = "__")
 }
 
-png(paste0(sample_prefix, ".junction_venn.png"), width = 1600, height = 1600, units = "px", res = 250)
-ggVennDiagram(venn_junctions, label_alpha = 0, edge_size = 0.2) + 
-    scale_fill_gradient(low = "ivory", high = "tomato")
-dev.off()
-
 venn_obj <- Venn(venn_junctions)
 venn_data <- process_data(venn_obj)
 junc_shared <- venn_data$regionData %>% slice(4:7) %>% pull(item) %>% reduce(c)
@@ -195,7 +190,17 @@ join_tmp$End <- as.numeric(join_tmp$End)
 
 write.table(join_tmp, paste0(sample_prefix, ".junction_category.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
 
-png(paste0(sample_prefix, ".junction_scatter.png"), width = 1600, height = 1400, units = "px", res = 250)
+cor_data <- join_tmp %>% select(all_of(reps))
+cor_data[is.na(cor_data)] <- 0
+cor_data_norm <- cor_data %>% mutate(across(everything(), ~ log2((. / sum(.)) * 1e6 + 1)))
+
+#-- plotting --#
+png(paste0(sample_prefix, ".junction_venn.png"), width = 1600, height = 1600, units = "px", res = 250)
+ggVennDiagram(venn_junctions, label_alpha = 0, edge_size = 0.2) + 
+    scale_fill_gradient(low = "ivory", high = "tomato")
+dev.off()
+
+png(paste0(sample_prefix, ".junction_scatter.png"), width = 1600, height = 1400, units = "px", res = 200)
 ggplot(join_tmp, aes(x = Start, y = End, color = CovAvg)) +
     theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     geom_vline(data = exon_positions, aes(xintercept = exon_start), color = "lightgrey", linetype = "dashed") +
@@ -214,30 +219,27 @@ ggplot(join_tmp, aes(x = Start, y = End, color = CovAvg)) +
     geom_segment(data = intron_positions, inherit.aes = FALSE, fill = "grey", alpha = 0.6, aes(y = intron_start, yend = intron_end, x = -5, xend = -5))
 dev.off()
 
-png(paste0(sample_prefix, ".junction_view.png"), width = 1600, height = 600, units = "px", res = 250)
+png(paste0(sample_prefix, ".junction_view.png"), width = 1600, height = 600, units = "px", res = 200)
 ggplot() + 
-    geom_rect(data = exon_positions, aes(xmin = exon_start, xmax = exon_end, ymin = 0.8, ymax = 1), fill = "deepskyblue3", color = "deepskyblue3") +
-    geom_rect(data = intron_positions, aes(xmin = intron_start, xmax = intron_end, ymin = 0.87, ymax = 0.93), fill = "darkgrey", color = "darkgrey") +
-    geom_curve(data = join_tmp, aes(x = Start, xend = End, y = 1, yend = 1, alpha = CovAvg), curvature = -0.5, color = "red", linewidth = 0.2, lineend = "round") +
-    scale_alpha(range = c(0.02, 1)) +
-    coord_cartesian(xlim = c(0, 500), ylim = c(0, 3)) +
+    geom_rect(data = exon_positions, fill = t_col("darkgreen", 0.6), color = t_col("darkgreen", 0.6), aes(xmin = exon_start, xmax = exon_end, ymin = 0.8, ymax = 1)) +
+    geom_rect(data = intron_positions, fill = "grey", color = "grey", aes(xmin = intron_start, xmax = intron_end, ymin = 0.87, ymax = 0.93)) +
+    geom_curve(data = join_tmp, aes(x = Start, xend = End, y = 1, yend = 1, color = CovAvg, alpha = CovAvg), curvature = -0.5, linewidth = 0.2, lineend = "round") +
+    scale_color_gradient(trans = "log10", low = "blue", high = "brown1", labels = label_number(accuracy = 1)) +
+    scale_alpha(trans = "log10", range = c(0.01, 1)) + guides(alpha = "none") +
+    coord_cartesian(xlim = c(0, max(exon_positions$exon_end)), ylim = c(0, 3)) +
     theme_void()
 dev.off()
 
-png(paste0(sample_prefix, ".junction_distribution.png"), width = 2000, height = 1200, units = "px", res = 250)
+png(paste0(sample_prefix, ".junction_distribution.png"), width = 2000, height = 1200, units = "px", res = 200)
 par(mfrow = c(2,1), mar = c(5, 4, 1, 1))
-boxplot(join_tmp$CovAvg, log = 'x', horizontal = T, frame.plot = F, col = "royalblue", outcol = "brown1", pch = 21, cex = 0.5, cex.axis = 0.8)
+boxplot(join_tmp$CovAvg, log = 'x', horizontal = T, frame.plot = F, col = "forestgreen", outcol = "darkgrey", pch = 21, cex = 0.5, cex.axis = 0.8)
 h <- hist(join_tmp$CovAvg, breaks = 40, plot = F)
 h_log <- log10(h$counts + 1)
-plot(h$mids, h_log, type = "h", lwd = 3, col = "royalblue", xlab = "CovAvg", ylab = "Frequency", frame.plot = F, yaxt = "n", cex.axis = 0.8)
+plot(h$mids, h_log, type = "h", lwd = 3, col = "forestgreen", xlab = "CovAvg", ylab = "Frequency", frame.plot = F, yaxt = "n", cex.axis = 0.8)
 axis(side = 2, at = 0:max(ceiling(h_log)), labels = 10^(0:max(ceiling(h_log))), las = 1, cex.axis = 0.8)
 dev.off()
 
-cor_data <- join_tmp %>% select(all_of(reps))
-cor_data[is.na(cor_data)] <- 0
-cor_data_norm <- cor_data %>% mutate(across(everything(), ~ log2((. / sum(.)) * 1e6 + 1)))
-
-png(paste0(sample_prefix, ".junction_corr.png"), width = 800, height = 800, units = "px", res = 100)
+png(paste0(sample_prefix, ".junction_corr.png"), width = 1600, height = 1600, units = "px", res = 100)
 pairs(cor_data_norm,
       upper.panel = panel.cor,
       diag.panel = panel.hist,

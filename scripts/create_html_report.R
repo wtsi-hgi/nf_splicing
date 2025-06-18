@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, character.only = TRUE))) }
-packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", "reactable", "optparse")
+packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", "reactable", "optparse", "sparkline")
 invisible(lapply(packages, quiet_library))
 
 #-- options --#
@@ -13,6 +13,7 @@ option_list <- list(make_option(c("-b", "--barcode_association"), type = "charac
                     make_option(c("-c", "--canonical_barcodes"),  type = "character", help = "list of extracted canonical barcode files", default = NULL),
                     make_option(c("-n", "--novel_barcodes"),      type = "character", help = "list of extracted novel barcode files",     default = NULL),
                     make_option(c("-j", "--junction_plots"),      type = "character", help = "list of junction plots",                    default = NULL),
+                    make_option(c("-g", "--junction_category"),   type = "character", help = "junction category file",                    default = NULL),
                     make_option(c("-o", "--output_dir"),          type = "character", help = "output directory",                          default = getwd()),
                     make_option(c("-p", "--prefix"),              type = "character", help = "output prefix",                             default = "sample"))
 # Parse arguments
@@ -34,6 +35,8 @@ if(is.null(opt$filter_idxstats))     stop("-f, list of bwa map idxstats files is
 if(is.null(opt$map_stats))           stop("-a, list of hisat2 map summary files is required!", call. = FALSE)
 if(is.null(opt$canonical_barcodes))  stop("-c, list of extracted canonical barcode files is required!", call. = FALSE)
 if(is.null(opt$novel_barcodes))      stop("-n, list of extracted novel barcode files is required!", call. = FALSE)
+if(is.null(opt$junction_plots))      stop("-j, list of junction plots is required!", call. = FALSE)
+if(is.null(opt$junction_category))   stop("-g, junction category file is required!", call. = FALSE)
 
 #-- function --#
 t_col <- function(col, rate)
@@ -181,14 +184,10 @@ tib_total_cov$type <- "coverage"
 select_colors <- select_colorblind("col15")[1:2]
 fill_colors <- sapply(select_colors, function(x) t_col(x, 0.5), USE.NAMES = FALSE)
 y_scale <- max(tib_total_cov$library_coverage) * 2
-png(paste0(sample_prefix, ".total_reads_pct.png"), width = 1000, height = 1600, units = "px", res = 300)
+png(paste0(sample_prefix, ".total_reads_pct.png"), width = 1100, height = 1600, units = "px", res = 300)
 ggplot(tib_total_pct,  aes(x = reps, y = pct, fill = type)) +
-    geom_bar(stat = "identity", position = "fill") +
-    # geom_line(data = tib_total_cov, aes(x = reps, y = library_coverage / y_scale, group = 1), linetype = "dashed", color = "red", inherit.aes = FALSE) +
-    # geom_point(data = tib_total_cov, aes(x = reps, y = library_coverage / y_scale, color = type), shape = 18, size = 3, inherit.aes = FALSE) +
-    # scale_y_continuous(labels = scales::percent, sec.axis = sec_axis(~. * y_scale, name = "library coverage")) +
+    geom_bar(stat = "identity", position = "stack") +
     scale_fill_manual(values = fill_colors) +
-    scale_color_manual(values = "red") +
     labs(x = NULL, y = "percent", title = sample_prefix) +
     theme(legend.position = "right", legend.title = element_blank()) +
     theme(panel.background = element_rect(fill = "ivory", colour = "white")) +
@@ -294,13 +293,23 @@ barcode_venn_list <- paste0("c(", "\"", paste0(reps[1], ".barcodes_venn.png"), "
                                   "\"", paste0(reps[3], ".barcodes_venn.png"), "\"", ")")
 
 junction_plots <- strsplit(opt$junction_plots, ",")[[1]]
-junction_image_list <- "c("
-for (i in 1:length(junction_plots)) {
-    junction_image_list <- paste0(junction_image_list, "\"", junction_plots[i], "\"")
-    if (i < length(junction_plots)) {
-        junction_image_list <- paste0(junction_image_list, ",")
+junction_image_list1 <- "c("
+for (i in 1:2) {
+    junction_image_list1 <- paste0(junction_image_list1, "\"", junction_plots[i], "\"")
+    if (i < 2) {
+        junction_image_list1 <- paste0(junction_image_list1, ",")
     } else {
-        junction_image_list <- paste0(junction_image_list, ")")
+        junction_image_list1 <- paste0(junction_image_list1, ")")
+    }
+}
+
+junction_image_list2 <- "c("
+for (i in 3:length(junction_plots)) {
+    junction_image_list2 <- paste0(junction_image_list2, "\"", junction_plots[i], "\"")
+    if (i < length(junction_plots)) {
+        junction_image_list2 <- paste0(junction_image_list2, ",")
+    } else {
+        junction_image_list2 <- paste0(junction_image_list2, ")")
     }
 }
 
@@ -313,7 +322,7 @@ cat("date: \"`r format(Sys.time(), '%d %B %Y -- %A -- %X')`\"", "\n", sep = "")
 cat("output:", "\n", sep = "")
 cat("    html_document:", "\n", sep = "")
 cat("        toc: true", "\n", sep = "")
-cat("        toc_depth: 1", "\n", sep = "")
+cat("        toc_depth: 3", "\n", sep = "")
 cat("        theme: united", "\n", sep = "")
 cat("        highlight: tango", "\n", sep = "")
 cat("---", "\n", sep = "")
@@ -322,6 +331,7 @@ cat("\n", sep = "")
 cat("```{r setup, include = FALSE}", "\n", sep = "")
 cat("knitr::opts_chunk$set(echo = TRUE, fig.align = \"center\")", "\n", sep = "")
 cat("library(reactable)", "\n", sep = "")
+cat("library(sparkline)", "\n", sep = "")
 cat("```", "\n", sep = "")
 cat("\n", sep = "")
 
@@ -426,14 +436,26 @@ cat("---", "\n", sep = "")
 cat("\n", sep = "")
 
 cat("## 1. Introduction", "\n", sep = "")
-cat("This pipeline processes Illumina PE reads to detect the splicing events", "\n", sep = "")
+cat("This pipeline is designed to quantify splicing events within minigene-based mutagenesis libraries. 
+     Minigene systems are widely used to study the regulatory mechanisms of RNA splicing, 
+     particularly in the context of variant interpretation and functional genomics. 
+     By introducing specific mutations into synthetic constructs (minigenes), 
+     researchers can assess how sequence changes affect splicing outcomes in a controlled cellular environment.", "\n", sep = "")
 cat("\n", sep = "")
 
 cat("---", "\n", sep = "")
 cat("\n", sep = "")
 
 cat("## 2. Read Processing", "\n", sep = "")
-cat("Displays plots and statistics for all samples.", "\n", sep = "")
+cat("This section summarises the distribution of reads according to the alignments.", "\n", sep = "")
+cat("\n", sep = "")
+cat("* **total_reads:** the number of raw reads aftering adaptor trimming and quality filtering.", "\n", sep = "")
+cat("* **merged_reads:** the number of reads supporting the splicing events.", "\n", sep = "")
+cat("* **unmerged_reads:** the number of reads supporting the whole minigene transcript without any splicing event.", "\n", sep = "")
+cat("* **inclusion_reads:** the number of reads supporting canonical exon inclusion.", "\n", sep = "")
+cat("* **skipping_reads:** the number of reads supporting canonical exon skipping.", "\n", sep = "")
+cat("* **map_reads:** the number of reads supporting novel splicing events.", "\n", sep = "")
+cat("* **unexplain_reads:** the number of reads which cannot be categorized into any event.", "\n", sep = "")
 cat("\n", sep = "")
 cat("```{r, echo = FALSE}", "\n", sep = "")
 cat("df <- as.data.frame(read.table(\"", summary_reads_out, "\", header = TRUE, sep = \"\\t\", check.names = FALSE))", "\n", sep = "")
@@ -448,28 +470,68 @@ cat("\n", sep = "")
 cat("```{r, echo = FALSE, fig.show = \"hold\", fig.align = \"default\", out.height = \"30%\", out.width = \"30%\"}", "\n", sep = "")
 cat("knitr::include_graphics(", reads_image_list, ", rel_path = FALSE)", "\n", sep = "")
 cat("```", "\n", sep = "")
+cat("<br>", "\n", sep = "")
+cat("\n", sep = "")
 
 cat("---", "\n", sep = "")
 cat("\n", sep = "")
 
 cat("## 3. Barcode Processing", "\n", sep = "")
-cat("Displays plots and statistics for all samples.", "\n", sep = "")
+cat("Pipeline include a method of barcode detection which may differ from the method of input barcode association.
+     This section shows the discrepancy between the pipeline barcodes and the input barcodes", "\n", sep = "")
 cat("\n", sep = "")
 
 cat("```{r, echo = FALSE, fig.show = \"hold\", fig.align = \"default\", out.height = \"32%\", out.width = \"32%\"}", "\n", sep = "")
 cat("knitr::include_graphics(", barcode_venn_list, ", rel_path = FALSE)", "\n", sep = "")
 cat("```", "\n", sep = "")
+cat("<br>", "\n", sep = "")
+cat("\n", sep = "")
 
 cat("---", "\n", sep = "")
 cat("\n", sep = "")
 
 cat("## 4. Junction Processing", "\n", sep = "")
-cat("Displays plots and statistics for all samples.", "\n", sep = "")
+cat("This section summarises all the novel splicing events", "\n", sep = "")
+cat("\n", sep = "")
+
+cat("```{r, echo = FALSE, fig.show = \"hold\", fig.align = \"default\", out.height = \"48%\", out.width = \"48%\"}", "\n", sep = "")
+cat("knitr::include_graphics(", junction_image_list1, ", rel_path = FALSE)", "\n", sep = "")
+cat("```", "\n", sep = "")
+cat("<br>", "\n", sep = "")
+cat("\n", sep = "")
+
+cat("---", "\n", sep = "")
 cat("\n", sep = "")
 
 cat("```{r, echo = FALSE, out.height = \"80%\", out.width = \"80%\"}", "\n", sep = "")
-cat("knitr::include_graphics(", junction_image_list, ", rel_path = FALSE)", "\n", sep = "")
+cat("knitr::include_graphics(", junction_image_list2, ", rel_path = FALSE)", "\n", sep = "")
 cat("```", "\n", sep = "")
+cat("<br>", "\n", sep = "")
+cat("\n", sep = "")
+
+cat("```{r, echo = FALSE}", "\n", sep = "")
+cat("junction_category <- as_tibble(vroom(\"", opt$junction_category, "\", delim = \"\\t\", col_names = TRUE, show_col_types = FALSE))", "\n", sep = "")
+cat("junction_category_reshape <- junction_category %>%", "\n", sep = "")
+cat("                               separate_rows(Annotation, sep = \";\") %>%", "\n", sep = "")
+cat("                               group_by(Annotation) %>%", "\n", sep = "")
+cat("                               summarise(CovAvg_log = list(log10(CovAvg + 1)),", "\n", sep = "")
+cat("                                         No_of_variant = n_distinct(VarID),", "\n", sep = "")
+cat("                                         .groups = \"drop\")", "\n", sep = "")
+cat("reactable(junction_category_reshape, ", "\n", sep = "")
+cat("          columns = list(", "\n", sep = "")
+cat("              Annotation = colDef(name = \"Annotation\"),", "\n", sep = "")
+cat("              CovAvg_log = colDef(", "\n", sep = "")
+cat("                  name = \"log10(CovAvg+1)\",", "\n", sep = "")
+cat("                  cell = function(value) sparkline(value, type = \"box\"),", "\n", sep = "")
+cat("                  html = TRUE),", "\n", sep = "")
+cat("              No_of_variant = colDef(name = \"No. of Variants\")),", "\n", sep = "")
+cat("          bordered = TRUE,", "\n", sep = "")
+cat("          striped = TRUE,", "\n", sep = "")
+cat("          highlight = TRUE,", "\n", sep = "")
+cat("          defaultPageSize = 12)", "\n", sep = "")
+cat("```", "\n", sep = "")
+cat("<br>", "\n", sep = "")
+cat("\n", sep = "")
 
 sink()
 rmarkdown::render(report_path, clean = TRUE, quiet = TRUE)

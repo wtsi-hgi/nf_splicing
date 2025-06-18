@@ -23,6 +23,7 @@ workflow summarise_results {
 
     create_junction_plots(ch_plots)
     ch_junction_plots = create_junction_plots.out.ch_junction_plots
+    ch_junction_category = create_junction_plots.out.ch_junction_category
 
     /* -- 3. create count matrix -- */
     ch_input = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions -> 
@@ -46,10 +47,11 @@ workflow summarise_results {
 
     ch_report_filtered = ch_barcode_association.join(ch_report_filtered)
                                                .join(ch_junction_plots)
+                                               .join(ch_junction_category)
                                                .map{ sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, 
-                                                        junction_venn, junction_scatter, junction_view, junction_distribution, junction_corr ->
+                                                        junction_venn, junction_scatter, junction_view, junction_distribution, junction_corr, junction_category ->
                                                      tuple(sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, 
-                                                        [junction_venn, junction_scatter, junction_view, junction_distribution, junction_corr]) }
+                                                        [junction_venn, junction_scatter, junction_view, junction_distribution, junction_corr], junction_category) }
     
     create_html_report(ch_report_filtered)
     ch_html_report = create_html_report.out.ch_html_report
@@ -89,11 +91,12 @@ process create_junction_plots {
     tuple val(sample), val(sample_id), val(classified_junctions), path(exon_pos)
 
     output:
-    tuple val(sample), path("${sample}.junction_venn.png"), 
-                       path("${sample}.junction_scatter.png"), 
+    tuple val(sample), path("${sample}.junction_venn.png"),
+                       path("${sample}.junction_corr.png"),
                        path("${sample}.junction_view.png"),
-                       path("${sample}.junction_distribution.png"), 
-                       path("${sample}.junction_corr.png"), emit: ch_junction_plots
+                       path("${sample}.junction_scatter.png"), 
+                       path("${sample}.junction_distribution.png"), emit: ch_junction_plots
+    tuple val(sample), path("${sample}.junction_category.txt"), emit: ch_junction_category
 
     script:
     """
@@ -126,7 +129,7 @@ process create_html_report {
     input:
     tuple val(sample), path(barcode), val(sample_id), 
           val(merge_stats), val(trim_stats), val(sample_idxstats), val(filter_barcodes), val(map_barcodes), val(summary), 
-          val(junction_plots)
+          val(junction_plots), val(junction_category)
 
     output:
     tuple val(sample), path("${sample}.splicing_report.html"), emit: ch_html_report
@@ -151,6 +154,7 @@ process create_html_report {
                                                -c ${list_filter_barcodes} \
                                                -n ${list_map_barcodes} \
                                                -j ${list_junction_plots} \
+                                               -g ${junction_category} \
                                                -p ${sample}
     """
 }
