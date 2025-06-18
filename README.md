@@ -11,20 +11,27 @@
 <details open>
 <summary><b>Catalogue</b></summary>
 
-1. [Dependencies](#dependencies)
-2. [File Format](#file-format)
+1. [Description](#description)
+2. [Dependencies](#dependencies)
+3. [File Format](#file-format)
     - [Sample Sheet](#samplesheet)
     - [Reference File](#reference-file)
     - [Barcode File](#barcode-file)
-3. [Usage](#usage)
+4. [Usage](#usage)
     - [Run](#run)
     - [Options](#options)
-4. [Outputs](#outputs)
+5. [Outputs](#outputs)
     - [Structure](#structure)
     - [File Description](#file-description)
-5. [Note](#note)
+6. [Note](#note)
     - [Junction Classification](#junction-classification)
 </details>
+
+<!-- Description-->
+## Description
+This pipeline is designed to quantify splicing events within minigene-based mutagenesis libraries. Minigene systems are widely used to study the regulatory mechanisms of RNA splicing, particularly in the context of variant interpretation and functional genomics. By introducing specific mutations into synthetic constructs (minigenes), researchers can assess how sequence changes affect splicing outcomes in a controlled cellular environment.
+
+<br>
 
 <!-- Dependencies-->
 ## Dependencies
