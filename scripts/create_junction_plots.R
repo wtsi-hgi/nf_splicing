@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, character.only = TRUE))) }
-packages <- c("tidyverse", "data.table", "vroom", "gplots", "ggplot2", "ggVennDiagram", "scales", "optparse")
+packages <- c("tidyverse", "data.table", "vroom", "gplots", "ggplot2", "ggVennDiagram", "scales", "optparse", "ggExtra")
 invisible(lapply(packages, quiet_library))
 
 #-- options --#
@@ -201,22 +201,23 @@ ggVennDiagram(venn_junctions, label_alpha = 0, edge_size = 0.2) +
 dev.off()
 
 png(paste0(sample_prefix, ".junction_scatter.png"), width = 1600, height = 1400, units = "px", res = 200)
-ggplot(join_tmp, aes(x = Start, y = End, color = CovAvg)) +
-    theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    geom_vline(data = exon_positions, aes(xintercept = exon_start), color = "lightgrey", linetype = "dashed") +
-    geom_vline(data = exon_positions, aes(xintercept = exon_end), color = "lightgrey", linetype = "dashed") +
-    geom_hline(data = exon_positions, aes(yintercept = exon_start), color = "lightgrey", linetype = "dashed") +
-    geom_hline(data = exon_positions, aes(yintercept = exon_end), color = "lightgrey", linetype = "dashed") +
-    labs(title = sample_prefix, x = "Start", y = "End", size = "Average") +
-    geom_point(shape = 19, alpha = 1, size = 0.5) +
-    scale_color_continuous(trans = "log10", low = "blue", high = "brown1", labels = label_number(accuracy = 1)) +
-    scale_x_continuous(limits = c(-10, max(exon_positions$exon_end)), breaks = seq(0, max(exon_positions$exon_end), by = 100)) +  
-    scale_y_continuous(limits = c(-10, max(exon_positions$exon_end)), breaks = seq(0, max(exon_positions$exon_end), by = 100)) + 
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-    geom_rect(data = exon_positions, inherit.aes = FALSE, fill = "darkgreen", alpha = 0.6, aes(xmin = exon_start, xmax = exon_end, ymin = -10, ymax = 0)) + 
-    geom_rect(data = exon_positions, inherit.aes = FALSE, fill = "darkgreen", alpha = 0.6, aes(ymin = exon_start, ymax = exon_end, xmin = -10, xmax = 0)) +
-    geom_segment(data = intron_positions, inherit.aes = FALSE, fill = "grey", alpha = 0.6, aes(x = intron_start, xend = intron_end, y = -5, yend = -5)) +
-    geom_segment(data = intron_positions, inherit.aes = FALSE, fill = "grey", alpha = 0.6, aes(y = intron_start, yend = intron_end, x = -5, xend = -5))
+p1 <- ggplot(join_tmp, aes(x = Start, y = End, color = CovAvg)) +
+        theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+        geom_vline(data = exon_positions, aes(xintercept = exon_start), color = "lightgrey", linetype = "dashed") +
+        geom_vline(data = exon_positions, aes(xintercept = exon_end), color = "lightgrey", linetype = "dashed") +
+        geom_hline(data = exon_positions, aes(yintercept = exon_start), color = "lightgrey", linetype = "dashed") +
+        geom_hline(data = exon_positions, aes(yintercept = exon_end), color = "lightgrey", linetype = "dashed") +
+        labs(title = sample_prefix, x = "Start", y = "End", size = "Average") +
+        geom_point(shape = 19, alpha = 1, size = 0.5) +
+        scale_color_continuous(trans = "log10", low = "blue", high = "brown1", labels = label_number(accuracy = 1)) +
+        scale_x_continuous(limits = c(-10, max(exon_positions$exon_end)), breaks = seq(0, max(exon_positions$exon_end), by = 100)) +  
+        scale_y_continuous(limits = c(-10, max(exon_positions$exon_end)), breaks = seq(0, max(exon_positions$exon_end), by = 100)) + 
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) + theme(legend.position = "left") +
+        geom_rect(data = exon_positions, inherit.aes = FALSE, fill = "darkgreen", alpha = 0.6, aes(xmin = exon_start, xmax = exon_end, ymin = -10, ymax = 0)) + 
+        geom_rect(data = exon_positions, inherit.aes = FALSE, fill = "darkgreen", alpha = 0.6, aes(ymin = exon_start, ymax = exon_end, xmin = -10, xmax = 0)) +
+        geom_segment(data = intron_positions, inherit.aes = FALSE, fill = "grey", alpha = 0.6, aes(x = intron_start, xend = intron_end, y = -5, yend = -5)) +
+        geom_segment(data = intron_positions, inherit.aes = FALSE, fill = "grey", alpha = 0.6, aes(y = intron_start, yend = intron_end, x = -5, xend = -5))
+ggMarginal(p1, type = "density", margins = "both", color = "brown1", fill = "pink", size = 8)
 dev.off()
 
 png(paste0(sample_prefix, ".junction_view.png"), width = 1600, height = 600, units = "px", res = 200)
