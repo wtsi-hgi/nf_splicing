@@ -228,7 +228,7 @@ ggplot() +
     scale_color_gradient(trans = "log10", low = "blue", high = "brown1", labels = label_number(accuracy = 1)) +
     scale_alpha(trans = "log10", range = c(0.01, 1)) + guides(alpha = "none") +
     coord_cartesian(xlim = c(0, max(exon_positions$exon_end)), ylim = c(0, 3)) +
-    theme_void()
+    theme_void() + theme(legend.position = "left")
 dev.off()
 
 png(paste0(sample_prefix, ".junction_distribution.png"), width = 2000, height = 1200, units = "px", res = 200)

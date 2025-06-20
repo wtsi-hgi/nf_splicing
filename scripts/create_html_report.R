@@ -186,7 +186,7 @@ fill_colors <- sapply(select_colors, function(x) t_col(x, 0.5), USE.NAMES = FALS
 y_scale <- max(tib_total_cov$library_coverage) * 2
 png(paste0(sample_prefix, ".total_reads_pct.png"), width = 1100, height = 1600, units = "px", res = 300)
 ggplot(tib_total_pct,  aes(x = reps, y = pct, fill = type)) +
-    geom_bar(stat = "identity", position = "stack") +
+    geom_bar(stat = "identity", position = "fill") +
     scale_fill_manual(values = fill_colors) +
     labs(x = NULL, y = "percent", title = sample_prefix) +
     theme(legend.position = "right", legend.title = element_blank()) +
@@ -506,6 +506,9 @@ cat("```{r, echo = FALSE, out.height = \"80%\", out.width = \"80%\"}", "\n", sep
 cat("knitr::include_graphics(", junction_image_list2, ", rel_path = FALSE)", "\n", sep = "")
 cat("```", "\n", sep = "")
 cat("<br>", "\n", sep = "")
+cat("\n", sep = "")
+
+cat("---", "\n", sep = "")
 cat("\n", sep = "")
 
 cat("```{r, echo = FALSE}", "\n", sep = "")
