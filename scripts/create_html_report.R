@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, character.only = TRUE))) }
-packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", "reactable", "optparse", "sparkline")
+packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", "reactable", "optparse", "sparkline", "UpSetR")
 invisible(lapply(packages, quiet_library))
 
 #-- options --#
@@ -283,6 +283,26 @@ colnames(variant_counts) <- c("reps", "variants", "detected_variants")
 variant_counts_out <- paste0(sample_prefix, ".variants_stats.txt")
 fwrite(variant_counts, variant_counts_out, append = FALSE, quote = FALSE, sep = '\t', row.names = FALSE, col.names = TRUE)
 
+junction_category <- as_tibble(vroom(opt$junction_category, delim = "\t", col_names = TRUE, show_col_types = FALSE))
+junction_category_reshape <- junction_category %>%
+                                mutate(CovAvg_log = log2(CovAvg + 1)) %>%
+                                separate_rows(Annotation, sep = ";") %>%
+                                select(c(VarID, Annotation, CovAvg_log))
+upset_input <- junction_category_reshape %>%
+                distinct(VarID, Annotation) %>%
+                mutate(value = 1) %>%
+                pivot_wider(names_from = Annotation, values_from = value, values_fill = 0)
+upset_join <- junction_category_reshape %>% left_join(upset_input, by = "VarID")
+png(paste0(sample_prefix, ".junction_category.png"), width = 2400, height = 1600, units = "px", res = 200)
+upset(as.data.frame(upset_join), 
+      sets = unique(upset_join$Annotation), 
+      order.by = "freq", 
+      matrix.color = "yellowgreen",
+      main.bar.color = "royalblue", 
+      sets.bar.color = "yellowgreen",
+      boxplot.summary = c("CovAvg_log"))
+dev.off()
+
 #-- reporting --#
 reads_image_list <- paste0("c(", "\"", paste0(sample_prefix, ".total_reads_pct.png"), "\",", 
                                  "\"", paste0(sample_prefix, ".canonical_reads_pct.png"), "\",", 
@@ -539,22 +559,23 @@ cat("                                                 sparkline(value, type = \"
 cat("                                                           chartRangeMin = boxplot_min, chartRangeMax = boxplot_max) }}),", "\n", sep = "")
 cat("              No_of_variant = colDef(name = \"No. of Variants\")))", "\n", sep = "")
 cat("", "\n", sep = "")
-cat("junction_category_reshape <- junction_category %>%", "\n", sep = "")
-cat("                                 mutate(CovAvg_log = log2(CovAvg + 1)) %>%", "\n", sep = "")
-cat("                                 separate_rows(Annotation, sep = \";\") %>%", "\n", sep = "")
-cat("                                 select(c(VarID, Annotation, CovAvg_log))", "\n", sep = "")
-cat("upset_input <- junction_category_reshape %>%", "\n", sep = "")
-cat("                   distinct(VarID, Annotation) %>%", "\n", sep = "")
-cat("                   mutate(value = 1) %>%", "\n", sep = "")
-cat("                   pivot_wider(names_from = Annotation, values_from = value, values_fill = 0)", "\n", sep = "")
-cat("upset_join <- junction_category_reshape %>% left_join(upset_input, by = \"VarID\")", "\n", sep = "")
-cat("upset(as.data.frame(upset_join), ", "\n", sep = "")
-cat("      sets = unique(upset_join$Annotation), ", "\n", sep = "")
-cat("      order.by = \"freq\", ", "\n", sep = "")
-cat("      matrix.color = \"yellowgreen\",", "\n", sep = "")
-cat("      main.bar.color = \"royalblue\", ", "\n", sep = "")
-cat("      sets.bar.color = \"yellowgreen\",", "\n", sep = "")
-cat("      boxplot.summary = c(\"CovAvg_log\"))", "\n", sep = "")
+cat("knitr::include_graphics(\"", paste0(sample_prefix, ".junction_category.png"), "\", rel_path = FALSE)", "\n", sep = "")
+# cat("junction_category_reshape <- junction_category %>%", "\n", sep = "")
+# cat("                                 mutate(CovAvg_log = log2(CovAvg + 1)) %>%", "\n", sep = "")
+# cat("                                 separate_rows(Annotation, sep = \";\") %>%", "\n", sep = "")
+# cat("                                 select(c(VarID, Annotation, CovAvg_log))", "\n", sep = "")
+# cat("upset_input <- junction_category_reshape %>%", "\n", sep = "")
+# cat("                   distinct(VarID, Annotation) %>%", "\n", sep = "")
+# cat("                   mutate(value = 1) %>%", "\n", sep = "")
+# cat("                   pivot_wider(names_from = Annotation, values_from = value, values_fill = 0)", "\n", sep = "")
+# cat("upset_join <- junction_category_reshape %>% left_join(upset_input, by = \"VarID\")", "\n", sep = "")
+# cat("upset(as.data.frame(upset_join), ", "\n", sep = "")
+# cat("      sets = unique(upset_join$Annotation), ", "\n", sep = "")
+# cat("      order.by = \"freq\", ", "\n", sep = "")
+# cat("      matrix.color = \"yellowgreen\",", "\n", sep = "")
+# cat("      main.bar.color = \"royalblue\", ", "\n", sep = "")
+# cat("      sets.bar.color = \"yellowgreen\",", "\n", sep = "")
+# cat("      boxplot.summary = c(\"CovAvg_log\"))", "\n", sep = "")
 cat("```", "\n", sep = "")
 cat("<br>", "\n", sep = "")
 cat("\n", sep = "")
