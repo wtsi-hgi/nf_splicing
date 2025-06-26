@@ -122,8 +122,9 @@ if (params.help) {
 }
 
 if (params.sample_sheet) {
+    def sep = params.sample_sheet.endsWith('.tsv') ? '\t' : ','
     ch_input = Channel.fromPath(file(params.sample_sheet), checkIfExists: true)
-                      .splitCsv(header: true, sep: ",")
+                      .splitCsv(header: true, sep: sep)
                       .map { row -> 
                         def sample_id = "${row.sample}_${row.replicate}"
                         tuple(sample_id, row.sample, row.replicate, row.directory, row.read1, row.read2, row.reference, row.barcode) }
