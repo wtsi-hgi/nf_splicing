@@ -14,6 +14,7 @@ option_list <- list(make_option(c("-b", "--barcode_association"), type = "charac
                     make_option(c("-n", "--novel_barcodes"),      type = "character", help = "list of extracted novel barcode files",     default = NULL),
                     make_option(c("-j", "--junction_plots"),      type = "character", help = "list of junction plots",                    default = NULL),
                     make_option(c("-g", "--junction_category"),   type = "character", help = "junction category file",                    default = NULL),
+                    make_option(c("-d", "--splicing_matrices"),   type = "character", help = "list of splicing matrices",                 default = NULL),
                     make_option(c("-o", "--output_dir"),          type = "character", help = "output directory",                          default = getwd()),
                     make_option(c("-p", "--prefix"),              type = "character", help = "output prefix",                             default = "sample"))
 # Parse arguments
@@ -37,6 +38,7 @@ if(is.null(opt$canonical_barcodes))  stop("-c, list of extracted canonical barco
 if(is.null(opt$novel_barcodes))      stop("-n, list of extracted novel barcode files is required!", call. = FALSE)
 if(is.null(opt$junction_plots))      stop("-j, list of junction plots is required!", call. = FALSE)
 if(is.null(opt$junction_category))   stop("-g, junction category file is required!", call. = FALSE)
+if(is.null(opt$splicing_matrices))   stop("-d, list of splicing matrices is required!", call. = FALSE)
 
 #-- function --#
 t_col <- function(col, rate)
@@ -87,6 +89,85 @@ select_colorblind <- function(col_id)
     }
 }
 
+
+panel.hist <- function(x, ...)
+{
+    x <- na.omit(x)
+
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(usr[1:2], 0, 1.5))
+    his <- hist(x, plot = FALSE)
+    breaks <- his$breaks
+    nB <- length(breaks)
+    y <- his$counts
+    y <- y/max(y)
+    rect(breaks[-nB], 0, breaks[-1], y, col = t_col("yellowgreen", 0.8), ...)
+    lines(density(x), col = 2, lwd = 2)
+}
+
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+{
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+
+    Cor <- abs(cor(x, y, use = "complete.obs"))
+    txt <- paste0(prefix, format(c(Cor, 0.123456789), digits = digits)[1])
+
+    if(missing(cex.cor))
+    {
+        cex.cor <- 0.4 / strwidth(txt)
+    }
+
+    # Generate heatmap color scale based on correlation value
+    col.range = c("blue", "white", "red")
+    heatmap_col <- colorRampPalette(col.range)(100)
+    col_index <- round(Cor * 100)
+    bg.col <- heatmap_col[col_index]
+
+    # Draw the rectangle with heatmap color
+    rect(0, 0, 1, 1, col = bg.col, border = NA)
+    
+    # Draw correlation text on top
+    text(0.5, 0.5, txt, cex = 0.6 + cex.cor * Cor)
+}
+
+panel.smooth <- function(x, y, 
+                         col.line = "red", 
+                         plot.type = c("point", "smooth"),
+                         method = c("loess", "lm"), span = 0.5, degree = 2, level = 0.95, 
+                         pch = 21, col.pch = t_col("royalblue", 0.8), col.bg = t_col("royalblue", 0.4), cex.pch = 0.8, ...)
+{
+    plot.type <- match.arg(plot.type, c("point", "smooth"))
+
+    data <- na.omit(data.frame(x, y))
+    x <- data$x
+    y <- data$y
+
+    if(plot.type == "point")
+    {
+        points(x, y, pch = pch, col = col.pch, bg = col.bg, cex = cex.pch, ...)
+    } else {
+        smoothScatter(x, y, add = TRUE, nrpoints = 0)
+    }
+
+    method <- match.arg(method)
+    data <- subset(data, x != 0 & y != 0)
+    x <- data$x
+    y <- data$y
+    if(method == "loess")
+    {
+        loess_fit <- loess(y ~ x, span = span, degree = degree)
+        pred <- predict(loess_fit, se = TRUE)
+        lines(x, pred$fit, col = col.line, ...)
+    } else if (method == "lm") {
+        lm_fit <- lm(y ~ x)
+        pred <- predict(lm_fit, interval = "confidence", level = level)
+        lines(x, pred[, "fit"], col = col.line, ...)
+    }
+}
+
 #-- inputs --#
 reps <- unlist(strsplit(opt$sample_id, ","))
 trim_files <- unlist(strsplit(opt$trim_stats, ","))
@@ -96,6 +177,8 @@ map_files  <- unlist(strsplit(opt$map_stats, ","))
 
 canonical_barcode_files <- unlist(strsplit(opt$canonical_barcodes, ","))
 novel_barcode_files <- unlist(strsplit(opt$novel_barcodes, ","))
+
+splicing_matrices_files <- unlist(strsplit(opt$splicing_matrices, ","))
 
 #-- outputs --#
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
@@ -118,6 +201,8 @@ map_reads <- vector()
 unexplain_reads <- vector()
 novel_barcodes <- list()
 
+splicing_matrices <- list()
+
 for(i in 1:3)
 {
     tmp_value <- as.numeric(str_extract(grep("reads passed filter:", readLines(trim_files[i]), value = TRUE), "\\d+"))
@@ -136,6 +221,8 @@ for(i in 1:3)
     map_reads <- append(map_reads, as.numeric(read.table(map_files[i])[1, 2]))
     unexplain_reads <- append(unexplain_reads, as.numeric(read.table(map_files[i])[2, 2]) - as.numeric(read.table(map_files[i])[1, 2]))
     novel_barcodes[[reps[i]]] <- as.data.table(vroom(novel_barcode_files[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+
+    splicing_matrices[[reps[i]]] <- as.data.table(vroom(splicing_matrices_files[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 }
 
 #-- processing --#
@@ -303,6 +390,27 @@ upset(as.data.frame(upset_join),
       boxplot.summary = c("CovAvg_log"))
 dev.off()
 
+for(i in 1:length(reps))
+{
+    splicing_matrices[[reps[i]]] <- splicing_matrices[[reps[i]]] %>%
+                                        rowwise() %>%
+                                        mutate(PSI = canonical_inclusion_E2 / sum(c_across(-varid))) %>%
+                                        ungroup()
+}
+
+psi_list <- lapply(names(splicing_matrices), function(rep_id) { splicing_matrices[[rep_id]] %>%
+                                                                select(varid, PSI) %>%
+                                                                rename(!!rep_id := PSI) })
+psi_wide <- reduce(psi_list, full_join, by = "varid")
+
+png(paste0(sample_prefix, ".psi_correlation.png"), width = 1200, height = 1200, units = "px", res = 100)
+pairs(psi_wide[, -1],
+      upper.panel = panel.cor,
+      diag.panel = panel.hist,
+      lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
+      use = "complete.obs")
+dev.off()
+
 #-- reporting --#
 reads_image_list <- paste0("c(", "\"", paste0(sample_prefix, ".total_reads_pct.png"), "\",", 
                                  "\"", paste0(sample_prefix, ".canonical_reads_pct.png"), "\",", 
@@ -342,7 +450,7 @@ cat("date: \"`r format(Sys.time(), '%d %B %Y -- %A -- %X')`\"", "\n", sep = "")
 cat("output:", "\n", sep = "")
 cat("    html_document:", "\n", sep = "")
 cat("        toc: true", "\n", sep = "")
-cat("        toc_depth: 3", "\n", sep = "")
+cat("        toc_depth: 4", "\n", sep = "")
 cat("        theme: united", "\n", sep = "")
 cat("        highlight: tango", "\n", sep = "")
 cat("---", "\n", sep = "")
@@ -514,7 +622,7 @@ cat("## 4. Junction Processing", "\n", sep = "")
 cat("This section summarises all the novel splicing events", "\n", sep = "")
 cat("\n", sep = "")
 
-cat("* **Correlations between replicates**", "\n", sep = "")
+cat("### 4.1. Correlations between replicates", "\n", sep = "")
 cat("\n", sep = "")
 cat("```{r, echo = FALSE, fig.show = \"hold\", fig.align = \"default\", out.height = \"48%\", out.width = \"48%\"}", "\n", sep = "")
 cat("knitr::include_graphics(", junction_image_list1, ", rel_path = FALSE)", "\n", sep = "")
@@ -525,7 +633,7 @@ cat("\n", sep = "")
 cat("---", "\n", sep = "")
 cat("\n", sep = "")
 
-cat("* **Distribution of splicing junctions (appearing in 2 replicates at least)**", "\n", sep = "")
+cat("### 4.2. Distribution of splicing junctions (appearing in 2 replicates at least)", "\n", sep = "")
 cat("\n", sep = "")
 cat("```{r, echo = FALSE, out.height = \"80%\", out.width = \"80%\"}", "\n", sep = "")
 cat("knitr::include_graphics(", junction_image_list2, ", rel_path = FALSE)", "\n", sep = "")
@@ -536,7 +644,7 @@ cat("\n", sep = "")
 cat("---", "\n", sep = "")
 cat("\n", sep = "")
 
-cat("* **Splicing events  (appearing in 2 replicates at least) by variants**", "\n", sep = "")
+cat("### 4.3. Splicing events  (appearing in 2 replicates at least) by variants", "\n", sep = "")
 cat("\n", sep = "")
 cat("```{r, echo = FALSE}", "\n", sep = "")
 cat("junction_category <- as_tibble(vroom(\"", opt$junction_category, "\", delim = \"\\t\", col_names = TRUE, show_col_types = FALSE))", "\n", sep = "")
@@ -560,25 +668,17 @@ cat("                                                           chartRangeMin = 
 cat("              No_of_variant = colDef(name = \"No. of Variants\")))", "\n", sep = "")
 cat("", "\n", sep = "")
 cat("knitr::include_graphics(\"", paste0(sample_prefix, ".junction_category.png"), "\", rel_path = FALSE)", "\n", sep = "")
-# cat("junction_category_reshape <- junction_category %>%", "\n", sep = "")
-# cat("                                 mutate(CovAvg_log = log2(CovAvg + 1)) %>%", "\n", sep = "")
-# cat("                                 separate_rows(Annotation, sep = \";\") %>%", "\n", sep = "")
-# cat("                                 select(c(VarID, Annotation, CovAvg_log))", "\n", sep = "")
-# cat("upset_input <- junction_category_reshape %>%", "\n", sep = "")
-# cat("                   distinct(VarID, Annotation) %>%", "\n", sep = "")
-# cat("                   mutate(value = 1) %>%", "\n", sep = "")
-# cat("                   pivot_wider(names_from = Annotation, values_from = value, values_fill = 0)", "\n", sep = "")
-# cat("upset_join <- junction_category_reshape %>% left_join(upset_input, by = \"VarID\")", "\n", sep = "")
-# cat("upset(as.data.frame(upset_join), ", "\n", sep = "")
-# cat("      sets = unique(upset_join$Annotation), ", "\n", sep = "")
-# cat("      order.by = \"freq\", ", "\n", sep = "")
-# cat("      matrix.color = \"yellowgreen\",", "\n", sep = "")
-# cat("      main.bar.color = \"royalblue\", ", "\n", sep = "")
-# cat("      sets.bar.color = \"yellowgreen\",", "\n", sep = "")
-# cat("      boxplot.summary = c(\"CovAvg_log\"))", "\n", sep = "")
 cat("```", "\n", sep = "")
 cat("<br>", "\n", sep = "")
 cat("\n", sep = "")
+
+cat("## 5. PSI Correlation", "\n", sep = "")
+cat("This section summarises the correlation of PSI values between replicates.", "\n", sep = "")
+
+cat("\n", sep = "")
+cat("```{r, echo = FALSE, fig.align = \"center\", out.width = \"50%\"}", "\n", sep = "")
+cat("knitr::include_graphics(\"", paste0(sample_prefix, ".psi_correlation.png"), "\", rel_path = FALSE)", "\n", sep = "")
+cat("```", "\n", sep = "")
 
 sink()
 rmarkdown::render(report_path, clean = TRUE, quiet = TRUE)

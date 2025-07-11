@@ -240,7 +240,7 @@ plot(h$mids, h_log, type = "h", lwd = 3, col = "forestgreen", xlab = "CovAvg", y
 axis(side = 2, at = 0:max(ceiling(h_log)), labels = 10^(0:max(ceiling(h_log))), las = 1, cex.axis = 0.8)
 dev.off()
 
-png(paste0(sample_prefix, ".junction_corr.png"), width = 1600, height = 1600, units = "px", res = 100)
+png(paste0(sample_prefix, ".junction_corr.png"), width = 1200, height = 1200, units = "px", res = 100)
 pairs(cor_data_norm,
       upper.panel = panel.cor,
       diag.panel = panel.hist,

@@ -36,21 +36,23 @@ workflow summarise_results {
     ch_barcode_association = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions -> 
                                                 tuple(sample, barcode) }
                                       .distinct()
-    ch_report = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions -> 
-                                    tuple(sample, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary) }
+
+    ch_report = ch_sample.join(ch_splicing_matrix)
+                         .map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions, matrices -> 
+                                    tuple(sample, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, matrices) }
                          .groupTuple()
                          
     // Check if the number of replicates equals 3, otherwise skip the html report
-    ch_report_filtered = ch_report.filter { sample, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary ->
+    ch_report_filtered = ch_report.filter { sample, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, matrices ->
                                                 merge_stats.size() == 3 }
                                   .ifEmpty { exit 1, "Skipping creating html report due to the number of replicates." }
 
     ch_report_filtered = ch_barcode_association.join(ch_report_filtered)
                                                .join(ch_junction_plots)
                                                .join(ch_junction_category)
-                                               .map{ sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, 
+                                               .map{ sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, matrices,
                                                         junction_venn, junction_scatter, junction_view, junction_distribution, junction_corr, junction_category ->
-                                                     tuple(sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, 
+                                                     tuple(sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, matrices,
                                                         [junction_venn, junction_scatter, junction_view, junction_distribution, junction_corr], junction_category) }
     
     create_html_report(ch_report_filtered)
@@ -128,7 +130,7 @@ process create_html_report {
 
     input:
     tuple val(sample), path(barcode), val(sample_id), 
-          val(merge_stats), val(trim_stats), val(sample_idxstats), val(filter_barcodes), val(map_barcodes), val(summary), 
+          val(merge_stats), val(trim_stats), val(sample_idxstats), val(filter_barcodes), val(map_barcodes), val(summary), val(matrices),
           val(junction_plots), val(junction_category)
 
     output:
@@ -142,6 +144,7 @@ process create_html_report {
     def list_filter_barcodes = filter_barcodes.join(',')
     def list_map_barcodes = map_barcodes.join(',')
     def list_summary = summary.join(',')
+    def list_matrices = matrices.join(',')
     def list_junction_plots = junction_plots.join(',')
 
     """
@@ -155,6 +158,7 @@ process create_html_report {
                                                -n ${list_map_barcodes} \
                                                -j ${list_junction_plots} \
                                                -g ${junction_category} \
+                                               -d ${list_matrices} \
                                                -p ${sample}
     """
 }
