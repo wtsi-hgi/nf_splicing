@@ -162,7 +162,7 @@ workflow splicing {
     ch_exon_pos = prepare_files.out.ch_exon_pos
 
 
-    /* -- step 1: process reads by fastqc and flash2 -- */
+    /* -- step 1: process reads by fastp and flash2 -- */
     ch_sample_step1 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, read1, read2) }
     process_reads(ch_sample_step1)
     ch_processed_reads = process_reads.out.ch_merge
