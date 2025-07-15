@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, character.only = TRUE))) }
-packages <- c("tidyverse", "data.table", "Rsamtools", "Biostrings", "parallel", "optparse")
+packages <- c("tidyverse", "data.table", "Rsamtools", "Biostrings", "parallel", "optparse", "stringr")
 invisible(lapply(packages, quiet_library))
 
 #-- options --#
@@ -77,10 +77,20 @@ process_read <- function(i, bam_data)
     # Note:
     # 1. read alignment should be end-to-end, allow 5 bp difference for softclip
     # 2. library may be longer than reads, so reads may not cover the end part of last exon, allow 5 bp difference
-    read_start_pass <- ((exon_positions$exon_end[1] - read_start_pos) > pos_tolerance)
-    read_end_pass <- ifelse(read_ref == "E1_E2_E3", 
-                            ((read_end_pos - sum(exon_positions$length[c(1,2)]) + 1) > pos_tolerance), 
-                            ((read_end_pos - sum(exon_positions$length[1]) + 1) > pos_tolerance))
+    # 3. note reference may be different for random intron and muta libraries   
+    read_ref_var <- str_extract(read_ref, "[^_]+$")
+    read_ref_exon <- str_remove(read_ref, "_[^_]+$")
+
+    read_start_pass <- ((exon_positions[exon_positions$var_id == read_ref_var,]$exon_end[1] - read_start_pos) > pos_tolerance)
+    read_end_pass <- ifelse(read_ref_exon == "exon_inclusion", 
+                            ((read_end_pos - sum(exon_positions[exon_positions$var_id == read_ref_var,]$length[c(1,2)]) + 1) > pos_tolerance), 
+                            ((read_end_pos - exon_positions[exon_positions$var_id == read_ref_var,]$length[1] + 1) > pos_tolerance))
+
+    # read_start_pass <- ((exon_positions$exon_end[1] - read_start_pos) > pos_tolerance)
+    # read_end_pass <- ifelse(read_ref == "E1_E2_E3", 
+    #                         ((read_end_pos - sum(exon_positions$length[c(1,2)]) + 1) > pos_tolerance), 
+    #                         ((read_end_pos - sum(exon_positions$length[1]) + 1) > pos_tolerance))
+    
     if(read_start_pass & read_end_pass)
     {
         write_to_sam_file(bam_data[[1]], i, output_sam)
@@ -98,13 +108,20 @@ bam_chunk_size <- opt$chunk_size
 
 bam_prefix <- tools::file_path_sans_ext(basename(bam_file))
 
-exon_positions <- read.table(opt$exon_pos, header = FALSE, sep = "\t")
-colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
-exon_positions <- as.data.table(exon_positions)
+exon_positions <- fread(opt$exon_pos, header = FALSE, sep = "\t")
+colnames(exon_positions) <- c("var_id", "exon_id", "exon_start", "exon_end")
+set(exon_positions, j = "var_id", value = as.character(exon_positions$var_id))
 set(exon_positions, j = "exon_id", value = as.character(exon_positions$exon_id))
 set(exon_positions, j = "exon_start", value = as.integer(exon_positions$exon_start))
 set(exon_positions, j = "exon_end", value = as.integer(exon_positions$exon_end))
 exon_positions$length <- exon_positions$exon_end - exon_positions$exon_start + 1
+
+# colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
+# exon_positions <- as.data.table(exon_positions)
+# set(exon_positions, j = "exon_id", value = as.character(exon_positions$exon_id))
+# set(exon_positions, j = "exon_start", value = as.integer(exon_positions$exon_start))
+# set(exon_positions, j = "exon_end", value = as.integer(exon_positions$exon_end))
+# exon_positions$length <- exon_positions$exon_end - exon_positions$exon_start + 1
 
 #-- outputs --#
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)

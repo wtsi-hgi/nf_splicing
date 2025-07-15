@@ -118,20 +118,28 @@ process_read <- function(i, bam_data)
 
     if((read1_name == read2_name) & (read1_ref == read2_ref))
     {
-        # read1 alignment should start at least 5 bp left-away from target exon start postion due to exon 5
-        # read2 alignment should end near the end of reference due to barcode softclip
-        # if the library is long, the read may not cover the end part of last exon, allow 5 bp difference
-        read_start_pass <- ((exon_positions$exon_end[1] - read1_start_pos) > pos_tolerance)
-        read_end_pass <- ifelse(read1_ref == "E1_E2_E3", 
-                                ((read2_end_pos - sum(exon_positions$length[c(1,2)]) + 1) > pos_tolerance), 
-                                ((read2_end_pos - sum(exon_positions$length[1]) + 1) > pos_tolerance))
+        # Note:
+        # 1. read1 alignment should start at least 5 bp left-away from target exon start postion due to exon 5
+        # 2. read2 alignment should end near the end of reference due to barcode softclip
+        # 3. if the library is long, the read may not cover the end part of last exon, allow 5 bp difference
+        read_ref_var <- str_extract(read1_ref, "[^_]+$")
+        read_ref_exon <- str_remove(read1_ref, "_[^_]+$")
+
+        read_start_pass <- ((exon_positions[exon_positions$var_id == read_ref_var,]$exon_end[1] - read1_start_pos) > pos_tolerance)
+        read_end_pass <- ifelse(read_ref_exon == "exon_inclusion", 
+                                ((read2_end_pos - sum(exon_positions[exon_positions$var_id == read_ref_var,]$length[c(1,2)]) + 1) > pos_tolerance), 
+                                ((read2_end_pos - exon_positions[exon_positions$var_id == read_ref_var,]$length[1] + 1) > pos_tolerance))
+
+        # read_start_pass <- ((exon_positions$exon_end[1] - read1_start_pos) > pos_tolerance)
+        # read_end_pass <- ifelse(read1_ref == "E1_E2_E3", 
+        #                         ((read2_end_pos - sum(exon_positions$length[c(1,2)]) + 1) > pos_tolerance), 
+        #                         ((read2_end_pos - sum(exon_positions$length[1]) + 1) > pos_tolerance))
+
         if(read_start_pass & read_end_pass)
         {
-            # read1 should not have end softclip, if has, the read1 should end near the end of reference
+            # read1 should not have end softclip, if has, the length of softclip should be less than 5bp
             condition1 <- ifelse(str_detect(read1_cigar, "\\d+S$"),
-                                 ifelse((calc_softclip_lens(read1_cigar)[2] > pos_tolerance), 
-                                        ((chrs[read1_ref] - read1_end_pos) < pos_tolerance), 
-                                        TRUE), 
+                                 (calc_softclip_lens(read1_cigar)[2] <= pos_tolerance), 
                                  TRUE)
 
             # read2 should not have start softclip, if has, the length of softclip should be less than 5bp                     
@@ -177,12 +185,19 @@ bam_chunk_size <- opt$chunk_size
 bam_prefix <- tools::file_path_sans_ext(basename(bam_file))
 
 exon_positions <- read.table(opt$exon_pos, header = FALSE, sep = "\t")
-colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
-exon_positions <- as.data.table(exon_positions)
+colnames(exon_positions) <- c("var_id", "exon_id", "exon_start", "exon_end")
+set(exon_positions, j = "var_id", value = as.character(exon_positions$var_id))
 set(exon_positions, j = "exon_id", value = as.character(exon_positions$exon_id))
 set(exon_positions, j = "exon_start", value = as.integer(exon_positions$exon_start))
 set(exon_positions, j = "exon_end", value = as.integer(exon_positions$exon_end))
 exon_positions$length <- exon_positions$exon_end - exon_positions$exon_start + 1
+
+# colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
+# exon_positions <- as.data.table(exon_positions)
+# set(exon_positions, j = "exon_id", value = as.character(exon_positions$exon_id))
+# set(exon_positions, j = "exon_start", value = as.integer(exon_positions$exon_start))
+# set(exon_positions, j = "exon_end", value = as.integer(exon_positions$exon_end))
+# exon_positions$length <- exon_positions$exon_end - exon_positions$exon_start + 1
 
 #-- outputs --#
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
