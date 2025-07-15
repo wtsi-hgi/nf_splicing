@@ -97,7 +97,8 @@ get_barcode_by_template <- function(read_seq, barcode_marker, barcode_template)
     }
 }
 
-create_barcode_list <- function(i, bam_data, barcode_marker, barcode_template, barcode_length)
+# create_barcode_list <- function(i, bam_data, barcode_marker, barcode_template, barcode_length)
+create_barcode_row <- function(i, bam_data, barcode_marker, barcode_template, barcode_length)
 {
     if(i %% 5000 == 0)
     {
@@ -110,20 +111,21 @@ create_barcode_list <- function(i, bam_data, barcode_marker, barcode_template, b
     if(bam_data[[1]]$flag[i] == 83)
     {
         read_ref <- as.character(bam_data[[1]]$rname[i])
-        if(!(read_ref %in% names(barcodes_chunk)))
-        {
-            barcodes_chunk[[read_ref]] <- vector()
-        }
-
         read_seq <- toupper(data.frame(bam_data[[1]]$seq[i])[1,1])
         barcode_seq <- ifelse(str_detect(barcode_template, "^[N]+$"),
                               get_barcode_by_marker(read_seq, barcode_marker, barcode_length),
                               get_barcode_by_template(read_seq, barcode_marker, barcode_template))
 
-        barcodes_chunk[[read_ref]] <- c(barcodes_chunk[[read_ref]], barcode_seq)
+        # if(!(read_ref %in% names(barcodes_chunk)))
+        # {
+        #     barcodes_chunk[[read_ref]] <- vector()
+        # }
+        # barcodes_chunk[[read_ref]] <- c(barcodes_chunk[[read_ref]], barcode_seq)
+        return(data.table(ref_id = read_ref, barcode = barcode_seq))
     }
 
-    return(barcodes_chunk)
+    # return(barcodes_chunk)
+    return(data.table(ref_id = character(0), barcode = character(0)))
 }
 
 #-- inputs --#
@@ -151,7 +153,7 @@ bam_file_handle <- open(BamFile(bam_file, yieldSize = bam_chunk_size))
 bam_chunk_index <- 1
 repeat
 {
-    barcodes_chunk <- list()
+    # barcodes_chunk <- list()
     bam_chunk <- scanBam(bam_file_handle, param = param, nThreads = num_cores)
     if(length(bam_chunk[[1]]$seq) == 0)
     {
@@ -165,20 +167,26 @@ repeat
         bam_chunk_index <- bam_chunk_index + 1
     }
 
-    barcodes_chunk <- mclapply(1:length(bam_chunk[[1]]$seq), 
-                               function(i) create_barcode_list(i, bam_chunk, barcode_marker, barcode_template, barcode_length), 
-                               mc.cores = num_cores)
-    barcodes_chunk_list <- split(unlist(barcodes_chunk), names(unlist(barcodes_chunk)))
+    barcodes_chunk_rows <- mclapply(1:length(bam_chunk[[1]]$seq),
+                                    function(i) create_barcode_row(i, bam_chunk, barcode_marker, barcode_template, barcode_length),
+                                    mc.cores = num_cores)
+    barcodes_chunk_dt <- rbindlist(barcodes_chunk_rows)
+    barcodes_list[[length(barcodes_list) + 1]] <- barcodes_chunk_dt
 
-    for(name in names(barcodes_chunk_list))
-    {
-        if(name %in% names(barcodes_list))
-        {
-            barcodes_list[[name]] <- c(barcodes_list[[name]] , barcodes_chunk_list[[name]])
-        } else {
-            barcodes_list[[name]] <- barcodes_chunk_list[[name]]
-        }
-    }
+    # barcodes_chunk <- mclapply(1:length(bam_chunk[[1]]$seq), 
+    #                            function(i) create_barcode_list(i, bam_chunk, barcode_marker, barcode_template, barcode_length), 
+    #                            mc.cores = num_cores)
+    # barcodes_chunk_list <- split(unlist(barcodes_chunk), names(unlist(barcodes_chunk)))
+
+    # for(name in names(barcodes_chunk_list))
+    # {
+    #     if(name %in% names(barcodes_list))
+    #     {
+    #         barcodes_list[[name]] <- c(barcodes_list[[name]] , barcodes_chunk_list[[name]])
+    #     } else {
+    #         barcodes_list[[name]] <- barcodes_chunk_list[[name]]
+    #     }
+    # }
 }
 close(bam_file_handle)
 
@@ -186,16 +194,20 @@ if(length(barcodes_list) == 0)
 {
     fwrite(data.table(), output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 } else {
-    for(i in 1:length(barcodes_list))
-    {
-        barcodes_list[[i]] <- as.data.table(table(barcodes_list[[i]]))
-        colnames(barcodes_list[[i]]) <- c("barcode", "count")
+    # for(i in 1:length(barcodes_list))
+    # {
+    #     barcodes_list[[i]] <- as.data.table(table(barcodes_list[[i]]))
+    #     colnames(barcodes_list[[i]]) <- c("barcode", "count")
 
-        barcodes_list[[i]]$name <- names(barcodes_list)[i]
-        barcodes_list[[i]] <- barcodes_list[[i]][, c("name", "barcode", "count")]
-    }
+    #     barcodes_list[[i]]$name <- names(barcodes_list)[i]
+    #     barcodes_list[[i]] <- barcodes_list[[i]][, c("name", "barcode", "count")]
+    # }
 
-    barcodes_out <- as.data.table(do.call(rbind, barcodes_list))
+    # barcodes_out <- as.data.table(do.call(rbind, barcodes_list))
+
+    barcodes_out <- rbindlist(barcodes_list)
+    barcodes_out <- barcodes_out[, .N, by = .(ref_id, barcode)]
+    setnames(barcodes_out, "N", "count")
     if(is.null(opt$input_association))
     {
         fwrite(barcodes_out, output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
@@ -203,8 +215,8 @@ if(length(barcodes_list) == 0)
         barcode_variant <- fread(opt$input_association, sep = "\t", header = TRUE)
         barcodes_out <- merge(barcodes_out, barcode_variant[, .(barcode, varid)], by = "barcode", all.x = TRUE)
         barcodes_out$varid[is.na(barcodes_out$varid)] <- "NA"
-        barcodes_out <- barcodes_out[, .(name, barcode, varid, count)]
-        setorder(barcodes_out, name)
+        barcodes_out <- barcodes_out[, .(ref_id, barcode, varid, count)]
+        setorder(barcodes_out, ref_id)
         fwrite(barcodes_out, output_file, sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
     }
 }
