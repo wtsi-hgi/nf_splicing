@@ -5,6 +5,7 @@ invisible(lapply(packages, quiet_library))
 
 #-- options --#
 option_list <- list(make_option(c("-b", "--input_bam"),         type = "character", help = "input bam",                default = NULL),
+                    make_option(c("-l", "--lib_type"),          type = "character", help = "library type",             default = "muta_exon"),
                     make_option(c("-a", "--input_association"), type = "character", help = "barcode association file", default = NULL),
                     make_option(c("-r", "--input_ref"),         type = "character", help = "reference fasta file",     default = NULL),
                     make_option(c("-p", "--barcode_template"),  type = "character", help = "barcode template",         default = "NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN"),
@@ -12,8 +13,7 @@ option_list <- list(make_option(c("-b", "--input_bam"),         type = "characte
                     make_option(c("-o", "--output_dir"),        type = "character", help = "output directory",         default = getwd()),
                     make_option(c("-t", "--threads"),           type = "integer",   help = "number of threads",        default = 64),
                     make_option(c("-c", "--chunk_size"),        type = "integer",   help = "chunk size",               default = 10000),
-                    make_option(c("-s", "--spliced"),           type = "logical",   help = "create spliced products",  default = FALSE,    action = "store_true"),
-                    make_option(c("-l", "--library"),           type = "character", help = "library type",             default = "muta"))
+                    make_option(c("-s", "--spliced"),           type = "logical",   help = "create spliced products",  default = FALSE,    action = "store_true"))
 # Parse arguments
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
@@ -26,8 +26,15 @@ if(length(commandArgs(trailingOnly = TRUE)) == 0)
 
 # Check if required arguments are provided
 if(is.null(opt$input_bam)) stop("-b, input bam file is required!", call. = FALSE)
+if(is.null(opt$lib_type))  stop("-l, library type is required!", call. = FALSE)
 if(is.null(opt$input_association)) stop("-a, input association file is required!", call. = FALSE)
 if(is.null(opt$input_ref)) stop("-r, input reference fasta file is required!", call. = FALSE)
+
+valid_lib_types <- c("random_intron", "random_exon", "muta_exon")
+if(!(opt$lib_type %in% valid_lib_types))
+{
+    stop(paste0("-l, library type must be one of: ", paste(valid_lib_types, collapse = ", ")), call. = FALSE)
+}
 
 #-- function --#
 get_barcode_by_marker <- function(read_seq, barcode_marker, barcode_length)
@@ -174,8 +181,9 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
 
     if(opt$spliced)
     {
-        # read1 and read2 should be in the same reference
-        getseq_ref_id <- ifelse(opt$library == "muta", as.character(read1_ref), as.character(bam_data[[1]]$rname[read1_index]))
+        # random exon/intron library, its hisat2 ref includes all the random intron sequences, barcode per random
+        # muta exon library, its hisat2 ref includes all the wild-type sequences, barcode per variant
+        getseq_id <- ifelse(opt$lib_type == "muta_exon", as.character(read1_ref), as.character(bam_data[[1]]$rname[read1_index]))
         
         read1_spliced_seq <- DNAStringSet()
 
@@ -204,7 +212,7 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
 
             if(op == "M" || op == "D")
             {
-                ref_segment <- getSeq(ref_fasta, GRanges(seqnames = getseq_ref_id, ranges = IRanges(read2_pos, read2_pos + length - 1)))
+                ref_segment <- getSeq(ref_fasta, GRanges(seqnames = getseq_id, ranges = IRanges(read2_pos, read2_pos + length - 1)))
                 read2_spliced_seq <- c(read2_spliced_seq, ref_segment)
                 read2_pos <- read2_pos + length
             } else if(op == "N") {
@@ -219,14 +227,17 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
         # normally read1 and read2 should not overlap in the middle as reads have been separated
         if(read1_pos < bam_data[[1]]$pos[read2_index])
         {
-            read_gap <- getSeq(ref_fasta, GRanges(seqnames = getseq_ref_id, ranges = IRanges(read1_pos, bam_data[[1]]$pos[read2_index] - 1)))
+            read_gap <- getSeq(ref_fasta, GRanges(seqnames = getseq_id, ranges = IRanges(read1_pos, bam_data[[1]]$pos[read2_index] - 1)))
             spliced_seq <- paste0(as.character(unlist(read1_spliced_seq)), as.character(read_gap), as.character(unlist(read2_spliced_seq)))
         } else {
             spliced_seq <- paste0(as.character(unlist(read1_spliced_seq)), as.character(unlist(read2_spliced_seq)))
         }
 
         output_id <- bam_data[[1]]$rname[i]
-        output_line <- data.frame(output_id, variant_map[output_id], spliced_seq)
+        output_line <- ifelse(opt$lib_type == "muta_exon", 
+                              data.frame(output_id, getseq_id, spliced_seq)
+                              data.frame(output_id, variant_map[output_id], spliced_seq))
+        # output_line <- data.frame(output_id, variant_map[output_id], spliced_seq)
         fwrite(output_line, output_tmp, append = TRUE, quote = FALSE, sep = '\t', row.names = FALSE, col.names = FALSE)
     }
 
@@ -295,7 +306,7 @@ for(i in 1:length(header))
     }
 }
 
-if(opt$library == "muta")
+if(opt$lib_type == "muta_exon")
 {
     variant_map_names <- names(variant_map)
     for(i in 1:length(variant_map_names))
@@ -323,7 +334,7 @@ repeat
     chunk_results <- list()
     bam_chunk <- scanBam(bam_read_handle, param = param, nThreads = num_cores)
 
-    if(opt$library == "muta")
+    if(opt$lib_type == "muta_exon")
     {
         levels(bam_chunk[[1]]$rname) <- c(levels(bam_chunk[[1]]$rname), names(variant_map))
         levels(bam_chunk[[1]]$mrnm) <- c(levels(bam_chunk[[1]]$mrnm), names(variant_map))
