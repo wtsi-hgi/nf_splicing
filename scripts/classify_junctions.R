@@ -17,8 +17,8 @@ opt <- parse_args(opt_parser)
 
 if(length(commandArgs(trailingOnly = TRUE)) == 0)
 {
-  print_help(opt_parser)
-  quit(status = 1)
+    print_help(opt_parser)
+    quit(status = 1)
 }
 
 # Check if required arguments are provided
@@ -26,68 +26,71 @@ if(is.null(opt$input_bed)) stop("-b, input bed file is required!", call. = FALSE
 if(is.null(opt$exon_pos))  stop("-e, exon position file is required!", call. = FALSE)
 
 #-- function --#
-annotate_junction <- function(start, end, exon_pos, intron_pos)
+annotate_junction <- function(varid, start, end, exon_pos, intron_pos)
 {
-    if(start < min(exon_pos$exon_start) | end > max(exon_pos$exon_end)) return("out_of_range")
+    exon_pos_var <- exon_pos[var_id == varid]
+    intron_pos_var <- intron_pos[var_id == varid]
 
-    for(i in 1:nrow(intron_pos))
+    if(start < min(exon_pos_var$exon_start) || end > max(exon_pos_var$exon_end)) return("out_of_range")
+
+    for(i in 1:nrow(intron_pos_var))
     {
         # intron retention: allow 1bp mismatch for start and end
-        check_start <- (start >= (intron_pos[i,]$intron_start - 1) & start <= (intron_pos[i,]$intron_start + 1))
-        check_end <- (end >= (intron_pos[i,]$intron_end - 1) & end <= (intron_pos[i,]$intron_end + 1))
+        check_start <- (start >= (intron_pos_var[i,]$intron_start - 1) & start <= (intron_pos_var[i,]$intron_start + 1))
+        check_end <- (end >= (intron_pos_var[i,]$intron_end - 1) & end <= (intron_pos_var[i,]$intron_end + 1))
         if(check_start & check_end)
         {
             ifelse(i == 1, 
-                   return(paste0("intron_retention_", intron_pos[i + 1,]$intron_id)), 
-                   return(paste0("intron_retention_", intron_pos[i - 1,]$intron_id)))
+                   return(paste0("intron_retention_", intron_pos_var[i + 1,]$intron_id)), 
+                   return(paste0("intron_retention_", intron_pos_var[i - 1,]$intron_id)))
         }
     } 
 
     annostr <- ""
     annotmp <- ""
     # for exon splicing
-    for(i in 1:nrow(exon_pos))
+    for(i in 1:nrow(exon_pos_var))
     {
-        cond1 <- start > (exon_pos[i,]$exon_start + opt$min_overlap)
-        cond2 <- start < (exon_pos[i,]$exon_end - opt$min_overlap)
+        cond1 <- start > (exon_pos_var[i,]$exon_start + opt$min_overlap)
+        cond2 <- start < (exon_pos_var[i,]$exon_end - opt$min_overlap)
         if(cond1 & cond2)
         {
-            annotmp <- paste0("exon_splicing_3p_", exon_pos[i,]$exon_id)
+            annotmp <- paste0("exon_splicing_3p_", exon_pos_var[i,]$exon_id)
             annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
         }
 
-        cond1 <- end > (exon_pos[i,]$exon_start + opt$min_overlap)
-        cond2 <- end < (exon_pos[i,]$exon_end - opt$min_overlap)
+        cond1 <- end > (exon_pos_var[i,]$exon_start + opt$min_overlap)
+        cond2 <- end < (exon_pos_var[i,]$exon_end - opt$min_overlap)
         if(cond1 & cond2)
         {
-            annotmp <- paste0("exon_splicing_5p_", exon_pos[i,]$exon_id)
+            annotmp <- paste0("exon_splicing_5p_", exon_pos_var[i,]$exon_id)
             annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
         }
 
-        cond1 <- start < (exon_pos[i,]$exon_start + opt$min_overlap)
-        cond2 <- end > (exon_pos[i,]$exon_end - opt$min_overlap)
+        cond1 <- start < (exon_pos_var[i,]$exon_start + opt$min_overlap)
+        cond2 <- end > (exon_pos_var[i,]$exon_end - opt$min_overlap)
         if(cond1 & cond2)
         {
-            annotmp <- paste0("exon_skipping_", exon_pos[i,]$exon_id)
+            annotmp <- paste0("exon_skipping_", exon_pos_var[i,]$exon_id)
             annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
         }
     }
     # for intron splicing
-    for(i in 1:nrow(intron_pos))
+    for(i in 1:nrow(intron_pos_var))
     {
-        cond1 <- start > intron_pos[i,]$intron_start + opt$min_overlap
-        cond2 <- start < intron_pos[i,]$intron_end - opt$min_overlap
+        cond1 <- start > intron_pos_var[i,]$intron_start + opt$min_overlap
+        cond2 <- start < intron_pos_var[i,]$intron_end - opt$min_overlap
         if(cond1 & cond2)
         {
-            annotmp <- paste0("intron_retension_5p_", intron_pos[i,]$intron_id)
+            annotmp <- paste0("intron_retension_5p_", intron_pos_var[i,]$intron_id)
             annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
         }
 
-        cond1 <- end > intron_pos[i,]$intron_start + opt$min_overlap
-        cond2 <- end < intron_pos[i,]$intron_end - opt$min_overlap
+        cond1 <- end > intron_pos_var[i,]$intron_start + opt$min_overlap
+        cond2 <- end < intron_pos_var[i,]$intron_end - opt$min_overlap
         if(cond1 & cond2)
         {
-            annotmp <- paste0("intron_retension_3p_", intron_pos[i,]$intron_id)
+            annotmp <- paste0("intron_retension_3p_", intron_pos_var[i,]$intron_id)
             annostr <- ifelse(annostr == "", annotmp, paste0(annostr, ";", annotmp))
         }
     }
@@ -108,25 +111,39 @@ junction_prefix <- ifelse(is.null(opt$prefix),
                           tools::file_path_sans_ext(basename(junction_bed_file)), 
                           opt$prefix)
 
-exon_positions <- read.table(opt$exon_pos, header = FALSE, sep = "\t")
-colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
-exon_positions <- as.data.table(exon_positions)
+exon_positions <- fread(opt$exon_pos, header = FALSE, sep = "\t")
+colnames(exon_positions) <- c("var_id", "exon_id", "exon_start", "exon_end")
+set(exon_positions, j = "var_id", value = as.character(exon_positions$var_id))
 set(exon_positions, j = "exon_id", value = as.character(exon_positions$exon_id))
 set(exon_positions, j = "exon_start", value = as.integer(exon_positions$exon_start))
 set(exon_positions, j = "exon_end", value = as.integer(exon_positions$exon_end))
-exon_positions$length <- exon_positions$exon_end - exon_positions$exon_start + 1
+exon_positions[, length := exon_end - exon_start + 1]
 
-intron_positions <- data.table(intron_id = paste0("I", 1:(nrow(exon_positions) - 1)),
-                               intron_start = exon_positions$exon_end[1:(nrow(exon_positions) - 1)] + 1,
-                               intron_end = exon_positions$exon_start[2:nrow(exon_positions)] - 1)
+intron_positions <- exon_positions[, .(intron_id = paste0("I", seq_len(.N - 1)),
+                                       intron_start = exon_end[1:(.N - 1)] + 1,
+                                       intron_end = exon_start[2:.N] - 1), by = var_id]
 intron_positions[, length := intron_end - intron_start + 1]
 
-categories <- c(paste0("intron_retention_", intron_positions$intron_id),
-                paste0("intron_retension_5p_", intron_positions$intron_id),
-                paste0("intron_retension_3p_", intron_positions$intron_id),
-                paste0("exon_splicing_3p_", exon_positions$exon_id),
-                paste0("exon_splicing_5p_", exon_positions$exon_id),
-                paste0("exon_skipping_", exon_positions$exon_id[2]))
+# colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
+# exon_positions <- as.data.table(exon_positions)
+# set(exon_positions, j = "exon_id", value = as.character(exon_positions$exon_id))
+# set(exon_positions, j = "exon_start", value = as.integer(exon_positions$exon_start))
+# set(exon_positions, j = "exon_end", value = as.integer(exon_positions$exon_end))
+# exon_positions$length <- exon_positions$exon_end - exon_positions$exon_start + 1
+
+# intron_positions <- data.table(intron_id = paste0("I", 1:(nrow(exon_positions) - 1)),
+#                                intron_start = exon_positions$exon_end[1:(nrow(exon_positions) - 1)] + 1,
+#                                intron_end = exon_positions$exon_start[2:nrow(exon_positions)] - 1)
+# intron_positions[, length := intron_end - intron_start + 1]
+
+exon_ids <- unique(exon_positions$exon_id)
+intron_ids<- unique(intron_positions$intron_id)
+categories <- c(paste0("intron_retention_", intron_ids),
+                paste0("intron_retension_5p_", intron_ids),
+                paste0("intron_retension_3p_", intron_ids),
+                paste0("exon_splicing_3p_", exon_ids),
+                paste0("exon_splicing_5p_", exon_ids),
+                paste0("exon_skipping_", exon_ids[2]))
 
 #-- outputs --#
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
@@ -162,7 +179,7 @@ junction_data <- junction_bed %>%
 
 junction_annotation <- junction_data %>%
                        rowwise() %>%
-                       mutate(Annotation = annotate_junction(Start, End, exon_positions, intron_positions)) %>%
+                       mutate(Annotation = annotate_junction(VarID, Start, End, exon_positions, intron_positions)) %>%
                        ungroup() %>%
                        filter(Annotation != "")
 

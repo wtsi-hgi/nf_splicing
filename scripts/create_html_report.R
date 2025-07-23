@@ -23,8 +23,8 @@ opt <- parse_args(opt_parser)
 
 if(length(commandArgs(trailingOnly = TRUE)) == 0)
 {
-  print_help(opt_parser)
-  quit(status = 1)
+    print_help(opt_parser)
+    quit(status = 1)
 }
 
 # Check if required arguments are provided

@@ -16,8 +16,8 @@ opt <- parse_args(opt_parser)
 
 if(length(commandArgs(trailingOnly = TRUE)) == 0)
 {
-  print_help(opt_parser)
-  quit(status = 1)
+    print_help(opt_parser)
+    quit(status = 1)
 }
 
 # Check if required arguments are provided
@@ -184,7 +184,7 @@ bam_chunk_size <- opt$chunk_size
 
 bam_prefix <- tools::file_path_sans_ext(basename(bam_file))
 
-exon_positions <- read.table(opt$exon_pos, header = FALSE, sep = "\t")
+exon_positions <- fread(opt$exon_pos, header = FALSE, sep = "\t")
 colnames(exon_positions) <- c("var_id", "exon_id", "exon_start", "exon_end")
 set(exon_positions, j = "var_id", value = as.character(exon_positions$var_id))
 set(exon_positions, j = "exon_id", value = as.character(exon_positions$exon_id))

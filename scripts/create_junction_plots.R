@@ -15,8 +15,8 @@ opt <- parse_args(opt_parser)
 
 if(length(commandArgs(trailingOnly = TRUE)) == 0)
 {
-  print_help(opt_parser)
-  quit(status = 1)
+    print_help(opt_parser)
+    quit(status = 1)
 }
 
 # Check if required arguments are provided
@@ -117,18 +117,31 @@ panel.smooth <- function(x, y,
 reps <- unlist(strsplit(opt$sample_id, ","))
 novel_junction_files <- unlist(strsplit(opt$novel_junctions, ","))
 
-exon_positions <- read.table(opt$exon_pos, header = FALSE, sep = "\t")
-colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
-exon_positions <- as.data.table(exon_positions)
+exon_positions <- fread(opt$exon_pos, header = FALSE, sep = "\t")
+colnames(exon_positions) <- c("var_id", "exon_id", "exon_start", "exon_end")
+set(exon_positions, j = "var_id", value = as.character(exon_positions$var_id))
 set(exon_positions, j = "exon_id", value = as.character(exon_positions$exon_id))
 set(exon_positions, j = "exon_start", value = as.integer(exon_positions$exon_start))
 set(exon_positions, j = "exon_end", value = as.integer(exon_positions$exon_end))
-exon_positions$length <- exon_positions$exon_end - exon_positions$exon_start + 1
+exon_positions[, length := exon_end - exon_start + 1]
 
-intron_positions <- data.table(intron_id = paste0("I", 1:(nrow(exon_positions) - 1)),
-                               intron_start = exon_positions$exon_end[1:(nrow(exon_positions) - 1)] + 1,
-                               intron_end = exon_positions$exon_start[2:nrow(exon_positions)] - 1)
+intron_positions <- exon_positions[, .(intron_id = paste0("I", seq_len(.N - 1)),
+                                       intron_start = exon_end[1:(.N - 1)] + 1,
+                                       intron_end = exon_start[2:.N] - 1), by = var_id]
 intron_positions[, length := intron_end - intron_start + 1]
+
+# exon_positions <- read.table(opt$exon_pos, header = FALSE, sep = "\t")
+# colnames(exon_positions) <- c("exon_id", "exon_start", "exon_end")
+# exon_positions <- as.data.table(exon_positions)
+# set(exon_positions, j = "exon_id", value = as.character(exon_positions$exon_id))
+# set(exon_positions, j = "exon_start", value = as.integer(exon_positions$exon_start))
+# set(exon_positions, j = "exon_end", value = as.integer(exon_positions$exon_end))
+# exon_positions$length <- exon_positions$exon_end - exon_positions$exon_start + 1
+
+# intron_positions <- data.table(intron_id = paste0("I", 1:(nrow(exon_positions) - 1)),
+#                                intron_start = exon_positions$exon_end[1:(nrow(exon_positions) - 1)] + 1,
+#                                intron_end = exon_positions$exon_start[2:nrow(exon_positions)] - 1)
+# intron_positions[, length := intron_end - intron_start + 1]
 
 #-- outputs --#
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
