@@ -12,10 +12,10 @@ from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor
 from collections import Counter
 from collections import defaultdict
-from sequence_utils import reverse_complement, extract_sequence, check_barcode
+from sequence_utils import reverse_complement, extract_sequence, check_barcode, calc_softclip_lens
 
 #-- functions --#
-def extract_se_read_info(read: pysam.AlignedSegment) -> dict:
+def extract_read_info(read: pysam.AlignedSegment) -> dict:
     """
     Parse pysam read object to extract relevant information.
     Parameters:
@@ -44,8 +44,14 @@ def extract_se_read_info(read: pysam.AlignedSegment) -> dict:
     }
 
 def process_se_read(read: dict) -> list:
-    # read reference name like
-    # exon_inclusion_var1, exon_skipping_var1
+    """
+    Process a single-end read to extract variants and barcodes.
+    Parameters:
+        -- read: dict containing read information
+    Returns:
+        -- list: list containing read dict, unmapped read dict, and barcode dict
+    """
+    # read reference name like exon_inclusion_var1, exon_skipping_var1
     read_ref_var = re.search(r'[^_]+$', read['rname']).group(0)
     read_ref_exon = re.sub(r'_[^_]+$', '', read['rname'])
 
@@ -73,6 +79,91 @@ def process_se_read(read: dict) -> list:
     else:
         return {}, read, {}
 
+def condition1(read1_cigar: str, soft_clip: int) -> bool:
+    """
+    Check if the first soft clip in read1's CIGAR string is within the allowed soft clip length.
+    Parameters:
+        -- read1_cigar: CIGAR string of read1
+        -- soft_clip: maximum allowed soft clip length
+    Returns:
+        -- bool: True if the condition is met, False otherwise
+    """
+    if re.search(r'\d+S$', read1_cigar):
+        _, last_softclip = calc_softclip_lens(read1_cigar)
+        return last_softclip <= soft_clip
+    else:
+        return True
+    
+def condition2(read2_cigar: str, read2_start_pos: int, read1_end_pos: int, soft_clip: int) -> bool:
+    """
+    Check if read2 starts after read1 ends, considering the first soft clip in read2's CIGAR string.
+    Parameters:
+        -- read2_cigar: CIGAR string of read2
+        -- read2_start_pos: start position of read2
+        -- read1_end_pos: end position of read1
+        -- soft_clip: maximum allowed soft clip length
+    Returns:
+        -- bool: True if read2 starts after read1 ends, False otherwise
+    """
+    if re.match(r'^\d+S', read2_cigar):
+        first_softclip, _ = calc_softclip_lens(read2_cigar)
+        if first_softclip <= soft_clip:
+            return read2_start_pos >= read1_end_pos
+        else:
+            return False
+    else:
+        return read2_start_pos >= read1_end_pos
+
+def process_pe_read(read_pair: tuple) -> list:
+    """
+    Process a paired-end read to extract variants and barcodes.
+    Parameters:
+        -- read: a tuple of PE read dicts containing read information
+    Returns:
+        -- list: list containing read dict, unmapped read dict, and barcode dict
+    """
+    read1, read2 = read_pair
+
+    read1_ref = read1['rname']
+    read2_ref = read2['rname']
+    read1_pos = read1['pos']
+    read2_pos = read2['pos']
+    read1_pos_end = read1['pos_end']
+    read2_pos_end = read2['pos_end']
+    read2_seq_rc = read2['seq_rc']
+    read1_cigar = read1['cigar']
+    read2_cigar = read2['cigar']
+
+    if read1_ref == read2_ref:
+        # read reference name like exon_inclusion_var1, exon_skipping_var1
+        read_ref_var = re.search(r'[^_]+$', read1_ref).group(0)
+        read_ref_exon = re.sub(r'_[^_]+$', '', read1_ref)
+
+        read_start_pass = ( exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'exon_end'].iloc[0] - read1_pos > args.soft_clip )
+        read_end_pass = ( read2_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[[0, 1]].sum() > args.soft_clip
+                          if read_ref_exon == "exon_inclusion" 
+                          else read2_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[0] > args.soft_clip )
+
+        if read_start_pass and read_end_pass:
+            if condition1(read1_cigar, args.soft_clip) and \
+               condition2(read2_cigar, read2_pos, read1_pos_end, args.soft_clip):
+                # 1. assum read1 contains variant and read2 contains barcode
+                # 2. read2 is reversed complemented
+                # 3. up and down sequences are in the forward strand
+                barcode_seq = extract_sequence(read2_seq_rc, args.barcode_up, args.barcode_down, args.max_mismatch)
+                barcode_dict = { 
+                    'type': read_ref_exon,
+                'ref_id': read_ref_var,
+                'barcode': barcode_seq
+                }
+                if args.barcode_check:
+                    check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
+                    if not check_res:
+                        barcode_dict = {}
+                return read1, read2, {}, {}, barcode_dict
+
+    return {}, {}, read1, read2, {}
+    
 def batch_process_se_reads(batch_reads: list) -> list:
     """
     Process a batch of read pairs to extract variants and barcodes.
@@ -87,11 +178,31 @@ def batch_process_se_reads(batch_reads: list) -> list:
         results.append(result)
     return results
 
+def batch_process_pe_reads(batch_reads: list) -> list:
+    """
+    Process a batch of read pairs to extract variants and barcodes.
+    Parameters:
+        -- batch_reads: list of read dicts
+    Returns:
+        -- list: list of variant dicts for the batch
+    """
+    results = []
+    for read_pair in batch_reads:
+        result = process_pe_read(read_pair)
+        results.append(result)
+    return results
+
 def function_processpool_se(args):
     """
     Wrapper function for process pool as ProcessPoolExecutor expects a function rather than returned results.
     """
     return batch_process_se_reads(args)
+
+def function_processpool_pe(args):
+    """
+    Wrapper function for process pool as ProcessPoolExecutor expects a function rather than returned results.
+    """
+    return batch_process_pe_reads(args)
 
 def dict_to_segment(read: dict) -> pysam.AlignedSegment:
     """
@@ -123,6 +234,8 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
     Parameters:
         -- bam_file: Path to the BAM file
         -- read_type: Type of reads ('se' for single-end, 'pe' for paired-end)
+        -- chunk_size: Number of reads to process in each chunk
+        -- threads: Number of threads to use for processing
     Returns:
         Generator yielding processed reads.
     """
@@ -133,10 +246,11 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
     
         batch_size = min(chunk_size, 5000)
         
+        # process single-end reads
         if read_type == 'se':
             read_chunk = []
             for read in bam_handle.fetch(until_eof = True):
-                read_chunk.append(extract_se_read_info(read))
+                read_chunk.append(extract_read_info(read))
 
                 if len(read_chunk) >= chunk_size:
                     read_batches = [
@@ -161,7 +275,7 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                     read_chunk = []
                     yield pl.DataFrame(reads_barcodes)
 
-            # Process any remaining reads after file ends
+            # process any remaining reads after file ends
             if read_chunk:
                 read_batches = [
                     read_chunk[i:i + batch_size] 
@@ -184,13 +298,78 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                 
                 read_chunk = []
                 yield pl.DataFrame(reads_barcodes)
+        # process paired-end reads
         else:
-            raise ValueError("Only single-end reads are supported in this script.")
+            read_chunk = []
+            for read in bam_handle.fetch(until_eof = True):
+                if current_read is None:
+                    current_read = read
+                    continue
+
+                if read.query_name == current_read.query_name:
+                    if read.is_read1:
+                        read_chunk.append((extract_read_info(read), extract_read_info(current_read)))
+                    else:
+                        read_chunk.append((extract_read_info(current_read), extract_read_info(read)))
+                    current_read = None
+                else:
+                    raise ValueError(f"PE read names differ, make sure bam file to be sorted by read name!")
+                
+                if len(read_chunk) >= chunk_size:
+                    read_batches = [
+                        read_chunk[i:i + batch_size] 
+                        for i in range(0, len(read_chunk), batch_size)
+                    ]
+
+                    args_list = [ batch for batch in read_batches]
+                    batch_results = list(executor.map(function_processpool_pe, args_list))
+
+                    flat_results = [item for batch in batch_results for item in batch]
+                    mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes = zip(*flat_results)
+
+                    for read1_dict, read2_dict in zip(mapped_reads1, mapped_reads2):
+                        if read1_dict and read2_dict:
+                            mapped_fh.write(dict_to_segment(read1_dict))
+                            mapped_fh.write(dict_to_segment(read2_dict))
+                    
+                    for read1_dict, read2_dict in zip(unmapped_reads1, unmapped_reads2):
+                        if read1_dict and read2_dict:
+                            unmapped_fh.write(dict_to_segment(read1_dict))
+                            unmapped_fh.write(dict_to_segment(read2_dict))
+                    
+                    read_chunk = []
+                    yield pl.DataFrame(reads_barcodes)
+            
+            # process any remaining reads after file ends
+            if read_chunk:
+                read_batches = [
+                    read_chunk[i:i + batch_size] 
+                    for i in range(0, len(read_chunk), batch_size)
+                ]
+
+                args_list = [ batch for batch in read_batches]
+                batch_results = list(executor.map(function_processpool_pe, args_list))
+
+                flat_results = [item for batch in batch_results for item in batch]
+                mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes = zip(*flat_results)
+
+                for read1_dict, read2_dict in zip(mapped_reads1, mapped_reads2):
+                    if read1_dict and read2_dict:
+                        mapped_fh.write(dict_to_segment(read1_dict))
+                        mapped_fh.write(dict_to_segment(read2_dict))
+                
+                for read1_dict, read2_dict in zip(unmapped_reads1, unmapped_reads2):
+                    if read1_dict and read2_dict:
+                        unmapped_fh.write(dict_to_segment(read1_dict))
+                        unmapped_fh.write(dict_to_segment(read2_dict))
+                
+                read_chunk = []
+                yield pl.DataFrame(reads_barcodes)
 
 #-- main execution --#
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Process a bwa bam file for canonical splicing events.", allow_abbrev = False)
-    parser.add_argument("--bam_file",            type = str, required = True,       help = "bam file")
+    parser.add_argument("--bam_file",            type = str, required = True,       help = "bam file sorted by read name")
     parser.add_argument("--barcode_file",        type = str, required = True,       help = "barcode association file")
     parser.add_argument("--exon_pos",            type = str, required = True,       help = "exon position file")
     parser.add_argument("--read_type",           type = str, default = 'se',        help = "sequence read type (se or pe)", choices = ['se', 'pe'],)

@@ -85,3 +85,17 @@ def check_barcode(barcode_seq: str, barcode_temp: str, max_mismatches: int) -> b
                     return False
 
     return True
+
+def calc_softclip_lens(cigar: str) -> tuple[int, int]:
+    first_softclip = 0
+    last_softclip = 0
+
+    match_start = re.match(r'^(\d+)S', cigar)
+    if match_start:
+        first_softclip = int(match_start.group(1))
+
+    match_end = re.search(r'(\d+)S$', cigar)
+    if match_end:
+        last_softclip = int(match_end.group(1))
+
+    return first_softclip, last_softclip
