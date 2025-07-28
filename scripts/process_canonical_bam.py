@@ -1,0 +1,253 @@
+#-- import modules --#
+import os
+import sys
+import argparse
+import re
+import pysam
+import csv
+import pandas as pd
+import polars as pl
+from Bio import SeqIO
+from datetime import datetime
+from concurrent.futures import ProcessPoolExecutor
+from collections import Counter
+from collections import defaultdict
+from sequence_utils import reverse_complement, extract_sequence, check_barcode
+
+#-- functions --#
+def extract_se_read_info(read: pysam.AlignedSegment) -> dict:
+    """
+    Parse pysam read object to extract relevant information.
+    Parameters:
+        -- read: a pysam AlignedSegment
+    Returns:
+        -- dict: a read dict
+    """
+    return {
+        'qname': read.query_name,
+        'flag':  read.flag,
+        'rname': read.reference_name,
+        'pos':   read.reference_start,
+        'mapq':  read.mapping_quality,
+        'cigar': read.cigarstring,
+        'rnext': read.next_reference_name,
+        'pnext': read.next_reference_start,
+        'tlen':  read.template_length,
+        'seq':   read.query_sequence,
+        'qual':  read.query_qualities,
+        'tags':  dict(read.tags),
+
+        'pos_end':    read.reference_end,
+        'is_reverse': read.is_reverse,
+        'seq_rc':     reverse_complement(read.query_sequence),
+        'qual_rc':    read.query_qualities[::-1]
+    }
+
+def process_se_read(read: dict) -> list:
+    # read reference name like
+    # exon_inclusion_var1, exon_skipping_var1
+    read_ref_var = re.search(r'[^_]+$', read['rname']).group(0)
+    read_ref_exon = re.sub(r'_[^_]+$', '', read['rname'])
+
+    read_pos = read['pos']
+    read_pos_end = read['pos_end']
+    read_seq = read['seq']
+
+    read_start_pass = ( exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'exon_end'].iloc[0] - read_pos > args.soft_clip )
+    read_end_pass = ( read_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[[0, 1]].sum() > args.soft_clip
+                      if read_ref_exon == "exon_inclusion" 
+                      else read_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[0] > args.soft_clip ) 
+
+    if read_start_pass and read_end_pass:
+        barcode_seq = extract_sequence(read_seq, args.barcode_up, args.barcode_down, args.max_mismatch)
+        barcode_dict = { 
+            'type': read_ref_exon,
+            'ref_id': read_ref_var,
+            'barcode': barcode_seq
+        }
+        if args.barcode_check:
+            check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
+            if not check_res:
+                barcode_dict = {}
+        return read, {}, barcode_dict
+    else:
+        return {}, read, {}
+
+def batch_process_se_reads(batch_reads: list) -> list:
+    """
+    Process a batch of read pairs to extract variants and barcodes.
+    Parameters:
+        -- batch_reads: list of read dicts
+    Returns:
+        -- list: list of variant dicts for the batch
+    """
+    results = []
+    for read in batch_reads:
+        result = process_se_read(read)
+        results.append(result)
+    return results
+
+def function_processpool_se(args):
+    """
+    Wrapper function for process pool as ProcessPoolExecutor expects a function rather than returned results.
+    """
+    return batch_process_se_reads(args)
+
+def dict_to_segment(read: dict) -> pysam.AlignedSegment:
+    """
+    Convert a read dict to a pysam AlignedSegment.
+    Parameters:
+        -- read: dict containing read information
+    Returns:
+        -- pysam.AlignedSegment object
+    """
+    segment = pysam.AlignedSegment(header = bamfile.header)
+    segment.query_name = read['qname']
+    segment.flag = read['flag']
+    segment.reference_name = read['rname']
+    segment.reference_start = read['pos']
+    segment.mapping_quality = read['mapq']
+    segment.cigarstring = read['cigar']
+    segment.next_reference_name = read['rnext']
+    segment.next_reference_start = read['pnext']
+    segment.template_length = read['tlen']
+    segment.query_sequence = read['seq']
+    segment.query_qualities = read['qual']
+    segment.tags = list(read['tags'].items())
+    
+    return segment
+   
+def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: int):
+    """
+    Read single-end BAM file in chunks and process reads.
+    Parameters:
+        -- bam_file: Path to the BAM file
+        -- read_type: Type of reads ('se' for single-end, 'pe' for paired-end)
+    Returns:
+        Generator yielding processed reads.
+    """
+    with pysam.AlignmentFile(bam_file, "rb", threads = threads) as bam_handle, \
+        ProcessPoolExecutor(max_workers=threads) as executor, \
+        pysam.AlignmentFile(mapped_bam, "wb", header = bamfile.header) as mapped_fh, \
+        pysam.AlignmentFile(wrong_bam, "wb", header = bamfile.header) as unmapped_fh:
+    
+        batch_size = min(chunk_size, 5000)
+        
+        if read_type == 'se':
+            read_chunk = []
+            for read in bam_handle.fetch(until_eof = True):
+                read_chunk.append(extract_se_read_info(read))
+
+                if len(read_chunk) >= chunk_size:
+                    read_batches = [
+                        read_chunk[i:i + batch_size] 
+                        for i in range(0, len(read_chunk), batch_size)
+                    ]
+
+                    args_list = [ batch for batch in read_batches]
+                    batch_results = list(executor.map(function_processpool_se, args_list))
+
+                    flat_results = [item for batch in batch_results for item in batch]
+                    mapped_reads, unmapped_reads, reads_barcodes = zip(*flat_results)
+
+                    for read_dict in mapped_reads:
+                        if read_dict:
+                            mapped_fh.write(dict_to_segment(read_dict))
+
+                    for read_dict in unmapped_reads:
+                        if read_dict:
+                            unmapped_fh.write(dict_to_segment(read_dict))
+
+                    read_chunk = []
+                    yield pl.DataFrame(reads_barcodes)
+
+            # Process any remaining reads after file ends
+            if read_chunk:
+                read_batches = [
+                    read_chunk[i:i + batch_size] 
+                    for i in range(0, len(read_chunk), batch_size)
+                ]
+
+                args_list = [ batch for batch in read_batches]
+                batch_results = list(executor.map(function_processpool_se, args_list))
+
+                flat_results = [item for batch in batch_results for item in batch]
+                mapped_reads, unmapped_reads, reads_barcodes = zip(*flat_results)
+
+                for read_dict in mapped_reads:
+                    if read_dict:
+                        mapped_fh.write(dict_to_segment(read_dict))
+
+                for read_dict in unmapped_reads:
+                    if read_dict:
+                        unmapped_fh.write(dict_to_segment(read_dict))
+                
+                read_chunk = []
+                yield pl.DataFrame(reads_barcodes)
+        else:
+            raise ValueError("Only single-end reads are supported in this script.")
+
+#-- main execution --#
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description = "Process a bwa bam file for canonical splicing events.", allow_abbrev = False)
+    parser.add_argument("--bam_file",            type = str, required = True,       help = "bam file")
+    parser.add_argument("--barcode_file",        type = str, required = True,       help = "barcode association file")
+    parser.add_argument("--exon_pos",            type = str, required = True,       help = "exon position file")
+    parser.add_argument("--read_type",           type = str, default = 'se',        help = "sequence read type (se or pe)", choices = ['se', 'pe'],)
+    parser.add_argument("--soft_clip",           type = int, default = 5,           help = "soft clip tolerance")
+    parser.add_argument("--barcode_up",          type = str, required = True,       help = "sequence before barcode in read2")
+    parser.add_argument("--barcode_down",        type = str, required = True,       help = "sequence after barcode in read2")
+    parser.add_argument("--barcode_check",       action="store_true",               help = "enable barcode checking against template")
+    parser.add_argument("--barcode_temp",        type = str, required = True,       help = "template for barcode sequence (e.g., 'NNATNNNNATNNNNATNNNNATNNNNATNNNNATNNNN')")
+    parser.add_argument("--max_mismatch",        type = int, default = 2,           help = "max mismatches allowed in up/down matches")
+    parser.add_argument("--barcode_mismatch",    type = int, default = 1,           help = "number of mismatches allowed in barcode checking")
+    parser.add_argument("--output_dir",          type = str, default = os.getcwd(), help = "output directory")
+    parser.add_argument("--output_prefix",       type = str, default = 'prefix',    help = "output prefix")
+    parser.add_argument("--chunk_size",          type = int, default = 1000,        help = "chunk size for processing reads")
+    parser.add_argument("--threads",             type = int, default = 4,           help = "number of threads")
+
+    args, unknown = parser.parse_known_args()
+
+    if unknown:
+        print(f"Error: Unrecognized arguments: {' '.join(unknown)}", file=sys.stderr)
+        parser.print_help()
+        sys.exit(1)
+    
+    if args.output_prefix == 'prefix':
+        output_prefix = os.path.splitext(os.path.basename(args.bam_file))[0]
+
+    exon_positions = pd.read_csv(args.exon_pos, sep = "\t", header = None)
+    exon_positions.columns = ["var_id", "exon_id", "exon_start", "exon_end"]
+    exon_positions["var_id"] = exon_positions["var_id"].astype(str)
+    exon_positions["exon_id"] = exon_positions["exon_id"].astype(str)
+    exon_positions["exon_start"] = exon_positions["exon_start"].astype(int)
+    exon_positions["exon_end"] = exon_positions["exon_end"].astype(int)
+    exon_positions["length"] = exon_positions["exon_end"] - exon_positions["exon_start"] + 1
+
+    os.makedirs(args.output_dir, exist_ok = True)
+    os.chdir(args.output_dir)
+
+    mapped_bam = f"{output_prefix}.filtered.bam"
+    if os.path.exists(mapped_bam):
+        os.remove(mapped_bam)
+
+    wrong_bam = f"{output_prefix}.wrongmap.bam"
+    if os.path.exists(wrong_bam):
+        os.remove(wrong_bam)
+
+    barcode_out = f"{output_prefix}.barcodes.txt"
+    if os.path.exists(barcode_out):
+        os.remove(barcode_out)
+
+    barcode_list = []
+    bamfile = pysam.AlignmentFile(args.bam_file, "rb")
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing bam file, please wait...", flush = True)
+    for i, chunk_result in enumerate(read_bam_in_chunk(args.bam_file, args.read_type, args.chunk_size, args.threads)):
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {len(chunk_result)} reads", flush = True)
+        barcode_list.append(chunk_result)
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Finished.", flush = True)
+
+    filtered_barcode_list = [df for df in barcode_list if df.shape[1] > 0]
+    barcode_df = pl.concat(filtered_barcode_list, how = "vertical")
+    barcode_df = barcode_df.filter(pl.col("barcode").is_not_null())
+    barcode_df.write_csv(barcode_out, separator = "\t")
