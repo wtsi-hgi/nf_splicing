@@ -1,3 +1,5 @@
+import re
+
 def reverse_complement(seq: str) -> str:
     """
     Generate the reverse complement of a DNA sequence.
