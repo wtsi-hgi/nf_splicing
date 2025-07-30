@@ -301,6 +301,7 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
         # process paired-end reads
         else:
             read_chunk = []
+            current_read = None
             for read in bam_handle.fetch(until_eof = True):
                 if current_read is None:
                     current_read = read
