@@ -378,7 +378,7 @@ if __name__ == "__main__":
     parser.add_argument("--barcode_up",          type = str, required = True,       help = "sequence before barcode in read2")
     parser.add_argument("--barcode_down",        type = str, required = True,       help = "sequence after barcode in read2")
     parser.add_argument("--barcode_check",       action="store_true",               help = "enable barcode checking against template")
-    parser.add_argument("--barcode_temp",        type = str, required = True,       help = "template for barcode sequence (e.g., 'NNATNNNNATNNNNATNNNNATNNNNATNNNNATNNNN')")
+    parser.add_argument("--barcode_temp",        type = str,                        help = "template for barcode sequence (e.g., 'NNATNNNNATNNNNATNNNNATNNNNATNNNNATNNNN')")
     parser.add_argument("--max_mismatch",        type = int, default = 2,           help = "max mismatches allowed in up/down matches")
     parser.add_argument("--barcode_mismatch",    type = int, default = 1,           help = "number of mismatches allowed in barcode checking")
     parser.add_argument("--output_dir",          type = str, default = os.getcwd(), help = "output directory")
@@ -393,6 +393,9 @@ if __name__ == "__main__":
         parser.print_help()
         sys.exit(1)
     
+    if args.barcode_check and args.barcode_temp is None:
+        parser.error("--barcode_temp is required when --barcode_check is set")
+
     if args.output_prefix == 'prefix':
         output_prefix = os.path.splitext(os.path.basename(args.bam_file))[0]
 
