@@ -430,7 +430,10 @@ if __name__ == "__main__":
         barcode_list.append(chunk_result)
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Finished.", flush = True)
 
-    filtered_barcode_list = [df for df in barcode_list if df.shape[1] > 0]
-    barcode_df = pl.concat(filtered_barcode_list, how = "vertical")
+    filtered_barcode_list = [df for df in barcode_list if df.shape[0] > 0]
+    if filtered_barcode_list:
+        barcode_df = pl.concat(filtered_barcode_list, how = "vertical")
+    else:
+        barcode_df = pl.DataFrame() 
     barcode_df = barcode_df.filter(pl.col("barcode").is_not_null())
     barcode_df.write_csv(barcode_out, separator = "\t")
