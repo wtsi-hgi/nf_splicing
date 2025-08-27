@@ -382,7 +382,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_mismatch",        type = int, default = 2,           help = "max mismatches allowed in up/down matches")
     parser.add_argument("--barcode_mismatch",    type = int, default = 1,           help = "number of mismatches allowed in barcode checking")
     parser.add_argument("--output_dir",          type = str, default = os.getcwd(), help = "output directory")
-    parser.add_argument("--output_prefix",       type = str, default = 'prefix',    help = "output prefix")
+    parser.add_argument("--output_prefix",       type = str, default = '',          help = "output prefix")
     parser.add_argument("--chunk_size",          type = int, default = 1000,        help = "chunk size for processing reads")
     parser.add_argument("--threads",             type = int, default = 4,           help = "number of threads")
 
@@ -396,8 +396,10 @@ if __name__ == "__main__":
     if args.barcode_check and args.barcode_temp is None:
         parser.error("--barcode_temp is required when --barcode_check is set")
 
-    if args.output_prefix == 'prefix':
+    if args.output_prefix == '':
         output_prefix = os.path.splitext(os.path.basename(args.bam_file))[0]
+    else:
+        output_prefix = args.output_prefix
 
     exon_positions = pd.read_csv(args.exon_pos, sep = "\t", header = None)
     exon_positions.columns = ["var_id", "exon_id", "exon_start", "exon_end"]
