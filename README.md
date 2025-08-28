@@ -46,8 +46,21 @@ This pipeline is designed to quantify splicing events within minigene-based muta
     FLASH2 = 2.2.00
     fastp = 0.23.4
     RegTools = 1.0.0
+    python = 3.10
     R = 4.3.1
     nextflow = 23.10.0
+</details>
+
+<details>
+<summary><b>Python Libraries</b></summary>
+
+    pysam = 0.22.1
+    scipy = 1.15.3
+    pandas = 2.2.2
+    numpy = 2.1.2
+    matplotlib = 3.7.3
+    biopython = 1.85
+    polars = 1.25.2
 </details>
 
 <details>
@@ -87,18 +100,20 @@ This pipeline is designed to quantify splicing events within minigene-based muta
 <a id="samplesheet"></a>
 
 ### Sample Sheet
-| sample | replicate | directory | read1 | read2 | reference | barcode |
-| - | - | - | - | - | - | - |
-| s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz | s1_rep1_r2.fastq.gz | s1_ref.fa | s1_barcode.txt |
-| s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz | s1_rep2_r2.fastq.gz | s1_ref.fa | s1_barcode.txt |
-| s1 | rep3 | /path/of/directory/ | s1_rep3_r1.fastq.gz | s1_rep3_r2.fastq.gz | s1_ref.fa | s1_barcode.txt |
-| s2 | rep1 | /path/of/directory/ | s2_rep1_r1.fastq.gz | s2_rep1_r2.fastq.gz | s2_ref.fa | s2_barcode.txt |
-| s2 | rep2 | /path/of/directory/ | s2_rep2_r1.fastq.gz | s2_rep2_r2.fastq.gz | s2_ref.fa | s2_barcode.txt |
-| s2 | rep3 | /path/of/directory/ | s2_rep3_r1.fastq.gz | s2_rep3_r2.fastq.gz | s2_ref.fa | s2_barcode.txt |
+| sample | replicate | directory | read1 | read2 | reference | barcode | barcode_up | barcode_down | barcode_temp |
+| - | - | - | - | - | - | - | - | - | - |
+| s1 | rep1 | /path/of/directory/ | s1_rep1_r1.fastq.gz | s1_rep1_r2.fastq.gz | s1_ref.fa | s1_barcode.txt | GCAGAAAGCACAGAAAGGAA | CTACTGATTCGATGCAAGCTT | NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN |
+| s1 | rep2 | /path/of/directory/ | s1_rep2_r1.fastq.gz | s1_rep2_r2.fastq.gz | s1_ref.fa | s1_barcode.txt | GCAGAAAGCACAGAAAGGAA | CTACTGATTCGATGCAAGCTT | NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN |
+| s1 | rep3 | /path/of/directory/ | s1_rep3_r1.fastq.gz | s1_rep3_r2.fastq.gz | s1_ref.fa | s1_barcode.txt | GCAGAAAGCACAGAAAGGAA | CTACTGATTCGATGCAAGCTT | NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN |
+| s2 | rep1 | /path/of/directory/ | s2_rep1_r1.fastq.gz | s2_rep1_r2.fastq.gz | s2_ref.fa | s2_barcode.txt | GCAGAAAGCACAGAAAGGAA | CTACTGATTCGATGCAAGCTT | NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN |
+| s2 | rep2 | /path/of/directory/ | s2_rep2_r1.fastq.gz | s2_rep2_r2.fastq.gz | s2_ref.fa | s2_barcode.txt | GCAGAAAGCACAGAAAGGAA | CTACTGATTCGATGCAAGCTT | NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN |
+| s2 | rep3 | /path/of/directory/ | s2_rep3_r1.fastq.gz | s2_rep3_r2.fastq.gz | s2_ref.fa | s2_barcode.txt | GCAGAAAGCACAGAAAGGAA | CTACTGATTCGATGCAAGCTT | NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN |
 
 > [!IMPORTANT]
 > 1. The sample sheet must be a **csv** file and the header must be like above in the example
 > 2. All the files should be in the **directory** for each sample
+> 3. **barcode_up** is the upstream flanking seqeuence of the barcode, **barcode_down** is the downstream
+> 4. **barcode_temp** is the template sequence of the barcode
 
 <br>
 
