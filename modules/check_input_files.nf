@@ -4,20 +4,23 @@ workflow check_input_files {
 
     main:
     check_files(ch_sample)
-    ch_sample_checked = check_files.out.ch_checked
+    ch_sample_mapping = check_files.out.ch_sample_mapping
+    ch_sample_barcodes = check_files.out.ch_sample_barcodes
 
     emit:
-    ch_sample_checked
+    ch_sample_mapping
+    ch_sample_barcodes
 }
 
 process check_files {
     label 'process_single'
 
     input:
-    tuple val(sample_id), val(sample), val(replicate), val(directory), val(read1), val(read2), val(reference), val(barcode)
+    tuple val(sample_id), val(sample), val(replicate), val(directory), val(read1), val(read2), val(reference), val(barcode), val(barcode_up), val(barcode_down), val(barcode_temp)
 
     output:
-    tuple val(sample_id), path("${sample_id}.read_1.fastq.gz"), path("${sample_id}.read_2.fastq.gz"), path("${sample_id}.ref.fasta"), path("${sample_id}.associated_barcodes.txt"), emit: ch_checked
+    tuple val(sample_id), path("${sample_id}.read_1.fastq.gz"), path("${sample_id}.read_2.fastq.gz"), path("${sample_id}.ref.fasta"), emit: ch_sample_mapping
+    tuple val(sample_id), path("${sample_id}.associated_barcodes.txt"), val(barcode_up), val(barcode_down), val(barcode_temp), emit: ch_sample_barcodes
 
     script:
     def file_read1 = file("${directory}/${read1}")
