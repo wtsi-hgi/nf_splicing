@@ -35,7 +35,7 @@ def extract_exons_and_positions(seq: str) -> tuple:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Create a reference with exon only (may include barcode).", allow_abbrev = False)
     parser.add_argument("-r", "--reference", type = str, required = True, help = "Reference FASTA file")
-    parser.add_argument("-l", "--lib_type",  type = str, required = True, help = "Library type (random_intron, random_exon, muta_exon)")
+    parser.add_argument("-l", "--lib_type",  type = str, required = True, help = "Library type (random_intron, random_exon, muta_intron, muta_exon)")
     parser.add_argument("-p", "--prefix",    type = str, required = True, help = "Output prefix")
     
     args, unknown = parser.parse_known_args()
@@ -45,7 +45,7 @@ if __name__ == "__main__":
         parser.print_help()
         sys.exit(1)
 
-    valid_lib_types = {"random_intron", "random_exon", "muta_exon"}
+    valid_lib_types = {"random_intron", "random_exon", "muta_intron", "muta_exon"}
     if args.lib_type not in valid_lib_types:
         sys.exit(f"Error: Invalid --lib_type '{args.lib_type}'. Must be one of: {', '.join(valid_lib_types)}")
 
@@ -55,17 +55,21 @@ if __name__ == "__main__":
     with open(output_fasta, "w") as fasta_out, open(output_positions, "w") as tsv_out:
         fasta_records = SeqIO.parse(args.reference, "fasta")
 
-        if args.lib_type == "random_intron":
+        if args.lib_type == "random_intron" or args.lib_type == "muta_intron":
+            # random intron library: only one sequence in the FASTA, as exons are the same for all
             record = next(fasta_records)
             full_exon_seq, skip_exon_seq, exons_pos = extract_exons_and_positions(record.seq)
-            fasta_out.write(f">exon_inclusion_random\n{full_exon_seq}\n")
-            fasta_out.write(f">exon_skipping_random\n{skip_exon_seq}\n")
+            fasta_out.write(f">exon_inclusion_ilib\n{full_exon_seq}\n")
+            fasta_out.write(f">exon_skipping_ilib\n{skip_exon_seq}\n")
             for i, (start, end) in enumerate(exons_pos, 1):
                 tsv_out.write(f"random\tE{i}\t{start}\t{end}\n")
         else:
+            # random exon or muta exon library: process each sequence in the FASTA, as exons may differ
+            # for exon_skipping, normally the middle exon is skipped which is the target exon, so exon_skipping is the same for all
             for record in SeqIO.parse(args.reference, "fasta"):
                 full_exon_seq, skip_exon_seq, exons_pos = extract_exons_and_positions(record.seq)
                 fasta_out.write(f">exon_inclusion_{record.id}\n{full_exon_seq}\n")
-                fasta_out.write(f">exon_skipping_{record.id}\n{skip_exon_seq}\n")
                 for i, (start, end) in enumerate(exons_pos, 1):
                     tsv_out.write(f"{record.id}\tE{i}\t{start}\t{end}\n")
+            # write exon_skipping sequence only once
+            fasta_out.write(f">exon_skipping_elib\n{skip_exon_seq}\n")
