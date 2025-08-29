@@ -153,8 +153,8 @@ def process_pe_read(read_pair: tuple) -> list:
                 barcode_seq = extract_sequence(read2_seq_rc, args.barcode_up, args.barcode_down, args.max_mismatch)
                 barcode_dict = { 
                     'type': read_ref_exon,
-                'ref_id': read_ref_var,
-                'barcode': barcode_seq
+                    'ref_id': read_ref_var,
+                    'barcode': barcode_seq
                 }
                 if args.barcode_check:
                     check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
@@ -401,6 +401,7 @@ if __name__ == "__main__":
     else:
         output_prefix = args.output_prefix
 
+    # -- read input files -- #
     exon_positions = pd.read_csv(args.exon_pos, sep = "\t", header = None)
     exon_positions.columns = ["var_id", "exon_id", "exon_start", "exon_end"]
     exon_positions["var_id"] = exon_positions["var_id"].astype(str)
@@ -409,6 +410,9 @@ if __name__ == "__main__":
     exon_positions["exon_end"] = exon_positions["exon_end"].astype(int)
     exon_positions["length"] = exon_positions["exon_end"] - exon_positions["exon_start"] + 1
 
+    bar_var_df = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "varid"] )
+
+    # -- prepare output files -- #
     os.makedirs(args.output_dir, exist_ok = True)
     os.chdir(args.output_dir)
 
@@ -424,6 +428,7 @@ if __name__ == "__main__":
     if os.path.exists(barcode_out):
         os.remove(barcode_out)
 
+    # -- parallel processing -- #
     barcode_list = []
     bamfile = pysam.AlignmentFile(args.bam_file, "rb")
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing bam file, please wait...", flush = True)
@@ -432,10 +437,13 @@ if __name__ == "__main__":
         barcode_list.append(chunk_result)
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Finished.", flush = True)
 
-    filtered_barcode_list = [df for df in barcode_list if df.shape[0] > 0]
+    # -- clean and format the extracted barcodes from reads -- #
+    filtered_barcode_list = [df for df in barcode_list if df.shape[1] > 0]
     if filtered_barcode_list:
         barcode_df = pl.concat(filtered_barcode_list, how = "vertical")
     else:
         barcode_df = pl.DataFrame() 
     barcode_df = barcode_df.filter(pl.col("barcode").is_not_null())
-    barcode_df.write_csv(barcode_out, separator = "\t")
+
+    barcode_varid_df = barcode_df.join(bar_var_df, on = "barcode", how = "left")
+    barcode_varid_df.write_csv(barcode_out, separator = "\t")
