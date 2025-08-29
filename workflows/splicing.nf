@@ -85,7 +85,7 @@ params.sample_sheet                = null
 params.outdir                      = params.outdir                      ?: "$PWD"
 params.do_pe_reads                 = params.do_pe_reads                 ?: false
 
-params.library                     = params.library                     ?: "muta"
+params.library                     = params.library                     ?: "random_intron"
 params.barcode_template            = params.barcode_template            ?: "NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN"
 params.barcode_marker              = params.barcode_marker              ?: "CTACTGATTCGATGCAAGCTTG"
 
@@ -127,7 +127,7 @@ if (params.sample_sheet) {
                       .splitCsv(header: true, sep: sep)
                       .map { row -> 
                         def sample_id = "${row.sample}_${row.replicate}"
-                        tuple(sample_id, row.sample, row.replicate, row.directory, row.read1, row.read2, row.reference, row.barcode) }
+                        tuple(sample_id, row.sample, row.replicate, row.directory, row.read1, row.read2, row.reference, row.barcode, row.barcode_up, row.barcode_down, row.barcode_temp) }
 } else {
     helpMessage()
     log.info("Error: Please specify the full path of the sample sheet!\n")
@@ -139,10 +139,12 @@ if (!file(params.outdir).isDirectory()) {
     exit 1
 }
 
-if (params.library != 'random' && params.library != 'muta') {
-    log.error("Invalid protocol option: ${params.library}. Valid options: 'random', 'muta'")
+def valid_library = ['random_intron', 'random_exon', 'muta_intron', 'muta_exon']
+if (!(params.library in valid_library)) {
+    log.error("Invalid protocol option: ${params.library}. Valid options: ${valid_options.join(', ')}")
     exit 1
 }
+
 
 /* -- check software exist -- */
 def required_tools = ['bwa', 'hisat2', 'samtools', 'bamtools', 'flash2', 'fastp']
@@ -152,33 +154,42 @@ check_required(required_tools)
 workflow splicing {
     /* -- check input files exist -- */
     check_input_files(ch_input)
-    ch_sample = check_input_files.out.ch_sample_checked
-
+    ch_sample_mapping = check_input_files.out.ch_sample_mapping
+    ch_sample_barcodes = check_input_files.out.ch_barcodes_checked
 
     /* -- prepare the reference files and indexes -- */
-    prepare_files(ch_sample)
+    prepare_files(ch_sample_mapping)
     ch_bwa_ref = prepare_files.out.ch_bwa_ref
     ch_hisat2_ref = prepare_files.out.ch_hisat2_ref
     ch_exon_pos = prepare_files.out.ch_exon_pos
 
-
     /* -- step 1: process reads by fastp and flash2 -- */
-    ch_sample_step1 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, read1, read2) }
+    ch_sample_step1 = ch_sample_mapping.map { sample_id, read1, read2, reference -> tuple(sample_id, read1, read2) }
     process_reads(ch_sample_step1)
     ch_processed_reads = process_reads.out.ch_merge
 
-
     /* -- step 2: align reads to canonical splicing reference by bwa -- */
-    ch_sample_step2 = ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) }
-                               .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats ->
-                                                                tuple(sample_id,  extended_frags, not_combined_1, not_combined_2) })
-                               .join(ch_bwa_ref)
-                               .join(ch_exon_pos)
+    ch_sample_step2 = ch_sample_barcodes.join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats ->
+                                                                        tuple(sample_id, extended_frags, not_combined_1, not_combined_2) })
+                                        .join(ch_bwa_ref)
+                                        .join(ch_exon_pos)
 
-    ch_sample_step2_se = ch_sample_step2.map { sample_id, barcode, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
-                                                tuple(sample_id, barcode, extended_frags, exon_fasta, exon_pos) }
-    ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
-                                                tuple(sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos) }
+    ch_sample_step2_se = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
+                                                tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos) }
+    ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
+                                                tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, exon_fasta, exon_pos) }
+
+
+
+
+
+
+
+
+
+
+
+
 
     filter_reads_se(ch_sample_step2_se)
     ch_fail_reads_se = filter_reads_se.out.ch_bwa_se_fail
