@@ -441,9 +441,13 @@ if __name__ == "__main__":
     filtered_barcode_list = [df for df in barcode_list if df.shape[1] > 0]
     if filtered_barcode_list:
         barcode_df = pl.concat(filtered_barcode_list, how = "vertical")
+        barcode_df = barcode_df.filter(pl.col("barcode").is_not_null())
     else:
         barcode_df = pl.DataFrame() 
-    barcode_df = barcode_df.filter(pl.col("barcode").is_not_null())
-
-    barcode_varid_df = barcode_df.join(bar_var_df, on = "barcode", how = "left")
-    barcode_varid_df.write_csv(barcode_out, separator = "\t")
+    
+    if barcode_df.is_empty():
+        with open(barcode_out, "w") as f:
+            f.write("no barcode found in the reads, please check your barcode marker or template!\n")
+    else:
+        barcode_varid_df = barcode_df.join(bar_var_df, on = "barcode", how = "left")
+        barcode_varid_df.write_csv(barcode_out, separator = "\t")
