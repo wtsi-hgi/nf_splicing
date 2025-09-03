@@ -29,6 +29,6 @@ process create_exon_reference {
 
     script:
     """
-    python ${params.create_exon_ref_script} -r ${reference} -l ${params.library} -p ${sample_id}
+    python ${projectDir}/scripts/create_exon_ref.py -r ${reference} -l ${params.library} -p ${sample_id}
     """
 }
