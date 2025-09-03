@@ -62,7 +62,7 @@ if __name__ == "__main__":
             fasta_out.write(f">exon_inclusion_ilib\n{full_exon_seq}\n")
             fasta_out.write(f">exon_skipping_ilib\n{skip_exon_seq}\n")
             for i, (start, end) in enumerate(exons_pos, 1):
-                tsv_out.write(f"random\tE{i}\t{start}\t{end}\n")
+                tsv_out.write(f"ilib\tE{i}\t{start}\t{end}\n")
         else:
             # random exon or muta exon library: process each sequence in the FASTA, as exons may differ
             # for exon_skipping, normally the middle exon is skipped which is the target exon, so exon_skipping is the same for all
@@ -73,3 +73,5 @@ if __name__ == "__main__":
                     tsv_out.write(f"{record.id}\tE{i}\t{start}\t{end}\n")
             # write exon_skipping sequence only once
             fasta_out.write(f">exon_skipping_elib\n{skip_exon_seq}\n")
+            for i, (start, end) in enumerate(exons_pos, 1):
+                tsv_out.write(f"elib\tE{i}\t{start}\t{end}\n")
