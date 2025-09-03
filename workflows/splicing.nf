@@ -18,8 +18,8 @@ include { publish_canonical_barcodes;
 /* -- load subworkflows -- */
 include { prepare_files }             from '../subworkflows/prepare_files.nf'
 include { process_reads }             from '../subworkflows/process_reads.nf'
-include { filter_reads_se }           from '../subworkflows/filter_reads_se.nf'
-include { filter_reads_pe }           from '../subworkflows/filter_reads_pe.nf'
+include { detect_canonical_se }       from '../subworkflows/detect_canonical_se.nf'
+include { detect_canonical_pe }       from '../subworkflows/detect_canonical_pe.nf'
 include { map_reads_se }              from '../subworkflows/map_reads_se.nf'
 include { map_reads_pe }              from '../subworkflows/map_reads_pe.nf'
 include { summarise_results }         from '../subworkflows/summarise_results.nf'
@@ -33,13 +33,11 @@ Usage:
     Mandatory arguments:
         --sample_sheet                path of the sample sheet
         --outdir                      the directory path of output results, default: the current directory
-        --do_pe_reads                 whether to process paired-end reads, default: false
     
     Optional arguments:
     Basic:
-        --library                     random, muta, default: muta
-        --barcode_template            barcode template, default: NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN
-        --barcode_marker              barcode marker, default: CTACTGATTCGATGCAAGCTTG
+        --do_pe_reads                 whether to process paired-end reads, default: false
+        --library                     random_intron, random_exon, muta_intron, muta_exon, default: random_intron
     
     Fastp:
         --fastp_cut_mean_quality      mean quality for fastp, default: 20
@@ -81,13 +79,12 @@ Usage:
 
 /* -- initialising parameters -- */
 params.help                        = null
+
 params.sample_sheet                = null
 params.outdir                      = params.outdir                      ?: "$PWD"
-params.do_pe_reads                 = params.do_pe_reads                 ?: false
 
+params.do_pe_reads                 = params.do_pe_reads                 ?: false
 params.library                     = params.library                     ?: "random_intron"
-params.barcode_template            = params.barcode_template            ?: "NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN"
-params.barcode_marker              = params.barcode_marker              ?: "CTACTGATTCGATGCAAGCTTG"
 
 params.fastp_cut_mean_quality      = params.fastp_cut_mean_quality      ?: 20
 params.flash2_min_overlap          = params.flash2_min_overlap          ?: 10
@@ -122,16 +119,36 @@ if (params.help) {
 }
 
 if (params.sample_sheet) {
+    // reading sample sheet
     def sep = params.sample_sheet.endsWith('.tsv') ? '\t' : ','
     ch_input = Channel.fromPath(file(params.sample_sheet), checkIfExists: true)
                       .splitCsv(header: true, sep: sep)
-                      .map { row -> 
-                        def sample_id = "${row.sample}_${row.replicate}"
-                        tuple(sample_id, row.sample, row.replicate, row.directory, row.read1, row.read2, row.reference, row.barcode, row.barcode_up, row.barcode_down, row.barcode_temp) }
+    
+    // check required columns
+    def required_cols = ['sample', 'replicate', 'directory', 'read1', 'read2', 'reference', 'barcode', 'barcode_up', 'barcode_down', 'barcode_temp']
+    def header_line = new File(params.sample_sheet).readLines().head()
+    def header = header_line.split(sep)
+    def missing = required_cols.findAll { !(it in header) }
+
+    if (missing) {
+        log.error "Sample sheet is missing required columns: ${missing.join(', ')}"
+        exit 1
+    } else {
+        // reformat channel
+        ch_input = ch_input.map { row -> 
+            def sample_id = "${row.sample}_${row.replicate}"
+            tuple(sample_id, row.sample, row.replicate, row.directory, row.read1, row.read2, row.reference, row.barcode, row.barcode_up, row.barcode_down, row.barcode_temp) }
+    }
 } else {
     helpMessage()
     log.info("Error: Please specify the full path of the sample sheet!\n")
     exit 1
+}
+
+def outdir = file(params.outdir)
+if (!outdir.exists()) {
+    log.info "Output directory does not exist, creating: ${outdir}"
+    outdir.mkdirs()
 }
 
 if (!file(params.outdir).isDirectory()) {
@@ -145,7 +162,6 @@ if (!(params.library in valid_library)) {
     exit 1
 }
 
-
 /* -- check software exist -- */
 def required_tools = ['bwa', 'hisat2', 'samtools', 'bamtools', 'flash2', 'fastp']
 check_required(required_tools)
@@ -155,7 +171,7 @@ workflow splicing {
     /* -- check input files exist -- */
     check_input_files(ch_input)
     ch_sample_mapping = check_input_files.out.ch_sample_mapping
-    ch_sample_barcodes = check_input_files.out.ch_barcodes_checked
+    ch_sample_barcodes = check_input_files.out.ch_sample_barcodes
 
     /* -- prepare the reference files and indexes -- */
     prepare_files(ch_sample_mapping)
@@ -179,100 +195,97 @@ workflow splicing {
     ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
                                                 tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, exon_fasta, exon_pos) }
 
-
-
-
-
-
-
-
-
-
-
-
-
-    filter_reads_se(ch_sample_step2_se)
-    ch_fail_reads_se = filter_reads_se.out.ch_bwa_se_fail
-    ch_bwa_se_filtered_idxstats = filter_reads_se.out.ch_bwa_se_filtered_idxstats
-    ch_bwa_se_barcodes = filter_reads_se.out.ch_bwa_se_barcodes
+    detect_canonical_se(ch_sample_step2_se)
+    ch_bwa_se_fail = detect_canonical_se.out.ch_bwa_se_fail
+    ch_bwa_se_filtered_idxstats = detect_canonical_se.out.ch_bwa_se_filtered_idxstats
+    ch_bwa_se_barcodes = detect_canonical_se.out.ch_bwa_se_barcodes
 
     if (params.do_pe_reads) {
-        filter_reads_pe(ch_sample_step2_pe)
-        ch_fail_reads_pe = filter_reads_pe.out.ch_bwa_pe_fail
-        ch_bwa_pe_filtered_idxstats = filter_reads_pe.out.ch_bwa_pe_filtered_idxstats
-        ch_bwa_pe_barcodes = filter_reads_pe.out.ch_bwa_pe_barcodes
+        detect_canonical_pe(ch_sample_step2_pe)
+        ch_fail_reads_pe = detect_canonical_pe.out.ch_bwa_pe_fail
+        ch_bwa_pe_filtered_idxstats = detect_canonical_pe.out.ch_bwa_pe_filtered_idxstats
+        ch_bwa_pe_barcodes = detect_canonical_pe.out.ch_bwa_pe_barcodes
     }
 
 
-    /* -- step 3: align reads to novel splicing reference by hisat2 -- */
-    ch_sample_step3_se = ch_sample_step2_se.map { sample_id, barcode, extended_frags, exon_fasta, exon_pos -> 
-                                                    tuple(sample_id, barcode, exon_pos) }
-                                           .join(ch_fail_reads_se)
-                                           .join(ch_hisat2_ref)
-    map_reads_se(ch_sample_step3_se)
-    ch_hisat2_se_summary = map_reads_se.out.ch_hisat2_se_summary
-    ch_hisat2_se_barcodes = map_reads_se.out.ch_hisat2_se_barcodes
-    ch_se_junctions = map_reads_se.out.ch_se_junctions
-    ch_se_spliced = map_reads_se.out.ch_se_spliced
-
-    if (params.do_pe_reads) {
-        ch_sample_step3_pe = ch_sample_step2_pe.map { sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
-                                                        tuple(sample_id, barcode, exon_pos) }
-                                               .join(ch_fail_reads_pe)
-                                               .join(ch_hisat2_ref)
-        map_reads_pe(ch_sample_step3_pe)
-        ch_hisat2_pe_summary = map_reads_pe.out.ch_hisat2_pe_summary
-        ch_hisat2_pe_barcodes = map_reads_pe.out.ch_hisat2_pe_barcodes
-        ch_pe_junctions = map_reads_pe.out.ch_pe_junctions
-        ch_pe_spliced = map_reads_pe.out.ch_pe_spliced
-    }
 
 
-    /* -- step 4: summarise results -- */
-    if (params.do_pe_reads) {
-        idxstats_add_values(ch_bwa_se_filtered_idxstats.join(ch_bwa_pe_filtered_idxstats))
-        ch_sample_idxstats = idxstats_add_values.out.ch_idxstats
 
-        cat_filter_barcodes(ch_bwa_se_barcodes.join(ch_bwa_pe_barcodes))
-        ch_sample_filter_barcodes = cat_filter_barcodes.out.ch_filter_barcodes
 
-        cat_map_barcodes(ch_hisat2_se_barcodes.join(ch_hisat2_pe_barcodes))
-        ch_sample_map_barcodes = cat_map_barcodes.out.ch_map_barcodes
 
-        hisat2_summary_add_values(ch_hisat2_se_summary.join(ch_hisat2_pe_summary))
-        ch_sample_summary = hisat2_summary_add_values.out.ch_hisat2_summary
 
-        cat_beds(ch_se_junctions.join(ch_pe_junctions))
-        ch_junctions = cat_beds.out.ch_bed
-    } else {
-        idxstats_get_values(ch_bwa_se_filtered_idxstats)
-        ch_sample_idxstats = idxstats_get_values.out.ch_idxstats
 
-        rename_filter_barcodes(ch_bwa_se_barcodes)
-        ch_sample_filter_barcodes = rename_filter_barcodes.out.ch_filter_barcodes
 
-        rename_map_barcodes(ch_hisat2_se_barcodes)
-        ch_sample_map_barcodes = rename_map_barcodes.out.ch_map_barcodes
 
-        hisat2_summary_get_values(ch_hisat2_se_summary)
-        ch_sample_summary = hisat2_summary_get_values.out.ch_hisat2_summary
+    // /* -- step 3: align reads to novel splicing reference by hisat2 -- */
+    // ch_sample_step3_se = ch_sample_step2_se.map { sample_id, barcode, extended_frags, exon_fasta, exon_pos -> 
+    //                                                 tuple(sample_id, barcode, exon_pos) }
+    //                                        .join(ch_fail_reads_se)
+    //                                        .join(ch_hisat2_ref)
+    // map_reads_se(ch_sample_step3_se)
+    // ch_hisat2_se_summary = map_reads_se.out.ch_hisat2_se_summary
+    // ch_hisat2_se_barcodes = map_reads_se.out.ch_hisat2_se_barcodes
+    // ch_se_junctions = map_reads_se.out.ch_se_junctions
+    // ch_se_spliced = map_reads_se.out.ch_se_spliced
 
-        ch_junctions = ch_se_junctions
-    }
+    // if (params.do_pe_reads) {
+    //     ch_sample_step3_pe = ch_sample_step2_pe.map { sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
+    //                                                     tuple(sample_id, barcode, exon_pos) }
+    //                                            .join(ch_fail_reads_pe)
+    //                                            .join(ch_hisat2_ref)
+    //     map_reads_pe(ch_sample_step3_pe)
+    //     ch_hisat2_pe_summary = map_reads_pe.out.ch_hisat2_pe_summary
+    //     ch_hisat2_pe_barcodes = map_reads_pe.out.ch_hisat2_pe_barcodes
+    //     ch_pe_junctions = map_reads_pe.out.ch_pe_junctions
+    //     ch_pe_spliced = map_reads_pe.out.ch_pe_spliced
+    // }
 
-    ch_sample_step4 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode -> tuple(sample_id, sample) }
-                              .join(ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) })
-                              .join(ch_exon_pos)
-                              .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
-                                                                tuple(sample_id, merge_stats, trim_stats) })   
-                              .join(ch_sample_idxstats)
-                              .join(ch_sample_filter_barcodes)
-                              .join(ch_sample_map_barcodes)
-                              .join(ch_sample_summary)
-                              .join(ch_junctions)
+
+    // /* -- step 4: summarise results -- */
+    // if (params.do_pe_reads) {
+    //     idxstats_add_values(ch_bwa_se_filtered_idxstats.join(ch_bwa_pe_filtered_idxstats))
+    //     ch_sample_idxstats = idxstats_add_values.out.ch_idxstats
+
+    //     cat_filter_barcodes(ch_bwa_se_barcodes.join(ch_bwa_pe_barcodes))
+    //     ch_sample_filter_barcodes = cat_filter_barcodes.out.ch_filter_barcodes
+
+    //     cat_map_barcodes(ch_hisat2_se_barcodes.join(ch_hisat2_pe_barcodes))
+    //     ch_sample_map_barcodes = cat_map_barcodes.out.ch_map_barcodes
+
+    //     hisat2_summary_add_values(ch_hisat2_se_summary.join(ch_hisat2_pe_summary))
+    //     ch_sample_summary = hisat2_summary_add_values.out.ch_hisat2_summary
+
+    //     cat_beds(ch_se_junctions.join(ch_pe_junctions))
+    //     ch_junctions = cat_beds.out.ch_bed
+    // } else {
+    //     idxstats_get_values(ch_bwa_se_filtered_idxstats)
+    //     ch_sample_idxstats = idxstats_get_values.out.ch_idxstats
+
+    //     rename_filter_barcodes(ch_bwa_se_barcodes)
+    //     ch_sample_filter_barcodes = rename_filter_barcodes.out.ch_filter_barcodes
+
+    //     rename_map_barcodes(ch_hisat2_se_barcodes)
+    //     ch_sample_map_barcodes = rename_map_barcodes.out.ch_map_barcodes
+
+    //     hisat2_summary_get_values(ch_hisat2_se_summary)
+    //     ch_sample_summary = hisat2_summary_get_values.out.ch_hisat2_summary
+
+    //     ch_junctions = ch_se_junctions
+    // }
+
+    // ch_sample_step4 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode -> tuple(sample_id, sample) }
+    //                           .join(ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) })
+    //                           .join(ch_exon_pos)
+    //                           .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
+    //                                                             tuple(sample_id, merge_stats, trim_stats) })   
+    //                           .join(ch_sample_idxstats)
+    //                           .join(ch_sample_filter_barcodes)
+    //                           .join(ch_sample_map_barcodes)
+    //                           .join(ch_sample_summary)
+    //                           .join(ch_junctions)
                               
-    summarise_results(ch_sample_step4)
+    // summarise_results(ch_sample_step4)
 
-    publish_canonical_barcodes(ch_sample_filter_barcodes)
-    publish_novel_barcodes(ch_sample_map_barcodes)
+    // publish_canonical_barcodes(ch_sample_filter_barcodes)
+    // publish_novel_barcodes(ch_sample_map_barcodes)
 }
