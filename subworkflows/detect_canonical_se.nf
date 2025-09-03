@@ -22,8 +22,8 @@ workflow detect_canonical_se {
 
     /* -- 3. cat reads -- */
     ch_bwa_se_joined = ch_bwa_se_unmapped.join(ch_bwa_se_wrongmap)
-    merge_fastqs(ch_bwa_se_joined)
-    ch_bwa_se_fail = merge_fastqs.out.ch_bwa_se_fail
+    merge_se_fastqs(ch_bwa_se_joined)
+    ch_bwa_se_fail = merge_se_fastqs.out.ch_bwa_se_fail
 
     emit:
     ch_bwa_se_filtered
@@ -40,7 +40,7 @@ process bwa_align_se_reads {
 
     output:
     tuple val(sample_id), path("${sample_id}.filter_se.unmapped.fastq.gz"), emit: ch_bwa_se_unmapped
-    tuple val(sample_id), path("${sample_id}.filter_se.unique.sorted.bam"), path("${sample_id}.filter_se.unique.sorted.bam.bai"), emit: ch_bwa_se_bam
+    tuple val(sample_id), path("${sample_id}.filter_se.unique.bam"), emit: ch_bwa_se_bam
 
     script:
     """
@@ -51,9 +51,7 @@ process bwa_align_se_reads {
                   ${exon_fasta} ${extended_frags} > ${sample_id}.filter_se.sam
     samtools fastq -@ 32 -f 4 -c 9 -0 ${sample_id}.filter_se.unmapped.fastq.gz ${sample_id}.filter_se.sam
     samtools view -@ 32 -b -F 4 -F 256 -F 2048 ${sample_id}.filter_se.sam > ${sample_id}.filter_se.unique.bam
-    samtools sort -@ 32 -o ${sample_id}.filter_se.unique.sorted.bam ${sample_id}.filter_se.unique.bam
-    samtools index -@ 32 ${sample_id}.filter_se.unique.sorted.bam
-    rm ${sample_id}.filter_se.sam ${sample_id}.filter_se.unique.bam
+    rm ${sample_id}.filter_se.sam
     """
 }
 
@@ -61,7 +59,7 @@ process filter_se_reads {
     label 'process_high_memory'
 
     input:
-    tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(exon_pos), path(bam), path(bai)
+    tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(exon_pos), path(bam)
 
     output:
     tuple val(sample_id), path("${sample_id}.filter_se.wrongmap.fastq.gz"), emit: ch_bwa_se_wrongmap
@@ -92,7 +90,7 @@ process filter_se_reads {
     """
 }
 
-process merge_fastqs {
+process merge_se_fastqs {
     label 'process_single'
 
     input:
