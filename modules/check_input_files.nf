@@ -38,26 +38,35 @@ process check_files {
     if (file_read1.exists()) {
         if (!valid_read_ext.any { read1.endsWith(it) }) {
             log.error("Error: File format for ${read1} is incorrect. Expected one of: ${valid_read_ext.join(', ')}")
+            exit 1
         }
     } else {
         log.error("Error: ${read1} is not found in ${directory}.")
+        exit 1
     }
+    log.info("Checked: ${file_read1}")
 
     if (file_read2.exists()) {
         if (!valid_read_ext.any { read2.endsWith(it) }) {
             log.error("Error: File format for ${read1} is incorrect. Expected one of: ${valid_read_ext.join(', ')}")
+            exit 1
         }
     } else {
         log.error("Error: ${read2} is not found in ${directory}.")
+        exit 1
     }
+    log.info("Checked: ${file_read2}")
 
     if (file_reference.exists()) {
         if (!valid_ref_ext.any { reference.endsWith(it) }) {
             log.error("Error: File format for ${reference} is incorrect. Expected one of: ${valid_ref_ext.join(', ')}")
+            exit 1
         }
     } else {
         log.error("Error: ${reference} is not found in ${directory}.")
+        exit 1
     }
+    log.info("Checked: ${file_reference}")
 
     if (file_barcode.exists()) {
         def firstLine
@@ -71,13 +80,17 @@ process check_files {
             def header = firstLine.split("\t").collect { it.toLowerCase() }
             if (header[0] != "barcode" || header[1] != "variant" || header[2] != "varid" || header[3] != "count") {
                 log.error("Error: ${barcode} file format is incorrect. Expected header: barcode\tvariant\tvarid\tcount")
+                exit 1
             }
         } else {
             log.error("Error: expect ${barcode} is a tab separted file.")
+            exit 1
         }
     } else {
         log.error("Error: ${barcode} is not found in ${directory}.")
+        exit 1
     }
+    log.info("Checked: ${file_barcode}")
 
     """
     echo "Checking: ${sample_id}"
