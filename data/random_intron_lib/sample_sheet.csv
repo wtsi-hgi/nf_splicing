@@ -1,0 +1,4 @@
+sample,replicate,directory,read1,read2,reference,barcode,barcode_up,barcode_down,barcode_temp
+I4,Rep1,/lustre/scratch127/humgen/teams_v2/hgi/fs18/splicing_analysis/nf_splicing/data/random_intron_lib,I4_Rep1.R1.fastq.gz,I4_Rep1.R2.fastq.gz,ref_i4.fa,barcodes_i4.txt,GCAGAAAGCACAGAAAGGAA,CTACTGATTCGATGCAAGCT,NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN
+I4,Rep2,/lustre/scratch127/humgen/teams_v2/hgi/fs18/splicing_analysis/nf_splicing/data/random_intron_lib,I4_Rep2.R1.fastq.gz,I4_Rep2.R2.fastq.gz,ref_i4.fa,barcodes_i4.txt,GCAGAAAGCACAGAAAGGAA,CTACTGATTCGATGCAAGCT,NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN
+I4,Rep3,/lustre/scratch127/humgen/teams_v2/hgi/fs18/splicing_analysis/nf_splicing/data/random_intron_lib,I4_Rep3.R1.fastq.gz,I4_Rep3.R2.fastq.gz,ref_i4.fa,barcodes_i4.txt,GCAGAAAGCACAGAAAGGAA,CTACTGATTCGATGCAAGCT,NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN
