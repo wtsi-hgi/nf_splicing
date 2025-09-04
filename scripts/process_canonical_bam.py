@@ -373,7 +373,7 @@ if __name__ == "__main__":
     parser.add_argument("--bam_file",            type = str, required = True,       help = "bam file sorted by read name")
     parser.add_argument("--barcode_file",        type = str, required = True,       help = "barcode association file")
     parser.add_argument("--exon_pos",            type = str, required = True,       help = "exon position file")
-    parser.add_argument("--read_type",           type = str, default = 'se',        help = "sequence read type (se or pe)", choices = ['se', 'pe'],)
+    parser.add_argument("--read_type",           type = str, default = 'se',        help = "sequence read type (se or pe)", choices = ['se', 'pe'])
     parser.add_argument("--soft_clip",           type = int, default = 5,           help = "soft clip tolerance")
     parser.add_argument("--barcode_up",          type = str, required = True,       help = "sequence before barcode in read2")
     parser.add_argument("--barcode_down",        type = str, required = True,       help = "sequence after barcode in read2")
@@ -442,12 +442,9 @@ if __name__ == "__main__":
     if filtered_barcode_list:
         barcode_df = pl.concat(filtered_barcode_list, how = "vertical")
         barcode_df = barcode_df.filter(pl.col("barcode").is_not_null())
-    else:
-        barcode_df = pl.DataFrame() 
-    
-    if barcode_df.is_empty():
-        with open(barcode_out, "w") as f:
-            f.write("no barcode found in the reads, please check your barcode marker or template!\n")
-    else:
         barcode_varid_df = barcode_df.join(bar_var_df, on = "barcode", how = "left")
         barcode_varid_df.write_csv(barcode_out, separator = "\t")
+    else:
+        with open(barcode_out, "w") as f:
+            f.write("no barcode found in the reads, please check your barcode marker or template!\n")
+            
