@@ -1,3 +1,7 @@
+import java.util.zip.GZIPInputStream
+import java.io.InputStreamReader
+import java.io.BufferedReader
+
 workflow check_input_files {
     take:
     ch_sample
@@ -56,7 +60,13 @@ process check_files {
     }
 
     if (file_barcode.exists()) {
-        def firstLine = file_barcode.withReader { it.readLine() }
+        def firstLine
+        if (file_barcode.toString().endsWith(".gz")) {
+            firstLine = new BufferedReader( new InputStreamReader(new GZIPInputStream(file_barcode.newInputStream()))).readLine()
+        } else {
+            firstLine = file_barcode.withReader { it.readLine() }
+        }
+
         if (firstLine.contains("\t")) {
             def header = firstLine.split("\t").collect { it.toLowerCase() }
             if (header[0] != "barcode" || header[1] != "variant" || header[2] != "varid" || header[3] != "count") {
