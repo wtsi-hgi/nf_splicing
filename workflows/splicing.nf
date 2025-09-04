@@ -207,7 +207,11 @@ workflow splicing {
         ch_bwa_pe_barcodes = detect_canonical_pe.out.ch_bwa_pe_barcodes
     }
 
-
+    /* -- step 3: align reads to novel splicing reference by hisat2 -- */
+    ch_sample_step3_se = ch_sample_step2_se.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos -> 
+                                                    tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, exon_pos) }
+                                           .join(ch_bwa_se_fail)
+                                           .join(ch_hisat2_ref)
 
 
 
