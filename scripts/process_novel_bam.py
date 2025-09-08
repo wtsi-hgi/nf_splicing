@@ -356,7 +356,6 @@ if __name__ == "__main__":
     parser.add_argument("--bam_file",            type = str, required = True,       help = "bam file sorted by read name")
     parser.add_argument("--ref_file",            type = str, required = True,       help = "reference fasta file")
     parser.add_argument("--barcode_file",        type = str, required = True,       help = "barcode association file")
-    parser.add_argument("--exon_pos",            type = str, required = True,       help = "exon position file")
     parser.add_argument("--read_type",           type = str, default = 'se',        help = "sequence read type (se or pe)", choices = ['se', 'pe'])
     parser.add_argument("--soft_clip",           type = int, default = 5,           help = "soft clip tolerance")
     parser.add_argument("--barcode_up",          type = str, required = True,       help = "sequence before barcode in read2")
@@ -387,14 +386,6 @@ if __name__ == "__main__":
         output_prefix = args.output_prefix
 
     # -- read input files -- #
-    exon_positions = pd.read_csv(args.exon_pos, sep = "\t", header = None)
-    exon_positions.columns = ["var_id", "exon_id", "exon_start", "exon_end"]
-    exon_positions["var_id"] = exon_positions["var_id"].astype(str)
-    exon_positions["exon_id"] = exon_positions["exon_id"].astype(str)
-    exon_positions["exon_start"] = exon_positions["exon_start"].astype(int)
-    exon_positions["exon_end"] = exon_positions["exon_end"].astype(int)
-    exon_positions["length"] = exon_positions["exon_end"] - exon_positions["exon_start"] + 1
-
     ref_sequences = {record.id: str(record.seq) for record in SeqIO.parse(args.ref_file, "fasta")}
 
     bar_var_df = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "varid"] )
