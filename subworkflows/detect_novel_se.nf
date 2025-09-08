@@ -4,7 +4,7 @@ workflow map_reads_se {
 
     main:
     /* -- 1. align reads -- */
-    ch_align_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, exon_pos, se_reads, ref_fasta -> 
+    ch_align_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, se_reads, ref_fasta -> 
                                         tuple(sample_id, se_reads, ref_fasta) }
     hisat2_align_se_reads(ch_align_input)
     ch_hisat2_se_summary = hisat2_align_se_reads.out.ch_hisat2_se_summary
@@ -12,7 +12,7 @@ workflow map_reads_se {
     ch_hisat2_se_bam = hisat2_align_se_reads.out.ch_hisat2_se_bam
 
     /* -- 2. fix alignments -- */
-    ch_fix_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, exon_pos, se_reads, ref_fasta -> 
+    ch_fix_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, se_reads, ref_fasta -> 
                                         tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, ref_fasta) }
                             .join(ch_hisat2_se_bam)
     fix_se_reads(ch_fix_input)
