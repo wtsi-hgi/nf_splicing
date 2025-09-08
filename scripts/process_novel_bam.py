@@ -395,7 +395,7 @@ if __name__ == "__main__":
     os.makedirs(args.output_dir, exist_ok = True)
     os.chdir(args.output_dir)
 
-    fixed_bam = f"{output_prefix}.filtered.bam"
+    fixed_bam = f"{output_prefix}.fixed.bam"
     if os.path.exists(fixed_bam):
         os.remove(fixed_bam)
 
