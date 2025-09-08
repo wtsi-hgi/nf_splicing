@@ -194,7 +194,7 @@ process_read <- function(i, bam_data, barcode_marker, barcode_template, barcode_
 
             if(op == "M" || op == "D")
             {
-                ref_segment <- subseq(ref_sequences[[getseq_id]], start = ref_pos, end = ref_pos + length - 1)
+                ref_segment <- subseq(ref_sequences[[getseq_id]], start = read1_pos, end = read1_pos + length - 1)
                 spliced_seq <- c(spliced_seq, DNAStringSet(ref_segment))
                 read1_pos <- read1_pos + length
             } else if(op == "N") {
