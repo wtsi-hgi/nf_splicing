@@ -21,8 +21,7 @@ include { process_reads }             from '../subworkflows/process_reads.nf'
 include { detect_canonical_se }       from '../subworkflows/detect_canonical_se.nf'
 include { detect_canonical_pe }       from '../subworkflows/detect_canonical_pe.nf'
 include { detect_novel_se }           from '../subworkflows/detect_novel_se.nf'
-include { map_reads_se }              from '../subworkflows/map_reads_se.nf'
-include { map_reads_pe }              from '../subworkflows/map_reads_pe.nf'
+include { detect_novel_pe }           from '../subworkflows/detect_novel_pe.nf'
 include { summarise_results }         from '../subworkflows/summarise_results.nf'
 
 /* -- define functions -- */
