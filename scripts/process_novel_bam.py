@@ -412,11 +412,6 @@ if __name__ == "__main__":
     if os.path.exists(barcode_out):
         os.remove(barcode_out)
 
-    if args.spliced:        
-        spliced_product = f"{output_prefix}.spliced_products.txt"
-        if os.path.exists(spliced_product):
-            os.remove(spliced_product)
-
     # -- parallel processing -- #
     list_result = []
     bamfile = pysam.AlignmentFile(args.bam_file, "rb")
@@ -432,7 +427,7 @@ if __name__ == "__main__":
         df_result = pl.concat(list_result_filtered, how = "vertical")
         if args.spliced:
             df_result_count = df_result.group_by(["read_ref", "var_id", "barcode", "spliced_sequence"]).agg(pl.count().alias("count"))
-            df_result_count.write_csv(spliced_product, separator = "\t")
+            df_result_count.write_csv(barcode_out, separator = "\t")
         else:
             df_result_count = df_result.group_by(["read_ref", "var_id", "barcode"]).agg(pl.count().alias("count"))
             df_result_count.write_csv(barcode_out, separator = "\t")
