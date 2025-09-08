@@ -20,6 +20,7 @@ include { prepare_files }             from '../subworkflows/prepare_files.nf'
 include { process_reads }             from '../subworkflows/process_reads.nf'
 include { detect_canonical_se }       from '../subworkflows/detect_canonical_se.nf'
 include { detect_canonical_pe }       from '../subworkflows/detect_canonical_pe.nf'
+include { detect_novel_se }           from '../subworkflows/detect_novel_se.nf'
 include { map_reads_se }              from '../subworkflows/map_reads_se.nf'
 include { map_reads_pe }              from '../subworkflows/map_reads_pe.nf'
 include { summarise_results }         from '../subworkflows/summarise_results.nf'
@@ -209,41 +210,26 @@ workflow splicing {
 
     /* -- step 3: align reads to novel splicing reference by hisat2 -- */
     ch_sample_step3_se = ch_sample_step2_se.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos -> 
-                                                    tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, exon_pos) }
+                                                    tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp) }
                                            .join(ch_bwa_se_fail)
                                            .join(ch_hisat2_ref)
+    detect_novel_se(ch_sample_step3_se)
+    ch_hisat2_se_summary = detect_novel_se.out.ch_hisat2_se_summary
+    ch_hisat2_se_barcodes = detect_novel_se.out.ch_hisat2_se_barcodes
+    ch_hisat2_se_fixed = detect_novel_se.out.ch_hisat2_se_fixed
+    ch_se_junctions = detect_novel_se.out.ch_se_junctions
 
-
-
-
-
-
-
-
-
-    // /* -- step 3: align reads to novel splicing reference by hisat2 -- */
-    // ch_sample_step3_se = ch_sample_step2_se.map { sample_id, barcode, extended_frags, exon_fasta, exon_pos -> 
-    //                                                 tuple(sample_id, barcode, exon_pos) }
-    //                                        .join(ch_fail_reads_se)
-    //                                        .join(ch_hisat2_ref)
-    // map_reads_se(ch_sample_step3_se)
-    // ch_hisat2_se_summary = map_reads_se.out.ch_hisat2_se_summary
-    // ch_hisat2_se_barcodes = map_reads_se.out.ch_hisat2_se_barcodes
-    // ch_se_junctions = map_reads_se.out.ch_se_junctions
-    // ch_se_spliced = map_reads_se.out.ch_se_spliced
-
-    // if (params.do_pe_reads) {
-    //     ch_sample_step3_pe = ch_sample_step2_pe.map { sample_id, barcode, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
-    //                                                     tuple(sample_id, barcode, exon_pos) }
-    //                                            .join(ch_fail_reads_pe)
-    //                                            .join(ch_hisat2_ref)
-    //     map_reads_pe(ch_sample_step3_pe)
-    //     ch_hisat2_pe_summary = map_reads_pe.out.ch_hisat2_pe_summary
-    //     ch_hisat2_pe_barcodes = map_reads_pe.out.ch_hisat2_pe_barcodes
-    //     ch_pe_junctions = map_reads_pe.out.ch_pe_junctions
-    //     ch_pe_spliced = map_reads_pe.out.ch_pe_spliced
-    // }
-
+    if (params.do_pe_reads) {
+        ch_sample_step3_pe = ch_sample_step2_pe.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
+                                                        tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp) }
+                                               .join(ch_fail_reads_pe)
+                                               .join(ch_hisat2_ref)
+        detect_novel_pe(ch_sample_step3_pe)
+        ch_hisat2_pe_summary = map_reads_pe.out.ch_hisat2_pe_summary
+        ch_hisat2_pe_barcodes = map_reads_pe.out.ch_hisat2_pe_barcodes
+        ch_hisat2_pe_fixed = map_reads_pe.out.ch_hisat2_pe_fixed
+        ch_pe_junctions = map_reads_pe.out.ch_pe_junctions
+    }
 
     // /* -- step 4: summarise results -- */
     // if (params.do_pe_reads) {
