@@ -73,7 +73,7 @@ def process_se_read(read: dict) -> list:
         }
         if args.barcode_check:
             check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
-            if not check_res:
+            if check_res is None:
                 barcode_dict = {}
         return read, {}, barcode_dict
     else:
@@ -158,7 +158,7 @@ def process_pe_read(read_pair: tuple) -> list:
                 }
                 if args.barcode_check:
                     check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
-                    if not check_res:
+                    if check_res is None:
                         barcode_dict = {}
                 return read1, read2, {}, {}, barcode_dict
 
