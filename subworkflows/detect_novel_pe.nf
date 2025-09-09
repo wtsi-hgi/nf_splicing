@@ -39,7 +39,7 @@ process hisat2_align_pe_reads {
     output:
     tuple val(sample_id), path("${sample_id}.map_pe.summary.txt"), emit: ch_hisat2_pe_summary
     tuple val(sample_id), path("${sample_id}.map_pe.unmapped.R1.fastq.gz"), path("${sample_id}.map_pe.unmapped.R2.fastq.gz"), emit: ch_hisat2_pe_unmapped
-    tuple val(sample_id), path("${sample_id}.map_pe.unique.sorted.bam"), path("${sample_id}.map_pe.unique.sorted.bam.bai"), emit: ch_hisat2_pe_bam
+    tuple val(sample_id), path("${sample_id}.map_pe.unique.bam"), emit: ch_hisat2_pe_bam
 
     script:
     """
