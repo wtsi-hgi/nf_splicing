@@ -12,7 +12,7 @@ from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor
 from collections import Counter
 from collections import defaultdict
-from sequence_utils import reverse_complement, extract_sequence, check_barcode, calc_softclip_lens
+from sequence_utils import reverse_complement, extract_sequence, check_barcode
 
 #-- functions --#
 def extract_read_info(read: pysam.AlignedSegment) -> dict:
@@ -57,7 +57,18 @@ def process_se_read(read: dict) -> list:
     read_seq = read['seq']
 
     barcode_seq = extract_sequence(read_seq, args.barcode_up, args.barcode_down, args.max_mismatch)
-    var_id = bar_var_dict.get(barcode_seq)
+    if barcode_seq in ("upstream not found", "downstream not found"):
+        var_id = None
+    else:
+        if args.barcode_check:
+            check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
+            if check_res is None:
+                var_id = None
+            else:
+                barcode_seq = check_res
+                var_id = bar_var_dict.get(barcode_seq, None)
+        else:
+            var_id = bar_var_dict.get(barcode_seq, None)
 
     if var_id is not None:
         read['rname'] = var_id
@@ -113,7 +124,18 @@ def process_pe_read(read_pair: tuple) -> list:
     read2_seq = read2['seq']
 
     barcode_seq = extract_sequence(read2_seq, args.barcode_up, args.barcode_down, args.max_mismatch)
-    var_id = bar_var_dict.get(barcode_seq)
+    if barcode_seq in ("upstream not found", "downstream not found"):
+        var_id = None
+    else:
+        if args.barcode_check:
+            check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
+            if check_res is None:
+                var_id = None
+            else:
+                barcode_seq = check_res
+                var_id = bar_var_dict.get(barcode_seq, None)
+        else:
+            var_id = bar_var_dict.get(barcode_seq, None)
 
     if var_id is not None:
         read1['rname'] = var_id
@@ -357,7 +379,6 @@ if __name__ == "__main__":
     parser.add_argument("--ref_file",            type = str, required = True,       help = "reference fasta file")
     parser.add_argument("--barcode_file",        type = str, required = True,       help = "barcode association file")
     parser.add_argument("--read_type",           type = str, default = 'se',        help = "sequence read type (se or pe)", choices = ['se', 'pe'])
-    parser.add_argument("--soft_clip",           type = int, default = 5,           help = "soft clip tolerance")
     parser.add_argument("--barcode_up",          type = str, required = True,       help = "sequence before barcode in read2")
     parser.add_argument("--barcode_down",        type = str, required = True,       help = "sequence after barcode in read2")
     parser.add_argument("--barcode_check",       action="store_true",               help = "enable barcode checking against template")
