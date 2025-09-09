@@ -65,7 +65,7 @@ def extract_sequence(seq: str, up_seq: str, down_seq: str, max_mismatches: int) 
 
     return seq[start_idx:end_idx]
 
-def check_barcode(barcode_seq: str, barcode_temp: str, max_mismatches: int) -> bool:
+def check_barcode(barcode_seq: str, barcode_temp: str, max_mismatches: int):
     """
     Check if barcode_seq matches the barcode_temp allowing max_mismatches
     Parameters:
@@ -73,20 +73,26 @@ def check_barcode(barcode_seq: str, barcode_temp: str, max_mismatches: int) -> b
         -- barcode_temp: the template sequence to match against
         -- max_mismatches: maximum number of mismatches allowed
     Returns:
-        -- bool: True if matches within allowed mismatches, False otherwise
+        -- str or None: corrected barcode sequence if matches, else None
     """
     if len(barcode_seq) != len(barcode_temp):
-        return False
+        return None
 
     mismatch_count = 0
-    for s_char, p_char in zip(barcode_seq, barcode_temp):
-        if p_char != 'N':
-            if s_char != p_char:
-                mismatch_count += 1
-                if mismatch_count > max_mismatches:
-                    return False
+    barcode_corrected = []
 
-    return True
+    for s_char, p_char in zip(barcode_seq, barcode_temp):
+        if p_char == 'N':
+            barcode_corrected.append(s_char)
+        elif s_char != p_char:
+            mismatch_count += 1
+            barcode_corrected.append(p_char)
+            if mismatch_count > max_mismatches:
+                return None
+        else:
+            barcode_corrected.append(s_char)
+
+    return "".join(barcode_corrected)
 
 def calc_softclip_lens(cigar: str) -> tuple[int, int]:
     first_softclip = 0
