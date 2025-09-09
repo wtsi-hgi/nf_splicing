@@ -224,10 +224,10 @@ workflow splicing {
                                                .join(ch_fail_reads_pe)
                                                .join(ch_hisat2_ref)
         detect_novel_pe(ch_sample_step3_pe)
-        ch_hisat2_pe_summary = map_reads_pe.out.ch_hisat2_pe_summary
-        ch_hisat2_pe_barcodes = map_reads_pe.out.ch_hisat2_pe_barcodes
-        ch_hisat2_pe_fixed = map_reads_pe.out.ch_hisat2_pe_fixed
-        ch_pe_junctions = map_reads_pe.out.ch_pe_junctions
+        ch_hisat2_pe_summary = detect_novel_pe.out.ch_hisat2_pe_summary
+        ch_hisat2_pe_barcodes = detect_novel_pe.out.ch_hisat2_pe_barcodes
+        ch_hisat2_pe_fixed = detect_novel_pe.out.ch_hisat2_pe_fixed
+        ch_pe_junctions = detect_novel_pe.out.ch_pe_junctions
     }
 
     // /* -- step 4: summarise results -- */
