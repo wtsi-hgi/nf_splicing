@@ -58,11 +58,13 @@ def process_se_read(read: dict) -> list:
 
     barcode_seq = extract_sequence(read_seq, args.barcode_up, args.barcode_down, args.max_mismatch)
     if barcode_seq in ("upstream not found", "downstream not found"):
+        barcode_seq = None
         var_id = None
     else:
         if args.barcode_check:
             check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
             if check_res is None:
+                barcode_seq = None
                 var_id = None
             else:
                 barcode_seq = check_res
@@ -93,14 +95,14 @@ def process_se_read(read: dict) -> list:
 
         readout_dict = { 
             'read_ref': read_ref,
-            'var_id': var_id if var_id is not None else '',
+            'var_id': var_id,
             'barcode': barcode_seq,
             'spliced_sequence': ''.join(read_spliced_list) if read_spliced_list else None
         }
     else:
         readout_dict = { 
             'read_ref': read_ref,
-            'var_id': var_id if var_id is not None else '',
+            'var_id': var_id,
             'barcode': barcode_seq
         }
 
@@ -125,11 +127,13 @@ def process_pe_read(read_pair: tuple) -> list:
 
     barcode_seq = extract_sequence(read2_seq, args.barcode_up, args.barcode_down, args.max_mismatch)
     if barcode_seq in ("upstream not found", "downstream not found"):
+        barcode_seq = None
         var_id = None
     else:
         if args.barcode_check:
             check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
             if check_res is None:
+                barcode_seq = None
                 var_id = None
             else:
                 barcode_seq = check_res
@@ -182,14 +186,14 @@ def process_pe_read(read_pair: tuple) -> list:
 
         readout_dict = { 
             'read_ref': read1_ref,
-            'var_id': var_id if var_id is not None else '',
+            'var_id': var_id,
             'barcode': barcode_seq,
             'spliced_sequence': spliced_sequence if spliced_sequence else None
         }
     else:
         readout_dict = { 
             'read_ref': read1_ref,
-            'var_id': var_id if var_id is not None else '',
+            'var_id': var_id,
             'barcode': barcode_seq
         }
 
@@ -439,10 +443,10 @@ if __name__ == "__main__":
         df_result = pl.concat(list_result_filtered, how = "vertical")
         if args.spliced:
             df_result_count = df_result.group_by(["read_ref", "var_id", "barcode", "spliced_sequence"]).agg(pl.count().alias("count"))
-            df_result_count.write_csv(barcode_out, separator = "\t")
+            df_result_count.write_csv(barcode_out, separator = "\t", null_value = "NA")
         else:
             df_result_count = df_result.group_by(["read_ref", "var_id", "barcode"]).agg(pl.count().alias("count"))
-            df_result_count.write_csv(barcode_out, separator = "\t")
+            df_result_count.write_csv(barcode_out, separator = "\t", null_value = "NA")
     else:
         with open(barcode_out, "w") as f:
             f.write("no results, please check the input files and script options!\n")
