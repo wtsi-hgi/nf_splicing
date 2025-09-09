@@ -1,4 +1,4 @@
-workflow map_reads_pe {
+workflow detect_novel_pe {
     take:
     ch_sample
 
@@ -78,20 +78,19 @@ process fix_pe_reads {
     def do_spliced_products = params.do_spliced_products ? '--spliced' : ''
 
     """
-    python ${projectDir}/scripts/process_canonical_bam.py --lib_type ${params.library} \
-                                                          --bam_file ${bam} \
-                                                          --ref_file ${ref_fasta} \
-                                                          --barcode_file ${barcode} \
-                                                          --read_type pe \
-                                                          --soft_clip ${params.soft_clip} \
-                                                          --barcode_up ${barcode_up} \
-                                                          --barcode_down ${barcode_down} \
-                                                          --barcode_check \
-                                                          --barcode_temp ${barcode_temp} \
-                                                          --spliced ${do_spliced_products} \
-                                                          --output_prefix ${sample_id}.map_pe \
-                                                          --chunk_size 100000 \
-                                                          --threads 40
+    python ${projectDir}/scripts/process_novel_bam.py --lib_type ${params.library} \
+                                                      --bam_file ${bam} \
+                                                      --ref_file ${ref_fasta} \
+                                                      --barcode_file ${barcode} \
+                                                      --read_type pe \
+                                                      --barcode_up ${barcode_up} \
+                                                      --barcode_down ${barcode_down} \
+                                                      --barcode_check \
+                                                      --barcode_temp ${barcode_temp} \
+                                                      ${do_spliced_products} \
+                                                      --output_prefix ${sample_id}.map_pe \
+                                                      --chunk_size 100000 \
+                                                      --threads 40
     samtools sort -@ 64 -o ${sample_id}.map_pe.fixed.sorted.bam ${sample_id}.map_pe.fixed.bam
     samtools index -@ 64 ${sample_id}.map_pe.fixed.sorted.bam
     bamtools stats -in ${sample_id}.map_pe.fixed.sorted.bam > ${sample_id}.map_pe.fixed.txt
