@@ -68,9 +68,9 @@ def process_se_read(read: dict) -> list:
                 var_id = None
             else:
                 barcode_seq = check_res
-                var_id = bar_var_dict.get(barcode_seq, None)
+                var_id = dict_bar_var.get(barcode_seq, None)
         else:
-            var_id = bar_var_dict.get(barcode_seq, None)
+            var_id = dict_bar_var.get(barcode_seq, None)
 
     if var_id is not None:
         read['rname'] = var_id
@@ -93,20 +93,20 @@ def process_se_read(read: dict) -> list:
             elif op in (1, 4, 5): # I, S, H
                 continue
 
-        readout_dict = { 
+        dict_readout = { 
             'read_ref': read_ref,
             'var_id': var_id,
             'barcode': barcode_seq,
             'spliced_sequence': ''.join(read_spliced_list) if read_spliced_list else None
         }
     else:
-        readout_dict = { 
+        dict_readout = { 
             'read_ref': read_ref,
             'var_id': var_id,
             'barcode': barcode_seq
         }
 
-    return read, readout_dict
+    return read, dict_readout
 
 def process_pe_read(read_pair: tuple) -> list:
     """
@@ -137,9 +137,9 @@ def process_pe_read(read_pair: tuple) -> list:
                 var_id = None
             else:
                 barcode_seq = check_res
-                var_id = bar_var_dict.get(barcode_seq, None)
+                var_id = dict_bar_var.get(barcode_seq, None)
         else:
-            var_id = bar_var_dict.get(barcode_seq, None)
+            var_id = dict_bar_var.get(barcode_seq, None)
 
     if var_id is not None:
         read1['rname'] = var_id
@@ -184,20 +184,20 @@ def process_pe_read(read_pair: tuple) -> list:
             pe_gap_seq = ''
         spliced_sequence = ''.join(read1_spliced_list) + pe_gap_seq + ''.join(read2_spliced_list)
 
-        readout_dict = { 
+        dict_readout = { 
             'read_ref': read1_ref,
             'var_id': var_id,
             'barcode': barcode_seq,
             'spliced_sequence': spliced_sequence if spliced_sequence else None
         }
     else:
-        readout_dict = { 
+        dict_readout = { 
             'read_ref': read1_ref,
             'var_id': var_id,
             'barcode': barcode_seq
         }
 
-    return read1, read2, readout_dict
+    return read1, read2, dict_readout
     
 def batch_process_se_reads(batch_reads: list) -> list:
     """
@@ -299,8 +299,8 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 
                     read_chunk = []
                     fixed_reads, out_barcodes = zip(*flat_results)
-                    for read_dict in fixed_reads:
-                        fixed_fh.write(dict_to_segment(read_dict))
+                    for dict_read in fixed_reads:
+                        fixed_fh.write(dict_to_segment(dict_read))
                     yield pl.DataFrame(out_barcodes)
 
             # process any remaining reads after file ends
@@ -317,8 +317,8 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 
                 read_chunk = []
                 fixed_reads, out_barcodes = zip(*flat_results)
-                for read_dict in fixed_reads:
-                    fixed_fh.write(dict_to_segment(read_dict))
+                for dict_read in fixed_reads:
+                    fixed_fh.write(dict_to_segment(dict_read))
                 yield pl.DataFrame(out_barcodes)
         # process paired-end reads
         else:
@@ -351,9 +351,9 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                     
                     read_chunk = []
                     fixed_reads_r1, fixed_reads_r2, out_barcodes = zip(*flat_results)
-                    for read1_dict, read2_dict in zip(fixed_reads_r1, fixed_reads_r2):
-                        fixed_fh.write(dict_to_segment(read1_dict))
-                        fixed_fh.write(dict_to_segment(read2_dict))
+                    for dict_read1, dict_read2 in zip(fixed_reads_r1, fixed_reads_r2):
+                        fixed_fh.write(dict_to_segment(dict_read1))
+                        fixed_fh.write(dict_to_segment(dict_read2))
                     yield pl.DataFrame(out_barcodes)
             
             # process any remaining reads after file ends
@@ -370,9 +370,9 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 
                 read_chunk = []
                 fixed_reads_r1, fixed_reads_r2, out_barcodes = zip(*flat_results)
-                for read1_dict, read2_dict in zip(fixed_reads_r1, fixed_reads_r2):
-                    fixed_fh.write(dict_to_segment(read1_dict))
-                    fixed_fh.write(dict_to_segment(read2_dict))
+                for dict_read1, dict_read2 in zip(fixed_reads_r1, fixed_reads_r2):
+                    fixed_fh.write(dict_to_segment(dict_read1))
+                    fixed_fh.write(dict_to_segment(dict_read2))
                 yield pl.DataFrame(out_barcodes)
 
 #-- main execution --#
@@ -413,8 +413,8 @@ if __name__ == "__main__":
     # -- read input files -- #
     ref_sequences = {record.id: str(record.seq) for record in SeqIO.parse(args.ref_file, "fasta")}
 
-    bar_var_df = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "varid"] )
-    bar_var_dict = dict(zip(bar_var_df["barcode"], bar_var_df["varid"]))
+    df_bar_var = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "varid"] )
+    dict_bar_var = dict(zip(df_bar_var["barcode"], df_bar_var["varid"]))
 
     # -- prepare output files -- #
     os.makedirs(args.output_dir, exist_ok = True)

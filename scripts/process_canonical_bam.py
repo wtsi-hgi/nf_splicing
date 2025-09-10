@@ -66,16 +66,16 @@ def process_se_read(read: dict) -> list:
 
     if read_start_pass and read_end_pass:
         barcode_seq = extract_sequence(read_seq, args.barcode_up, args.barcode_down, args.max_mismatch)
-        barcode_dict = { 
-            'type': read_ref_exon,
-            'ref_id': read_ref_var,
+        dict_barcode = { 
+            'ref_type': read_ref_exon,
+            'read_ref': read_ref_var,
             'barcode': barcode_seq
         }
         if args.barcode_check:
             check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
             if check_res is None:
-                barcode_dict = {}
-        return read, {}, barcode_dict
+                dict_barcode = {}
+        return read, {}, dict_barcode
     else:
         return {}, read, {}
 
@@ -151,16 +151,16 @@ def process_pe_read(read_pair: tuple) -> list:
                 # 2. read2 is reversed complemented
                 # 3. up and down sequences are in the forward strand
                 barcode_seq = extract_sequence(read2_seq_rc, args.barcode_up, args.barcode_down, args.max_mismatch)
-                barcode_dict = { 
-                    'type': read_ref_exon,
-                    'ref_id': read_ref_var,
+                dict_barcode = { 
+                    'ref_type': read_ref_exon,
+                    'read_ref': read_ref_var,
                     'barcode': barcode_seq
                 }
                 if args.barcode_check:
                     check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
                     if check_res is None:
-                        barcode_dict = {}
-                return read1, read2, {}, {}, barcode_dict
+                        dict_barcode = {}
+                return read1, read2, {}, {}, dict_barcode
 
     return {}, {}, read1, read2, {}
     
@@ -264,13 +264,13 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                     flat_results = [item for batch in batch_results for item in batch]
                     mapped_reads, unmapped_reads, reads_barcodes = zip(*flat_results)
 
-                    for read_dict in mapped_reads:
-                        if read_dict:
-                            mapped_fh.write(dict_to_segment(read_dict))
+                    for dict_read in mapped_reads:
+                        if dict_read:
+                            mapped_fh.write(dict_to_segment(dict_read))
 
-                    for read_dict in unmapped_reads:
-                        if read_dict:
-                            unmapped_fh.write(dict_to_segment(read_dict))
+                    for dict_read in unmapped_reads:
+                        if dict_read:
+                            unmapped_fh.write(dict_to_segment(dict_read))
 
                     read_chunk = []
                     yield pl.DataFrame(reads_barcodes)
@@ -288,13 +288,13 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                 flat_results = [item for batch in batch_results for item in batch]
                 mapped_reads, unmapped_reads, reads_barcodes = zip(*flat_results)
 
-                for read_dict in mapped_reads:
-                    if read_dict:
-                        mapped_fh.write(dict_to_segment(read_dict))
+                for dict_read in mapped_reads:
+                    if dict_read:
+                        mapped_fh.write(dict_to_segment(dict_read))
 
-                for read_dict in unmapped_reads:
-                    if read_dict:
-                        unmapped_fh.write(dict_to_segment(read_dict))
+                for dict_read in unmapped_reads:
+                    if dict_read:
+                        unmapped_fh.write(dict_to_segment(dict_read))
                 
                 read_chunk = []
                 yield pl.DataFrame(reads_barcodes)
@@ -328,15 +328,15 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                     flat_results = [item for batch in batch_results for item in batch]
                     mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes = zip(*flat_results)
 
-                    for read1_dict, read2_dict in zip(mapped_reads1, mapped_reads2):
-                        if read1_dict and read2_dict:
-                            mapped_fh.write(dict_to_segment(read1_dict))
-                            mapped_fh.write(dict_to_segment(read2_dict))
+                    for dict_read1, dict_read2 in zip(mapped_reads1, mapped_reads2):
+                        if dict_read1 and dict_read2:
+                            mapped_fh.write(dict_to_segment(dict_read1))
+                            mapped_fh.write(dict_to_segment(dict_read2))
                     
-                    for read1_dict, read2_dict in zip(unmapped_reads1, unmapped_reads2):
-                        if read1_dict and read2_dict:
-                            unmapped_fh.write(dict_to_segment(read1_dict))
-                            unmapped_fh.write(dict_to_segment(read2_dict))
+                    for dict_read1, dict_read2 in zip(unmapped_reads1, unmapped_reads2):
+                        if dict_read1 and dict_read2:
+                            unmapped_fh.write(dict_to_segment(dict_read1))
+                            unmapped_fh.write(dict_to_segment(dict_read2))
                     
                     read_chunk = []
                     yield pl.DataFrame(reads_barcodes)
@@ -354,15 +354,15 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                 flat_results = [item for batch in batch_results for item in batch]
                 mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes = zip(*flat_results)
 
-                for read1_dict, read2_dict in zip(mapped_reads1, mapped_reads2):
-                    if read1_dict and read2_dict:
-                        mapped_fh.write(dict_to_segment(read1_dict))
-                        mapped_fh.write(dict_to_segment(read2_dict))
+                for dict_read1, dict_read2 in zip(mapped_reads1, mapped_reads2):
+                    if dict_read1 and dict_read2:
+                        mapped_fh.write(dict_to_segment(dict_read1))
+                        mapped_fh.write(dict_to_segment(dict_read2))
                 
-                for read1_dict, read2_dict in zip(unmapped_reads1, unmapped_reads2):
-                    if read1_dict and read2_dict:
-                        unmapped_fh.write(dict_to_segment(read1_dict))
-                        unmapped_fh.write(dict_to_segment(read2_dict))
+                for dict_read1, dict_read2 in zip(unmapped_reads1, unmapped_reads2):
+                    if dict_read1 and dict_read2:
+                        unmapped_fh.write(dict_to_segment(dict_read1))
+                        unmapped_fh.write(dict_to_segment(dict_read2))
                 
                 read_chunk = []
                 yield pl.DataFrame(reads_barcodes)
@@ -410,7 +410,7 @@ if __name__ == "__main__":
     exon_positions["exon_end"] = exon_positions["exon_end"].astype(int)
     exon_positions["length"] = exon_positions["exon_end"] - exon_positions["exon_start"] + 1
 
-    bar_var_df = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "varid"] )
+    df_bar_var = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "varid"] )
 
     # -- prepare output files -- #
     os.makedirs(args.output_dir, exist_ok = True)
@@ -440,10 +440,10 @@ if __name__ == "__main__":
     # -- clean and format the extracted barcodes from reads -- #
     filtered_barcode_list = [df for df in barcode_list if df.shape[1] > 0]
     if filtered_barcode_list:
-        barcode_df = pl.concat(filtered_barcode_list, how = "vertical")
-        barcode_df = barcode_df.filter(pl.col("barcode").is_not_null())
-        barcode_varid_df = barcode_df.join(bar_var_df, on = "barcode", how = "left")
-        barcode_varid_df.write_csv(barcode_out, separator = "\t", null_value = "NA")
+        df_barcode = pl.concat(filtered_barcode_list, how = "vertical")
+        df_barcode = df_barcode.filter(pl.col("barcode").is_not_null())
+        df_barcode_varid = df_barcode.join(df_bar_var, on = "barcode", how = "left")
+        df_barcode_varid.write_csv(barcode_out, separator = "\t", null_value = "NA")
     else:
         with open(barcode_out, "w") as f:
             f.write("no barcode found in the reads, please check your barcode marker or template!\n")
