@@ -377,7 +377,7 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 
 #-- main execution --#
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = "Process a bwa bam file for canonical splicing events.", allow_abbrev = False)
+    parser = argparse.ArgumentParser(description = "Process a hisat2 bam file for novel splicing events.", allow_abbrev = False)
     parser.add_argument("--lib_type",            type = str, required = True,       help = "library type", choices = ['random_intron', 'random_exon', 'muta_intron', 'muta_exon'])
     parser.add_argument("--bam_file",            type = str, required = True,       help = "bam file sorted by read name")
     parser.add_argument("--ref_file",            type = str, required = True,       help = "reference fasta file")
