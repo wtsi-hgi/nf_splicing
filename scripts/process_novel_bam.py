@@ -413,8 +413,8 @@ if __name__ == "__main__":
     # -- read input files -- #
     ref_sequences = {record.id: str(record.seq) for record in SeqIO.parse(args.ref_file, "fasta")}
 
-    df_bar_var = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "varid"] )
-    dict_bar_var = dict(zip(df_bar_var["barcode"], df_bar_var["varid"]))
+    df_bar_var = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "var_id"] )
+    dict_bar_var = dict(zip(df_bar_var["barcode"], df_bar_var["var_id"]))
 
     # -- prepare output files -- #
     os.makedirs(args.output_dir, exist_ok = True)

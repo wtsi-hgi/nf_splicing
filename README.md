@@ -133,7 +133,7 @@ The reference must be the sequence(s) of the minigene.
 ### Barcode Association File
 Please provide the barcode association file as below
 
-| barcode | variant | varid | count |
+| barcode | variant | var_id | count |
 | - | - | - | - |
 | CCAAATAATCATTAGGATCAGCATATTAATCTAGATTC | GTAAGTCGAAGAATTCTTGGGGAAACAGATTGAAATAACTTGGGAAGTAGTTCTTTCTCTTAGTGTGAAAGTATGTTCTCA | var1 | 56 |
 | ATCTATCAGAATGTATATTGGGATAAAAATAGTGATTC | GTAAGTGATTCAGGAGAGTTTCGTTCAGATTGAAATAACTTGGGAAGTAGTTCTTTCTCTTAGTGTGAAAGTATGTTCTCA | var2 | 293 |
@@ -276,14 +276,14 @@ These files summarize all the barcodes in the sequencing library, categorized by
 > [!NOTE]
 > 📄 **barcodes of canonical splicing events**
 >  
-> | name | barcode | varid | count |
+> | name | barcode | var_id | count |
 > | - | - | - | - |
 > | E1_E2_E3 | ATTAATAATTATCTCTATAGGCATGACCATGATCATAG | var1 | 23 |
 > | E1_E3 | TTTTATTTCGATATTAATCATGATATAAATGTTCATAC | var2 | 143 |
 >
 > 📄 **barcodes of novel splicing events**
 > 
-> | barcode | varid | count |
+> | barcode | var_id | count |
 > | - | - | - |
 > | ATTAATAATTATCTCTATAGGCATGACCATGATCATAG | var1 | 23 |
 > | TTTTATTTCGATATTAATCATGATATAAATGTTCATAC | var2 | 143 |
@@ -308,7 +308,7 @@ These files summarize all the barcodes in the sequencing library, categorized by
 > 📄 **classified junctions of all the variants**
 > 
 > This is a tsv output file which contains all the classified junctions for all the variants
-> | varid | start | end | cov | annotation |
+> | var_id | start | end | cov | annotation |
 > | - | - | - | - | - | 
 > | var1 | 48 | 139 | 11 | exon_splicing_3p_E1;<br>intron_retension_3p_I1 |
 > | var2 | 77 | 340 | 3578 | exon_skipping_E2;<br>intron_retension_5p_I1;<br>intron_retension_3p_I2 |
@@ -341,7 +341,7 @@ These files summarize all the barcodes in the sequencing library, categorized by
 > [!NOTE] 
 > 📄 **raw read count file**
 >
-> | varid | canonical_<br>inclusion_<br>E2 | canonical_<br>skipping_<br>E2 | intron_<br>retention_<br>I1 | intron_<br>retention_<br>I2 | intron_<br>retension_<br>5p_I1 | intron_<br>retension_<br>5p_I2 | intron_<br>retension_<br>3p_I1 | intron_<br>retension_<br>3p_I2 | exon_<br>splicing_<br>3p_E1 | exon_<br>splicing_<br>3p_E2 | exon_<br>splicing_<br>3p_E3 | exon_<br>splicing_<br>5p_E1 | exon_<br>splicing_<br>5p_E2 | exon_<br>splicing_<br>5p_E3 | exon_<br>skipping_<br>E2 |
+> | var_id | canonical_<br>inclusion_<br>E2 | canonical_<br>skipping_<br>E2 | intron_<br>retention_<br>I1 | intron_<br>retention_<br>I2 | intron_<br>retension_<br>5p_I1 | intron_<br>retension_<br>5p_I2 | intron_<br>retension_<br>3p_I1 | intron_<br>retension_<br>3p_I2 | exon_<br>splicing_<br>3p_E1 | exon_<br>splicing_<br>3p_E2 | exon_<br>splicing_<br>3p_E3 | exon_<br>splicing_<br>5p_E1 | exon_<br>splicing_<br>5p_E2 | exon_<br>splicing_<br>5p_E3 | exon_<br>skipping_<br>E2 |
 > | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
 > | var1 | 743 | 90 | 47 | 21 | 0 | 0 | 5 | 0 | 5 | 0 | 0 | 0 | 0 | 0 | 10 |
 > | var2 | 235 | 16 | 63 | 18 | 0 | 0 | 6 | 0 | 6 | 0 | 0 | 0 | 0 | 0 | 22 |

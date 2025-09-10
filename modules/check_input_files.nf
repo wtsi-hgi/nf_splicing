@@ -78,8 +78,8 @@ process check_files {
 
         if (firstLine.contains("\t")) {
             def header = firstLine.split("\t").collect { it.toLowerCase() }
-            if (header[0] != "barcode" || header[1] != "variant" || header[2] != "varid" || header[3] != "count") {
-                log.error("Error: ${barcode} file format is incorrect. Expected header: barcode\tvariant\tvarid\tcount")
+            if (header[0] != "barcode" || header[1] != "variant" || header[2] != "var_id" || header[3] != "count") {
+                log.error("Error: ${barcode} file format is incorrect. Expected header: barcode\tvariant\tvar_id\tcount")
                 exit 1
             }
         } else {

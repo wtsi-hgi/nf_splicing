@@ -410,7 +410,7 @@ if __name__ == "__main__":
     exon_positions["exon_end"] = exon_positions["exon_end"].astype(int)
     exon_positions["length"] = exon_positions["exon_end"] - exon_positions["exon_start"] + 1
 
-    df_bar_var = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "varid"] )
+    df_bar_var = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "var_id"] )
 
     # -- prepare output files -- #
     os.makedirs(args.output_dir, exist_ok = True)
@@ -443,7 +443,8 @@ if __name__ == "__main__":
         df_barcode = pl.concat(filtered_barcode_list, how = "vertical")
         df_barcode = df_barcode.filter(pl.col("barcode").is_not_null())
         df_barcode_varid = df_barcode.join(df_bar_var, on = "barcode", how = "left")
-        df_barcode_varid.write_csv(barcode_out, separator = "\t", null_value = "NA")
+        df_barcode_varid_count = df_barcode_varid.group_by(["ref_type", "ref_id", "barcode", "var_id"]).agg(pl.count().alias("count"))
+        df_barcode_varid_count.write_csv(barcode_out, separator = "\t", null_value = "NA")
     else:
         with open(barcode_out, "w") as f:
             f.write("no barcode found in the reads, please check your barcode marker or template!\n")
