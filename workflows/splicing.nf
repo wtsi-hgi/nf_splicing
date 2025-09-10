@@ -5,11 +5,11 @@ include { check_required }             from '../modules/check_software.nf'
 include { check_input_files }          from '../modules/check_input_files.nf'
 include { idxstats_get_values; 
           idxstats_add_values }        from '../modules/format_idxstats.nf'
-include { cat_filter_barcodes; 
-          cat_map_barcodes;
+include { cat_canonical_barcodes; 
+          cat_novel_barcodes;
           cat_beds }                   from '../modules/summary_cat_files.nf'
-include { rename_filter_barcodes;
-          rename_map_barcodes }        from '../modules/summary_rename_files.nf'
+include { rename_canonical_barcodes;
+          rename_novel_barcodes }        from '../modules/summary_rename_files.nf'
 include { hisat2_summary_get_values; 
           hisat2_summary_add_values }  from '../modules/format_hisat2_summary.nf'
 include { publish_canonical_barcodes;
@@ -231,39 +231,36 @@ workflow splicing {
     }
 
     /* -- step 4: summarise results -- */
-    
-    
-    
-    // if (params.do_pe_reads) {
-    //     idxstats_add_values(ch_bwa_se_filtered_idxstats.join(ch_bwa_pe_filtered_idxstats))
-    //     ch_sample_idxstats = idxstats_add_values.out.ch_idxstats
+    if (params.do_pe_reads) {
+        idxstats_add_values(ch_bwa_se_filtered_idxstats.join(ch_bwa_pe_filtered_idxstats))
+        ch_sample_idxstats = idxstats_add_values.out.ch_idxstats
 
-    //     cat_filter_barcodes(ch_bwa_se_barcodes.join(ch_bwa_pe_barcodes))
-    //     ch_sample_filter_barcodes = cat_filter_barcodes.out.ch_filter_barcodes
+        cat_canonical_barcodes(ch_bwa_se_barcodes.join(ch_bwa_pe_barcodes))
+        ch_sample_canonical_barcodes = cat_canonical_barcodes.out.ch_canonical_barcodes
 
-    //     cat_map_barcodes(ch_hisat2_se_barcodes.join(ch_hisat2_pe_barcodes))
-    //     ch_sample_map_barcodes = cat_map_barcodes.out.ch_map_barcodes
+        cat_novel_barcodes(ch_hisat2_se_barcodes.join(ch_hisat2_pe_barcodes))
+        ch_sample_novel_barcodes = cat_novel_barcodes.out.ch_novel_barcodes
 
-    //     hisat2_summary_add_values(ch_hisat2_se_summary.join(ch_hisat2_pe_summary))
-    //     ch_sample_summary = hisat2_summary_add_values.out.ch_hisat2_summary
+        hisat2_summary_add_values(ch_hisat2_se_summary.join(ch_hisat2_pe_summary))
+        ch_sample_summary = hisat2_summary_add_values.out.ch_hisat2_summary
 
-    //     cat_beds(ch_se_junctions.join(ch_pe_junctions))
-    //     ch_junctions = cat_beds.out.ch_bed
-    // } else {
-    //     idxstats_get_values(ch_bwa_se_filtered_idxstats)
-    //     ch_sample_idxstats = idxstats_get_values.out.ch_idxstats
+        cat_beds(ch_se_junctions.join(ch_pe_junctions))
+        ch_sample_junctions = cat_beds.out.ch_bed
+    } else {
+        idxstats_get_values(ch_bwa_se_filtered_idxstats)
+        ch_sample_idxstats = idxstats_get_values.out.ch_idxstats
 
-    //     rename_filter_barcodes(ch_bwa_se_barcodes)
-    //     ch_sample_filter_barcodes = rename_filter_barcodes.out.ch_filter_barcodes
+        rename_canonical_barcodes(ch_bwa_se_barcodes)
+        ch_sample_canonical_barcodes = rename_canonical_barcodes.out.ch_canonical_barcodes
 
-    //     rename_map_barcodes(ch_hisat2_se_barcodes)
-    //     ch_sample_map_barcodes = rename_map_barcodes.out.ch_map_barcodes
+        rename_novel_barcodes(ch_hisat2_se_barcodes)
+        ch_sample_novel_barcodes = rename_novel_barcodes.out.ch_novel_barcodes
 
-    //     hisat2_summary_get_values(ch_hisat2_se_summary)
-    //     ch_sample_summary = hisat2_summary_get_values.out.ch_hisat2_summary
+        hisat2_summary_get_values(ch_hisat2_se_summary)
+        ch_sample_summary = hisat2_summary_get_values.out.ch_hisat2_summary
 
-    //     ch_junctions = ch_se_junctions
-    // }
+        ch_sample_junctions = ch_se_junctions
+    }
 
     // ch_sample_step4 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode -> tuple(sample_id, sample) }
     //                           .join(ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) })
@@ -271,13 +268,13 @@ workflow splicing {
     //                           .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
     //                                                             tuple(sample_id, merge_stats, trim_stats) })   
     //                           .join(ch_sample_idxstats)
-    //                           .join(ch_sample_filter_barcodes)
-    //                           .join(ch_sample_map_barcodes)
+    //                           .join(ch_sample_canonical_barcodes)
+    //                           .join(ch_sample_novel_barcodes)
     //                           .join(ch_sample_summary)
-    //                           .join(ch_junctions)
+    //                           .join(ch_sample_junctions)
                               
     // summarise_results(ch_sample_step4)
 
-    // publish_canonical_barcodes(ch_sample_filter_barcodes)
-    // publish_novel_barcodes(ch_sample_map_barcodes)
+    // publish_canonical_barcodes(ch_sample_canonical_barcodes)
+    // publish_novel_barcodes(ch_sample_novel_barcodes)
 }

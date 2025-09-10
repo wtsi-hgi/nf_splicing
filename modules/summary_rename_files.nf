@@ -1,11 +1,11 @@
-process rename_filter_barcodes {
+process rename_canonical_barcodes {
     label 'process_single'
     
     input:
     tuple val(sample_id), path(filter_se)
     
     output:
-    tuple val(sample_id), path("${sample_id}.canonical_barcodes.txt"), emit: ch_filter_barcodes
+    tuple val(sample_id), path("${sample_id}.canonical_barcodes.txt"), emit: ch_canonical_barcodes
     
     script:
     """
@@ -13,14 +13,14 @@ process rename_filter_barcodes {
     """
 }
 
-process rename_map_barcodes {
+process rename_novel_barcodes {
     label 'process_single'
     
     input:
     tuple val(sample_id), path(map_se)
     
     output:
-    tuple val(sample_id), path("${sample_id}.novel_barcodes.txt"), emit: ch_map_barcodes
+    tuple val(sample_id), path("${sample_id}.novel_barcodes.txt"), emit: ch_novel_barcodes
     
     script:
     """

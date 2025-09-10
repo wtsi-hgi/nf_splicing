@@ -1,11 +1,11 @@
-process cat_filter_barcodes {
+process cat_canonical_barcodes {
     label 'process_single'
     
     input:
     tuple val(sample_id), path(filter_se), path(filter_pe)
     
     output:
-    tuple val(sample_id), path("${sample_id}.canonical_barcodes.txt"), emit: ch_filter_barcodes
+    tuple val(sample_id), path("${sample_id}.canonical_barcodes.txt"), emit: ch_canonical_barcodes
     
     script:
     """
@@ -17,14 +17,14 @@ process cat_filter_barcodes {
     """
 }
 
-process cat_map_barcodes {
+process cat_novel_barcodes {
     label 'process_single'
     
     input:
     tuple val(sample_id), path(map_se), path(map_pe)
     
     output:
-    tuple val(sample_id), path("${sample_id}.novel_barcodes.txt"), emit: ch_map_barcodes
+    tuple val(sample_id), path("${sample_id}.novel_barcodes.txt"), emit: ch_novel_barcodes
     
     script:
     """
