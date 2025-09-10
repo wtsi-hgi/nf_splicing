@@ -410,7 +410,7 @@ if __name__ == "__main__":
     exon_positions["exon_end"] = exon_positions["exon_end"].astype(int)
     exon_positions["length"] = exon_positions["exon_end"] - exon_positions["exon_start"] + 1
 
-    df_bar_var = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "var_id"] )
+    df_bar_var = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "var_id"])
 
     # -- prepare output files -- #
     os.makedirs(args.output_dir, exist_ok = True)
