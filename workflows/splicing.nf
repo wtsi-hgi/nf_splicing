@@ -32,12 +32,12 @@ Usage:
 
     Mandatory arguments:
         --sample_sheet                path of the sample sheet
+        --library                     random_intron, random_exon, muta_intron, muta_exon, default: random_intron
         --outdir                      the directory path of output results, default: the current directory
     
     Optional arguments:
     Basic:
         --do_pe_reads                 whether to process paired-end reads, default: false
-        --library                     random_intron, random_exon, muta_intron, muta_exon, default: random_intron
     
     Fastp:
         --fastp_cut_mean_quality      mean quality for fastp, default: 20
@@ -230,7 +230,10 @@ workflow splicing {
         ch_pe_junctions = detect_novel_pe.out.ch_pe_junctions
     }
 
-    // /* -- step 4: summarise results -- */
+    /* -- step 4: summarise results -- */
+    
+    
+    
     // if (params.do_pe_reads) {
     //     idxstats_add_values(ch_bwa_se_filtered_idxstats.join(ch_bwa_pe_filtered_idxstats))
     //     ch_sample_idxstats = idxstats_add_values.out.ch_idxstats
