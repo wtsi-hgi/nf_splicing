@@ -57,8 +57,11 @@ if __name__ == "__main__":
 
         if args.lib_type == "random_intron" or args.lib_type == "muta_intron":
             # random intron library: only one sequence in the FASTA, as exons are the same for all
-            record = next(fasta_records)
-            full_exon_seq, skip_exon_seq, exons_pos = extract_exons_and_positions(record.seq)
+            # but for exon positions, they may differ if the intron lengths differ
+            for record in SeqIO.parse(args.reference, "fasta"):
+                full_exon_seq, skip_exon_seq, exons_pos = extract_exons_and_positions(record.seq)
+                for i, (start, end) in enumerate(exons_pos, 1):
+                    tsv_out.write(f"{record.id}\tE{i}\t{start}\t{end}\n")
             fasta_out.write(f">exon_inclusion_ilib\n{full_exon_seq}\n")
             fasta_out.write(f">exon_skipping_ilib\n{skip_exon_seq}\n")
             for i, (start, end) in enumerate(exons_pos, 1):
