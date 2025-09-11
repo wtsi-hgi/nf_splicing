@@ -81,6 +81,59 @@ def merge_clusters(df: pl.DataFrame) -> pl.DataFrame:
     df_merged = pl.concat(merged, how = "vertical")
     return df_merged.sort(["chrom", "donor", "acceptor"])
 
+def annotate_junction(var_id, junc_start, junc_end, exon_pos, intron_pos, min_overlap = 1):
+    """
+    Annotate junctions based on exon and intron positions.
+    Parameters:
+        -- var_id: str, variant id (chromosome)
+        -- junc_start: int, junction start position
+        -- junc_end: int, junction end position
+        -- exon_pos: polars DataFrame, exon positions
+        -- intron_pos: polars DataFrame, intron positions
+        -- min_overlap: int, minimum overlap to consider partial splicing
+    Returns:
+        -- annotation: str, annotation string
+    """
+    exon_pos_var = exon_pos.filter(pl.col("var_id") == var_id).to_pandas()
+    intron_pos_var = intron_pos.filter(pl.col("var_id") == var_id).to_pandas()
+
+    if exon_pos_var.empty or intron_pos_var.empty:
+        return "no_annotation"
+
+    if junc_start < exon_pos_var["exon_start"].min() or junc_end > exon_pos_var["exon_end"].max():
+        return "out_of_range"
+
+    # intron retention
+    for i, intron in intron_pos_var.iterrows():
+        check_start = (intron["intron_start"] <= junc_start <= intron["intron_start"])
+        check_end   = (intron["intron_end"]   <= junc_end   <= intron["intron_end"])
+        if check_start and check_end:
+            if i == 0 and len(intron_pos_var) > 1:
+                return f"intron_retention_{intron_pos_var.iloc[i+1]['intron_id']}"
+            elif i > 0:
+                return f"intron_retention_{intron_pos_var.iloc[i-1]['intron_id']}"
+
+    # exon splicing
+    annostr = []
+    for _, exon in exon_pos_var.iterrows():
+        if junc_start > exon["exon_start"] + min_overlap and junc_start < exon["exon_end"] - min_overlap:
+            annostr.append(f"exon_splicing_3p_{exon['exon_id']}")
+
+        if junc_end > exon["exon_start"] + min_overlap and junc_end < exon["exon_end"] - min_overlap:
+            annostr.append(f"exon_splicing_5p_{exon['exon_id']}")
+
+        if junc_start < exon["exon_start"] + min_overlap and junc_end > exon["exon_end"] - min_overlap:
+            annostr.append(f"exon_skipping_{exon['exon_id']}")
+
+    # intron splicing
+    for idx, intron in intron_pos_var.iterrows():
+        if junc_start > intron["intron_start"] + min_overlap and junc_start < intron["intron_end"] - min_overlap:
+            annostr.append(f"intron_retension_5p_{intron['intron_id']}")
+        if junc_end > intron["intron_start"] + min_overlap and junc_end < intron["intron_end"] - min_overlap:
+            annostr.append(f"intron_retension_3p_{intron['intron_id']}")
+
+    return ";".join(annostr) if annostr else "no_annotation"
+
 #-- main execution --#
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Classifying junctions types from a junction bed file.", allow_abbrev = False)
@@ -88,6 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--exon_pos",            type = str, required = True,       help = "exon position file")
     parser.add_argument("--cluster_tol",         type = int, default = 2,           help = "maximum tolerance of donor/acceptor positions for clustering")
     parser.add_argument("--junc_cov",            type = int, default = 2,           help = "minimum junction coverage to keep")
+    parser.add_argument("--min_overlap",         type = int, default = 2,           help = "minimum anchor to consider partial splicing")
     parser.add_argument("--output_dir",          type = str, default = os.getcwd(), help = "output directory")
     parser.add_argument("--output_prefix",       type = str, default = '',          help = "output prefix")
 
@@ -115,6 +169,12 @@ if __name__ == "__main__":
                                          "column_11": "blockSizes",
                                          "column_12": "blockStarts" })
 
+    df_exon_pos = pl.read_csv(args.exon_pos, separator = "\t", has_header = False)
+    df_exon_pos = df_exon_pos.rename({ "column_1": "var_id",
+                                       "column_2": "exon_id",
+                                       "column_3": "exon_start",
+                                       "column_4": "exon_end" })
+
     # -- prepare output files -- #
     os.makedirs(args.output_dir, exist_ok = True)
     os.chdir(args.output_dir)
@@ -137,7 +197,20 @@ if __name__ == "__main__":
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Merging splicing junctions by clusters, please wait...", flush = True)
     df_junctions_clusters = pl.concat(grouped_clusters, how = "vertical")
     df_junctions_merged = merge_clusters(df_junctions_clusters)
-    # df_junctions_merged.write_csv(junction_out, separator = "\t")
+
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Classify splicing junctions, please wait...", flush = True)
+    df_intron_pos = ( df_exon_pos.with_columns(prev_end = pl.col("exon_end").shift().over("var_id"),
+                                               prev_chrom = pl.col("var_id").shift().over("var_id"))
+                                 .filter(pl.col("var_id") == pl.col("prev_chrom"))
+                                 .with_columns([(pl.col("prev_end") + 1).alias("intron_start"),
+                                                (pl.col("exon_start") - 1).alias("intron_end")])
+                                 .select(["var_id", "intron_start", "intron_end"]))
 
     df_junctions_filtered = df_junctions_merged.filter(pl.col("coverage") >= args.junc_cov)
-
+    df_junctions_classes = df_junctions_filtered.with_columns([
+        pl.struct(["chrom", "start", "end"]).map_elements(
+            lambda row: annotate_junction(row["chrom"], row["start"], row["end"], df_exon_pos, df_intron_pos, args.min_overlap),
+            return_dtype=pl.String
+        ).alias("annotation")
+    ])
+    df_junctions_classes.write_csv(junction_out, separator = "\t")
