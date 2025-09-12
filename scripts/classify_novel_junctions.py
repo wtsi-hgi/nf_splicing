@@ -5,6 +5,7 @@ import argparse
 import re
 import csv
 import polars as pl
+import pyarrow
 from datetime import datetime
 
 #-- functions --#
@@ -81,13 +82,13 @@ def merge_clusters(df: pl.DataFrame) -> pl.DataFrame:
     df_merged = pl.concat(merged, how = "vertical")
     return df_merged.sort(["chrom", "donor", "acceptor"])
 
-def annotate_junction(var_id, junc_start, junc_end, exon_pos, intron_pos, min_overlap = 1):
+def annotate_junction(var_id, donor_pos, acceptor_pos, exon_pos, intron_pos, min_overlap = 1):
     """
     Annotate junctions based on exon and intron positions.
     Parameters:
         -- var_id: str, variant id (chromosome)
-        -- junc_start: int, junction start position
-        -- junc_end: int, junction end position
+        -- donor_pos: int, junction start position
+        -- acceptor_pos: int, junction end position
         -- exon_pos: polars DataFrame, exon positions
         -- intron_pos: polars DataFrame, intron positions
         -- min_overlap: int, minimum overlap to consider partial splicing
@@ -97,16 +98,21 @@ def annotate_junction(var_id, junc_start, junc_end, exon_pos, intron_pos, min_ov
     exon_pos_var = exon_pos.filter(pl.col("var_id") == var_id).to_pandas()
     intron_pos_var = intron_pos.filter(pl.col("var_id") == var_id).to_pandas()
 
-    if exon_pos_var.empty or intron_pos_var.empty:
-        return "no_annotation"
+    if exon_pos_var.empty:
+        return "exon_data_missing"
+    
+    if intron_pos_var.empty:
+        return "intron_data_missing"
 
-    if junc_start < exon_pos_var["exon_start"].min() or junc_end > exon_pos_var["exon_end"].max():
+    if donor_pos < exon_pos_var["exon_start"].min() or acceptor_pos > exon_pos_var["exon_end"].max():
         return "out_of_range"
 
     # intron retention
     for i, intron in intron_pos_var.iterrows():
-        check_start = (intron["intron_start"] <= junc_start <= intron["intron_start"])
-        check_end   = (intron["intron_end"]   <= junc_end   <= intron["intron_end"])
+        # intron retention: allow 1bp mismatch for start and end
+        # because of 0-based start and 1-based end in bed format, how to define donor and acceptor positions
+        check_start = (intron["intron_start"] - 1 <= donor_pos <= intron["intron_start"] + 1)
+        check_end   = (intron["intron_end"] - 1   <= acceptor_pos   <= intron["intron_end"] + 1)
         if check_start and check_end:
             if i == 0 and len(intron_pos_var) > 1:
                 return f"intron_retention_{intron_pos_var.iloc[i+1]['intron_id']}"
@@ -116,20 +122,20 @@ def annotate_junction(var_id, junc_start, junc_end, exon_pos, intron_pos, min_ov
     # exon splicing
     annostr = []
     for _, exon in exon_pos_var.iterrows():
-        if junc_start > exon["exon_start"] + min_overlap and junc_start < exon["exon_end"] - min_overlap:
+        if donor_pos > exon["exon_start"] + min_overlap and donor_pos < exon["exon_end"] - min_overlap:
             annostr.append(f"exon_splicing_3p_{exon['exon_id']}")
 
-        if junc_end > exon["exon_start"] + min_overlap and junc_end < exon["exon_end"] - min_overlap:
+        if acceptor_pos > exon["exon_start"] + min_overlap and acceptor_pos < exon["exon_end"] - min_overlap:
             annostr.append(f"exon_splicing_5p_{exon['exon_id']}")
 
-        if junc_start < exon["exon_start"] + min_overlap and junc_end > exon["exon_end"] - min_overlap:
+        if donor_pos < exon["exon_start"] + min_overlap and acceptor_pos > exon["exon_end"] - min_overlap:
             annostr.append(f"exon_skipping_{exon['exon_id']}")
 
     # intron splicing
     for idx, intron in intron_pos_var.iterrows():
-        if junc_start > intron["intron_start"] + min_overlap and junc_start < intron["intron_end"] - min_overlap:
+        if donor_pos > intron["intron_start"] + min_overlap and donor_pos < intron["intron_end"] - min_overlap:
             annostr.append(f"intron_retension_5p_{intron['intron_id']}")
-        if junc_end > intron["intron_start"] + min_overlap and junc_end < intron["intron_end"] - min_overlap:
+        if acceptor_pos > intron["intron_start"] + min_overlap and acceptor_pos < intron["intron_end"] - min_overlap:
             annostr.append(f"intron_retension_3p_{intron['intron_id']}")
 
     return ";".join(annostr) if annostr else "no_annotation"
@@ -188,15 +194,15 @@ if __name__ == "__main__":
     total_chroms = len(chroms)
     grouped_clusters = []
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing bed file, please wait...", flush = True)
-    for i, (chrom, df_sub) in enumerate(df_junctions.group_by("chrom"), start = 1):
+    for chrom, df_sub in df_junctions.group_by("chrom"):
         df_sub_clusters = parse_and_cluster(df_sub, args.cluster_tol)
         grouped_clusters.append(df_sub_clusters)
-        if i % 1000 == 0 or i == total_chroms:
-            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed {i}/{total_chroms} variants...", flush = True)
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Total number of variants: {total_chroms}", flush = True)
     
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Merging splicing junctions by clusters, please wait...", flush = True)
     df_junctions_clusters = pl.concat(grouped_clusters, how = "vertical")
     df_junctions_merged = merge_clusters(df_junctions_clusters)
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Total number of splicing junctions: {df_junctions_merged.height}", flush = True)
 
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Classify splicing junctions, please wait...", flush = True)
     df_intron_pos = ( df_exon_pos.with_columns(prev_end = pl.col("exon_end").shift().over("var_id"),
@@ -204,13 +210,16 @@ if __name__ == "__main__":
                                  .filter(pl.col("var_id") == pl.col("prev_chrom"))
                                  .with_columns([(pl.col("prev_end") + 1).alias("intron_start"),
                                                 (pl.col("exon_start") - 1).alias("intron_end")])
-                                 .select(["var_id", "intron_start", "intron_end"]))
+                                 .select(["var_id", "intron_start", "intron_end"])
+                                 .with_columns([pl.format("I{}", pl.arange(1, pl.len() + 1).over("var_id")).alias("intron_id")]))
 
     df_junctions_filtered = df_junctions_merged.filter(pl.col("coverage") >= args.junc_cov)
     df_junctions_classes = df_junctions_filtered.with_columns([
-        pl.struct(["chrom", "start", "end"]).map_elements(
-            lambda row: annotate_junction(row["chrom"], row["start"], row["end"], df_exon_pos, df_intron_pos, args.min_overlap),
+        pl.struct(["chrom", "donor", "acceptor"]).map_elements(
+            lambda row: annotate_junction(row["chrom"], row["donor"], row["acceptor"], df_exon_pos, df_intron_pos, args.min_overlap),
             return_dtype=pl.String
         ).alias("annotation")
     ])
     df_junctions_classes.write_csv(junction_out, separator = "\t")
+
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Finished", flush = True)
