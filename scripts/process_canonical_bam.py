@@ -444,6 +444,7 @@ if __name__ == "__main__":
         df_barcode = df_barcode.filter(pl.col("barcode").is_not_null())
         df_barcode_varid = df_barcode.join(df_bar_var, on = "barcode", how = "left")
         df_barcode_varid_count = df_barcode_varid.group_by(["ref_type", "read_ref", "barcode", "var_id"]).agg(pl.len().alias("count"))
+        df_barcode_varid_count = df_barcode_varid_count.select(["read_ref", "var_id", "barcode", "count", "ref_type"])
         df_barcode_varid_count.write_csv(barcode_out, separator = "\t", null_value = "NA")
     else:
         with open(barcode_out, "w") as f:
