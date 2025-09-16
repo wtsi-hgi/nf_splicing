@@ -6,6 +6,10 @@ workflow create_splicing_counts {
     /* -- 1. classify novel junctions -- */
     ch_novel_junctions = ch_sample.map {sample_id, canonical_barcodes, novel_junctions, exon_pos-> 
                                             tuple(sample_id, novel_junctions, exon_pos)}
+    CLASSIFY_NOVEL_JUNCTIONS(ch_novel_junctions)
+    ch_classified_junctions = CLASSIFY_NOVEL_JUNCTIONS.out.ch_classified_junctions
+
+    /* -- 2. create splicing counts -- */
 
 }
 
