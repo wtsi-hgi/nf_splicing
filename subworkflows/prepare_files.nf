@@ -5,9 +5,9 @@ workflow prepare_files {
     main:
     ch_ref = ch_sample_mapping.map { sample_id, read1, read2, reference -> tuple(sample_id, reference) }
 
-    create_exon_reference(ch_ref)
-    ch_bwa_ref = create_exon_reference.out.ch_bwa_ref
-    ch_exon_pos = create_exon_reference.out.ch_exon_pos
+    CREATE_EXON_REFERENCE(ch_ref)
+    ch_bwa_ref = CREATE_EXON_REFERENCE.out.ch_bwa_ref
+    ch_exon_pos = CREATE_EXON_REFERENCE.out.ch_exon_pos
 
     ch_hisat2_ref = ch_ref
 
@@ -17,7 +17,7 @@ workflow prepare_files {
     ch_exon_pos
 }
 
-process create_exon_reference {
+process CREATE_EXON_REFERENCE {
     label 'process_single'
 
     input:

@@ -2,20 +2,20 @@
 
 /* -- load modules -- */
 include { check_required }             from '../modules/check_software.nf'
-include { check_input_files }          from '../modules/check_input_files.nf'
-include { idxstats_get_values; 
-          idxstats_add_values }        from '../modules/format_idxstats.nf'
-include { cat_canonical_barcodes; 
-          cat_novel_barcodes;
-          cat_beds }                   from '../modules/summary_cat_files.nf'
-include { rename_canonical_barcodes;
-          rename_novel_barcodes }        from '../modules/summary_rename_files.nf'
-include { hisat2_summary_get_values; 
-          hisat2_summary_add_values }  from '../modules/format_hisat2_summary.nf'
-include { publish_canonical_barcodes;
-          publish_novel_barcodes}      from '../modules/summary_publish_files.nf'
+include { IDXSTATS_GET_VALUES; 
+          IDXSTATS_ADD_VALUES }        from '../modules/format_idxstats.nf'
+include { HISAT2_SUMMARY_GET_VALUES; 
+          HISAT2_SUMMARY_ADD_VALUES }  from '../modules/format_hisat2_summary.nf'
+include { CAT_CANONICAL_BARCODES; 
+          CAT_NOVEL_BARCODES;
+          CAT_BEDS }                   from '../modules/cat_files.nf'
+include { RENAME_CANONICAL_BARCODES;
+          RENAME_NOVEL_BARCODES }      from '../modules/rename_files.nf'
+include { PUBLISH_CANONICAL_BARCODES;
+          PUBLISH_NOVEL_BARCODES}      from '../modules/publish_files.nf'
 
 /* -- load subworkflows -- */
+include { check_input_files }          from '../modules/check_input_files.nf'
 include { prepare_files }             from '../subworkflows/prepare_files.nf'
 include { process_reads }             from '../subworkflows/process_reads.nf'
 include { detect_canonical_se }       from '../subworkflows/detect_canonical_se.nf'
@@ -230,37 +230,45 @@ workflow splicing {
         ch_pe_junctions = detect_novel_pe.out.ch_pe_junctions
     }
 
-    /* -- step 4: summarise results -- */
+    /* -- prepare channels for downstream -- */
     if (params.do_pe_reads) {
-        idxstats_add_values(ch_bwa_se_filtered_idxstats.join(ch_bwa_pe_filtered_idxstats))
-        ch_sample_idxstats = idxstats_add_values.out.ch_idxstats
+        IDXSTATS_ADD_VALUES(ch_bwa_se_filtered_idxstats.join(ch_bwa_pe_filtered_idxstats))
+        ch_sample_idxstats = IDXSTATS_ADD_VALUES.out.ch_idxstats
 
-        cat_canonical_barcodes(ch_bwa_se_barcodes.join(ch_bwa_pe_barcodes))
-        ch_sample_canonical_barcodes = cat_canonical_barcodes.out.ch_canonical_barcodes
+        CAT_CANONICAL_BARCODES(ch_bwa_se_barcodes.join(ch_bwa_pe_barcodes))
+        ch_sample_canonical_barcodes = CAT_CANONICAL_BARCODES.out.ch_canonical_barcodes
 
-        cat_novel_barcodes(ch_hisat2_se_barcodes.join(ch_hisat2_pe_barcodes))
-        ch_sample_novel_barcodes = cat_novel_barcodes.out.ch_novel_barcodes
+        CAT_NOVEL_BARCODES(ch_hisat2_se_barcodes.join(ch_hisat2_pe_barcodes))
+        ch_sample_novel_barcodes = CAT_NOVEL_BARCODES.out.ch_novel_barcodes
 
-        hisat2_summary_add_values(ch_hisat2_se_summary.join(ch_hisat2_pe_summary))
-        ch_sample_summary = hisat2_summary_add_values.out.ch_hisat2_summary
+        HISAT2_SUMMARY_ADD_VALUES(ch_hisat2_se_summary.join(ch_hisat2_pe_summary))
+        ch_sample_summary = HISAT2_SUMMARY_ADD_VALUES.out.ch_hisat2_summary
 
-        cat_beds(ch_se_junctions.join(ch_pe_junctions))
-        ch_sample_junctions = cat_beds.out.ch_bed
+        CAT_BEDS(ch_se_junctions.join(ch_pe_junctions))
+        ch_sample_junctions = CAT_BEDS.out.ch_bed
     } else {
-        idxstats_get_values(ch_bwa_se_filtered_idxstats)
-        ch_sample_idxstats = idxstats_get_values.out.ch_idxstats
+        IDXSTATS_GET_VALUES(ch_bwa_se_filtered_idxstats)
+        ch_sample_idxstats = IDXSTATS_GET_VALUES.out.ch_idxstats
 
-        rename_canonical_barcodes(ch_bwa_se_barcodes)
-        ch_sample_canonical_barcodes = rename_canonical_barcodes.out.ch_canonical_barcodes
+        RENAME_CANONICAL_BARCODES(ch_bwa_se_barcodes)
+        ch_sample_canonical_barcodes = RENAME_CANONICAL_BARCODES.out.ch_canonical_barcodes
 
-        rename_novel_barcodes(ch_hisat2_se_barcodes)
-        ch_sample_novel_barcodes = rename_novel_barcodes.out.ch_novel_barcodes
+        RENAME_NOVEL_BARCODES(ch_hisat2_se_barcodes)
+        ch_sample_novel_barcodes = RENAME_NOVEL_BARCODES.out.ch_novel_barcodes
 
-        hisat2_summary_get_values(ch_hisat2_se_summary)
-        ch_sample_summary = hisat2_summary_get_values.out.ch_hisat2_summary
+        HISAT2_SUMMARY_GET_VALUES(ch_hisat2_se_summary)
+        ch_sample_summary = HISAT2_SUMMARY_GET_VALUES.out.ch_hisat2_summary
 
         ch_sample_junctions = ch_se_junctions
     }
+
+    /* -- step 4: create count matrices -- */
+    ch_sample_step4 = ch_sample_canonical_barcodes.join(ch_sample_junctions)
+
+
+
+    /* -- step 5: summarise results -- */
+
 
     // ch_sample_step4 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode -> tuple(sample_id, sample) }
     //                           .join(ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) })
@@ -275,6 +283,6 @@ workflow splicing {
                               
     // summarise_results(ch_sample_step4)
 
-    // publish_canonical_barcodes(ch_sample_canonical_barcodes)
-    // publish_novel_barcodes(ch_sample_novel_barcodes)
+    // PUBLISH_CANONICAL_BARCODES(ch_sample_canonical_barcodes)
+    // PUBLISH_NOVEL_BARCODES(ch_sample_novel_barcodes)
 }

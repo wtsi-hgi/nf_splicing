@@ -1,4 +1,4 @@
-process rename_canonical_barcodes {
+process RENAME_CANONICAL_BARCODES {
     label 'process_single'
     
     input:
@@ -13,7 +13,7 @@ process rename_canonical_barcodes {
     """
 }
 
-process rename_novel_barcodes {
+process RENAME_NOVEL_BARCODES {
     label 'process_single'
     
     input:

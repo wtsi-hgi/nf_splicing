@@ -6,22 +6,22 @@ workflow detect_novel_pe {
     /* -- 1. align reads -- */
     ch_align_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, read1, read2, ref_fasta -> 
                                         tuple(sample_id, read1, read2, ref_fasta) }
-    hisat2_align_pe_reads(ch_align_input)                                    
-    ch_hisat2_pe_summary = hisat2_align_pe_reads.out.ch_hisat2_pe_summary
-    ch_hisat2_pe_unmapped = hisat2_align_pe_reads.out.ch_hisat2_pe_unmapped
-    ch_hisat2_pe_bam = hisat2_align_pe_reads.out.ch_hisat2_pe_bam
+    HISAT2_ALIGN_PE_READS(ch_align_input)                                    
+    ch_hisat2_pe_summary = HISAT2_ALIGN_PE_READS.out.ch_hisat2_pe_summary
+    ch_hisat2_pe_unmapped = HISAT2_ALIGN_PE_READS.out.ch_hisat2_pe_unmapped
+    ch_hisat2_pe_bam = HISAT2_ALIGN_PE_READS.out.ch_hisat2_pe_bam
 
     /* -- 2. fix alignments -- */
     ch_fix_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, read1, read2, ref_fasta -> 
                                         tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, ref_fasta) }
                             .join(ch_hisat2_pe_bam)
-    fix_pe_reads(ch_fix_input)
-    ch_hisat2_pe_barcodes = fix_pe_reads.out.ch_hisat2_pe_barcodes
-    ch_hisat2_pe_fixed = fix_pe_reads.out.ch_hisat2_pe_fixed
+    FIX_PE_READS(ch_fix_input)
+    ch_hisat2_pe_barcodes = FIX_PE_READS.out.ch_hisat2_pe_barcodes
+    ch_hisat2_pe_fixed = FIX_PE_READS.out.ch_hisat2_pe_fixed
     
     /* -- 3. extract junctions -- */
-    extract_pe_junctions(ch_hisat2_pe_fixed)
-    ch_pe_junctions = extract_pe_junctions.out.ch_pe_junctions
+    EXTRACT_PE_JUNCTIONS(ch_hisat2_pe_fixed)
+    ch_pe_junctions = EXTRACT_PE_JUNCTIONS.out.ch_pe_junctions
 
     emit:
     ch_hisat2_pe_summary
@@ -30,7 +30,7 @@ workflow detect_novel_pe {
     ch_pe_junctions
 }
 
-process hisat2_align_pe_reads {
+process HISAT2_ALIGN_PE_READS {
     label 'process_medium'
 
     input:
@@ -61,7 +61,7 @@ process hisat2_align_pe_reads {
     """
 }
 
-process fix_pe_reads {
+process FIX_PE_READS {
     label 'process_high_memory'
 
     publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.barcodes.txt", mode: "copy", overwrite: true
@@ -98,7 +98,7 @@ process fix_pe_reads {
     """
 }
 
-process extract_pe_junctions {
+process EXTRACT_PE_JUNCTIONS {
     label 'process_single'
 
     publishDir "${params.outdir}/novel_junctions/${sample_id}", mode: "copy", overwrite: true

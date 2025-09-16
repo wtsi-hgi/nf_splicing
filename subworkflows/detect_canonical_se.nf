@@ -6,24 +6,24 @@ workflow detect_canonical_se {
     /* -- 1. align reads -- */
     ch_align_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos -> 
                                         tuple(sample_id, extended_frags, exon_fasta) }
-    bwa_align_se_reads(ch_align_input)
-    ch_bwa_se_unmapped = bwa_align_se_reads.out.ch_bwa_se_unmapped
-    ch_bwa_se_bam = bwa_align_se_reads.out.ch_bwa_se_bam
+    BWA_ALIGN_SE_READS(ch_align_input)
+    ch_bwa_se_unmapped = BWA_ALIGN_SE_READS.out.ch_bwa_se_unmapped
+    ch_bwa_se_bam = BWA_ALIGN_SE_READS.out.ch_bwa_se_bam
 
     /* -- 2. filter reads -- */
     ch_filter_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos -> 
                                         tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, exon_pos) }
                                .join(ch_bwa_se_bam)
-    filter_se_reads(ch_filter_input)
-    ch_bwa_se_wrongmap = filter_se_reads.out.ch_bwa_se_wrongmap
-    ch_bwa_se_filtered = filter_se_reads.out.ch_bwa_se_filtered
-    ch_bwa_se_filtered_idxstats = filter_se_reads.out.ch_bwa_se_filtered_idxstats
-    ch_bwa_se_barcodes = filter_se_reads.out.ch_bwa_se_barcodes
+    FILTER_SE_READS(ch_filter_input)
+    ch_bwa_se_wrongmap = FILTER_SE_READS.out.ch_bwa_se_wrongmap
+    ch_bwa_se_filtered = FILTER_SE_READS.out.ch_bwa_se_filtered
+    ch_bwa_se_filtered_idxstats = FILTER_SE_READS.out.ch_bwa_se_filtered_idxstats
+    ch_bwa_se_barcodes = FILTER_SE_READS.out.ch_bwa_se_barcodes
 
     /* -- 3. cat reads -- */
     ch_bwa_se_joined = ch_bwa_se_unmapped.join(ch_bwa_se_wrongmap)
-    merge_se_fastqs(ch_bwa_se_joined)
-    ch_bwa_se_fail = merge_se_fastqs.out.ch_bwa_se_fail
+    MERGE_SE_FASTQS(ch_bwa_se_joined)
+    ch_bwa_se_fail = MERGE_SE_FASTQS.out.ch_bwa_se_fail
 
     emit:
     ch_bwa_se_filtered
@@ -32,7 +32,7 @@ workflow detect_canonical_se {
     ch_bwa_se_barcodes
 }
 
-process bwa_align_se_reads {
+process BWA_ALIGN_SE_READS {
     label 'process_medium'
 
     input:
@@ -55,7 +55,7 @@ process bwa_align_se_reads {
     """
 }
 
-process filter_se_reads {
+process FILTER_SE_READS {
     label 'process_high_memory'
 
     publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.barcodes.txt", mode: "copy", overwrite: true
@@ -92,7 +92,7 @@ process filter_se_reads {
     """
 }
 
-process merge_se_fastqs {
+process MERGE_SE_FASTQS {
     label 'process_single'
 
     input:

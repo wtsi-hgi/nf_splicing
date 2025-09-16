@@ -1,4 +1,4 @@
-process publish_canonical_barcodes {
+process PUBLISH_CANONICAL_BARCODES {
     label 'process_single'
     
     publishDir "${params.outdir}/extracted_barcodes/${sample_id}", mode: "copy", overwrite: true
@@ -16,7 +16,7 @@ process publish_canonical_barcodes {
     """
 }
 
-process publish_novel_barcodes {
+process PUBLISH_NOVEL_BARCODES {
     label 'process_single'
     
     publishDir "${params.outdir}/extracted_barcodes/${sample_id}", mode: "copy", overwrite: true

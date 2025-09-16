@@ -7,16 +7,16 @@ workflow check_input_files {
     ch_sample
 
     main:
-    check_files(ch_sample)
-    ch_sample_mapping = check_files.out.ch_sample_mapping
-    ch_sample_barcodes = check_files.out.ch_sample_barcodes
+    CHECK_FILES(ch_sample)
+    ch_sample_mapping = CHECK_FILES.out.ch_sample_mapping
+    ch_sample_barcodes = CHECK_FILES.out.ch_sample_barcodes
 
     emit:
     ch_sample_mapping
     ch_sample_barcodes
 }
 
-process check_files {
+process CHECK_FILES {
     label 'process_single'
 
     input:

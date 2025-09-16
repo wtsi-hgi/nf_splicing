@@ -6,24 +6,24 @@ workflow detect_canonical_pe {
     /* -- 1. align reads -- */
     ch_align_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
                                         tuple(sample_id, not_combined_1, not_combined_2, exon_fasta) }
-    bwa_align_pe_reads(ch_align_input)
-    ch_bwa_pe_unmapped = bwa_align_pe_reads.out.ch_bwa_pe_unmapped
-    ch_bwa_pe_bam = bwa_align_pe_reads.out.ch_bwa_pe_bam
+    BWA_ALIGN_PE_READS(ch_align_input)
+    ch_bwa_pe_unmapped = BWA_ALIGN_PE_READS.out.ch_bwa_pe_unmapped
+    ch_bwa_pe_bam = BWA_ALIGN_PE_READS.out.ch_bwa_pe_bam
 
     /* -- 2. filter reads -- */
     ch_filter_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
                                         tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, exon_pos) }
                                .join(ch_bwa_pe_bam)    
-    filter_pe_reads(ch_filter_input)
-    ch_bwa_pe_wrongmap = filter_pe_reads.out.ch_bwa_pe_wrongmap
-    ch_bwa_pe_filtered = filter_pe_reads.out.ch_bwa_pe_filtered
-    ch_bwa_pe_filtered_idxstats = filter_pe_reads.out.ch_bwa_pe_filtered_idxstats
-    ch_bwa_pe_barcodes = filter_pe_reads.out.ch_bwa_pe_barcodes
+    FILTER_PE_READS(ch_filter_input)
+    ch_bwa_pe_wrongmap = FILTER_PE_READS.out.ch_bwa_pe_wrongmap
+    ch_bwa_pe_filtered = FILTER_PE_READS.out.ch_bwa_pe_filtered
+    ch_bwa_pe_filtered_idxstats = FILTER_PE_READS.out.ch_bwa_pe_filtered_idxstats
+    ch_bwa_pe_barcodes = FILTER_PE_READS.out.ch_bwa_pe_barcodes
 
     /* -- 3. cat reads -- */
     ch_bwa_pe_joined = ch_bwa_pe_unmapped.join(ch_bwa_pe_wrongmap)
-    merge_pe_fastqs(ch_bwa_pe_joined)
-    ch_bwa_pe_fail = merge_pe_fastqs.out.ch_bwa_pe_fail
+    MERGE_PE_FASTQS(ch_bwa_pe_joined)
+    ch_bwa_pe_fail = MERGE_PE_FASTQS.out.ch_bwa_pe_fail
 
     emit:
     ch_bwa_pe_filtered
@@ -32,7 +32,7 @@ workflow detect_canonical_pe {
     ch_bwa_pe_barcodes
 }
 
-process bwa_align_pe_reads {
+process BWA_ALIGN_PE_READS {
     label 'process_medium'
 
     input:
@@ -55,7 +55,7 @@ process bwa_align_pe_reads {
     """
 }
 
-process filter_pe_reads {
+process FILTER_PE_READS {
     label 'process_high_memory'
 
     publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.barcodes.txt", mode: "copy", overwrite: true
@@ -92,7 +92,7 @@ process filter_pe_reads {
     """
 }
 
-process merge_pe_fastqs {
+process MERGE_PE_FASTQS {
     label 'process_single'
 
     input:

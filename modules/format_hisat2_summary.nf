@@ -1,4 +1,4 @@
-process hisat2_summary_get_values {
+process HISAT2_SUMMARY_GET_VALUES {
     label 'process_single'
     
     input:
@@ -17,7 +17,7 @@ process hisat2_summary_get_values {
     """
 }
 
-process hisat2_summary_add_values {
+process HISAT2_SUMMARY_ADD_VALUES {
     label 'process_single'
     
     input:

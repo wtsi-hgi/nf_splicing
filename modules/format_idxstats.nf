@@ -1,4 +1,4 @@
-process idxstats_get_values {
+process IDXSTATS_GET_VALUES {
     label 'process_single'
     
     input:
@@ -15,7 +15,7 @@ process idxstats_get_values {
     """
 }
 
-process idxstats_add_values {
+process IDXSTATS_ADD_VALUES {
     label 'process_single'
     
     input:

@@ -6,22 +6,22 @@ workflow detect_novel_se {
     /* -- 1. align reads -- */
     ch_align_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, se_reads, ref_fasta -> 
                                         tuple(sample_id, se_reads, ref_fasta) }
-    hisat2_align_se_reads(ch_align_input)
-    ch_hisat2_se_summary = hisat2_align_se_reads.out.ch_hisat2_se_summary
-    ch_hisat2_se_unmapped = hisat2_align_se_reads.out.ch_hisat2_se_unmapped
-    ch_hisat2_se_bam = hisat2_align_se_reads.out.ch_hisat2_se_bam
+    HISAT2_ALIGN_SE_READS(ch_align_input)
+    ch_hisat2_se_summary = HISAT2_ALIGN_SE_READS.out.ch_hisat2_se_summary
+    ch_hisat2_se_unmapped = HISAT2_ALIGN_SE_READS.out.ch_hisat2_se_unmapped
+    ch_hisat2_se_bam = HISAT2_ALIGN_SE_READS.out.ch_hisat2_se_bam
 
     /* -- 2. fix alignments -- */
     ch_fix_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, se_reads, ref_fasta -> 
                                         tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, ref_fasta) }
                             .join(ch_hisat2_se_bam)
-    fix_se_reads(ch_fix_input)
-    ch_hisat2_se_barcodes = fix_se_reads.out.ch_hisat2_se_barcodes
-    ch_hisat2_se_fixed = fix_se_reads.out.ch_hisat2_se_fixed
+    FIX_SE_READS(ch_fix_input)
+    ch_hisat2_se_barcodes = FIX_SE_READS.out.ch_hisat2_se_barcodes
+    ch_hisat2_se_fixed = FIX_SE_READS.out.ch_hisat2_se_fixed
     
     /* -- 3. extract junctions -- */
-    extract_se_junctions(ch_hisat2_se_fixed)
-    ch_se_junctions = extract_se_junctions.out.ch_se_junctions
+    EXTRACT_SE_JUNCTIONS(ch_hisat2_se_fixed)
+    ch_se_junctions = EXTRACT_SE_JUNCTIONS.out.ch_se_junctions
 
     emit:
     ch_hisat2_se_summary
@@ -30,7 +30,7 @@ workflow detect_novel_se {
     ch_se_junctions
 }
 
-process hisat2_align_se_reads {
+process HISAT2_ALIGN_SE_READS {
     label 'process_medium'
 
     input:
@@ -61,7 +61,7 @@ process hisat2_align_se_reads {
     """
 }
 
-process fix_se_reads {
+process FIX_SE_READS {
     label 'process_high_memory'
 
     publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.barcodes.txt", mode: "copy", overwrite: true
@@ -98,7 +98,7 @@ process fix_se_reads {
     """
 }
 
-process extract_se_junctions {
+process EXTRACT_SE_JUNCTIONS {
     label 'process_single'
 
     publishDir "${params.outdir}/novel_junctions/${sample_id}", mode: "copy", overwrite: true

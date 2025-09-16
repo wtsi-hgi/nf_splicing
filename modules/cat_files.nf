@@ -1,4 +1,4 @@
-process cat_canonical_barcodes {
+process CAT_CANONICAL_BARCODES {
     label 'process_single'
     
     input:
@@ -17,7 +17,7 @@ process cat_canonical_barcodes {
     """
 }
 
-process cat_novel_barcodes {
+process CAT_NOVEL_BARCODES {
     label 'process_single'
     
     input:
@@ -36,7 +36,7 @@ process cat_novel_barcodes {
     """
 }
 
-process cat_beds {
+process CAT_BEDS {
     label 'process_single'
     
     input:

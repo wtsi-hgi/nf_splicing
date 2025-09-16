@@ -4,18 +4,18 @@ workflow process_reads {
 
     main:
     /* -- 1. trim reads -- */
-    trimming_reads(ch_sample)
-    ch_trim = trimming_reads.out.ch_trim
+    TRIMMING_READS(ch_sample)
+    ch_trim = TRIMMING_READS.out.ch_trim
 
     /* -- 2. merge reads -- */
-    merging_reads(ch_trim)
-    ch_merge = merging_reads.out.ch_merge
+    MERGING_READS(ch_trim)
+    ch_merge = MERGING_READS.out.ch_merge
 
     emit:
     ch_merge
 }
 
-process trimming_reads {
+process TRIMMING_READS {
     label 'process_low'
 
     input:
@@ -38,7 +38,7 @@ process trimming_reads {
     """
 }
 
-process merging_reads {
+process MERGING_READS {
     label 'process_low'
 
     input:
