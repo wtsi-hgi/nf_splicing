@@ -71,9 +71,9 @@ Usage:
         --regtools_min_intron         min intron length for regtools, default: 20
 
     Junction classification:
-        --classify_min_overlap        min overlap for classification, default: 2
-        --classify_min_cov            min coverage for classification, default: 2
-        --classify_reduce             reduce the number of reads for classification, default: 2
+        --classify_cluster_tol        max tolerance of donor/acceptor positions for clustering, default: 2
+        --classify_min_overlap        min anchor to consider partial splicing, default: 2
+        --classify_min_cov            min junction coverage to keep, default: 2
     """
 }
 
@@ -108,9 +108,9 @@ params.do_spliced_products         = params.do_spliced_products         ?: false
 params.regtools_min_anchor         = params.regtools_min_anchor         ?: 5
 params.regtools_min_intron         = params.regtools_min_intron         ?: 20
 
+params.classify_cluster_tol        = params.classify_cluster_tol        ?: 2
 params.classify_min_overlap        = params.classify_min_overlap        ?: 2
 params.classify_min_cov            = params.classify_min_cov            ?: 2
-params.classify_reduce             = params.classify_reduce             ?: 2
 
 /* -- check parameters -- */
 if (params.help) {
@@ -264,6 +264,7 @@ workflow splicing {
 
     /* -- step 4: create count matrices -- */
     ch_sample_step4 = ch_sample_canonical_barcodes.join(ch_sample_junctions)
+                                                  .join(ch_exon_pos)
 
 
 
