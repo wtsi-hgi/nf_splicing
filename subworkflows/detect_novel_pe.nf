@@ -101,7 +101,7 @@ process FIX_PE_READS {
 process EXTRACT_PE_JUNCTIONS {
     label 'process_single'
 
-    publishDir "${params.outdir}/novel_junctions/${sample_id}", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(bam), path(bai)
