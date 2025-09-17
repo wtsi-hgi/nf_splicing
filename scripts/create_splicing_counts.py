@@ -25,7 +25,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if args.output_prefix == '':
-        output_prefix = os.path.splitext(os.path.basename(args.bam_file))[0]
+        output_prefix = os.path.splitext(os.path.basename(args.novel_file))[0]
     else:
         output_prefix = args.output_prefix
     
@@ -64,6 +64,7 @@ if __name__ == "__main__":
                                        .group_by(["var_id", "ref_type"])
                                        .agg(pl.col("count").sum()))
     df_canonical_pivot = df_canonical_format.pivot(values = "count", index = "var_id", on = "ref_type").fill_null(0)
+    df_canonical_pivot = df_canonical_pivot.rename({"exon_inclusion": "canonical_inclusion", "exon_skipping": "canonical_skipping"})
 
     df_novel_format = (df_novel.select(["chrom", "coverage", "annotation"])
                                .with_columns(pl.col("annotation").str.split(";").alias("annotation_split"))

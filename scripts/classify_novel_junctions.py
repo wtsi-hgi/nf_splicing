@@ -159,7 +159,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if args.output_prefix == '':
-        output_prefix = os.path.splitext(os.path.basename(args.bam_file))[0]
+        output_prefix = os.path.splitext(os.path.basename(args.bed_file))[0]
     else:
         output_prefix = args.output_prefix
 
