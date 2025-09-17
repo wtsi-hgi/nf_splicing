@@ -1,27 +1,28 @@
 /* ---- splicing analysis pipeline ---- */
 
 /* -- load modules -- */
-include { check_required }             from '../modules/check_software.nf'
+include { check_required }            from '../modules/check_software.nf'
 include { IDXSTATS_GET_VALUES; 
-          IDXSTATS_ADD_VALUES }        from '../modules/format_idxstats.nf'
+          IDXSTATS_ADD_VALUES }       from '../modules/format_idxstats.nf'
 include { HISAT2_SUMMARY_GET_VALUES; 
-          HISAT2_SUMMARY_ADD_VALUES }  from '../modules/format_hisat2_summary.nf'
+          HISAT2_SUMMARY_ADD_VALUES } from '../modules/format_hisat2_summary.nf'
 include { CAT_CANONICAL_BARCODES; 
           CAT_NOVEL_BARCODES;
-          CAT_BEDS }                   from '../modules/cat_files.nf'
+          CAT_BEDS }                  from '../modules/cat_files.nf'
 include { RENAME_CANONICAL_BARCODES;
-          RENAME_NOVEL_BARCODES }      from '../modules/rename_files.nf'
+          RENAME_NOVEL_BARCODES }     from '../modules/rename_files.nf'
 include { PUBLISH_CANONICAL_BARCODES;
-          PUBLISH_NOVEL_BARCODES}      from '../modules/publish_files.nf'
+          PUBLISH_NOVEL_BARCODES}     from '../modules/publish_files.nf'
 
 /* -- load subworkflows -- */
-include { check_input_files }          from '../modules/check_input_files.nf'
+include { check_input_files }         from '../modules/check_input_files.nf'
 include { prepare_files }             from '../subworkflows/prepare_files.nf'
 include { process_reads }             from '../subworkflows/process_reads.nf'
 include { detect_canonical_se }       from '../subworkflows/detect_canonical_se.nf'
 include { detect_canonical_pe }       from '../subworkflows/detect_canonical_pe.nf'
 include { detect_novel_se }           from '../subworkflows/detect_novel_se.nf'
 include { detect_novel_pe }           from '../subworkflows/detect_novel_pe.nf'
+include { create_splicing_counts }    from '../subworkflows/create_splicing_counts.nf'
 include { summarise_results }         from '../subworkflows/summarise_results.nf'
 
 /* -- define functions -- */
@@ -263,10 +264,12 @@ workflow splicing {
     }
 
     /* -- step 4: create count matrices -- */
-    ch_sample_step4 = ch_sample_canonical_barcodes.join(ch_sample_junctions)
-                                                  .join(ch_exon_pos)
-
-
+    ch_sample_step4 = ch_sample_barcodes.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp -> tuple(sample_id, barcode)}
+                                        .join(ch_sample_canonical_barcodes)
+                                        .join(ch_sample_junctions)
+                                        .join(ch_exon_pos)
+    create_splicing_counts(ch_sample_step4)
+    ch_splicing_counts = create_splicing_counts.out.ch_splicing_counts
 
     /* -- step 5: summarise results -- */
 
