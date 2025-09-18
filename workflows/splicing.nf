@@ -15,7 +15,7 @@ include { PUBLISH_CANONICAL_BARCODES;
           PUBLISH_NOVEL_BARCODES}     from '../modules/publish_files.nf'
 
 /* -- load subworkflows -- */
-include { check_input_files }         from '../modules/check_input_files.nf'
+include { check_input_files }         from '../subworkflows/check_input_files.nf'
 include { prepare_files }             from '../subworkflows/prepare_files.nf'
 include { process_reads }             from '../subworkflows/process_reads.nf'
 include { detect_canonical_se }       from '../subworkflows/detect_canonical_se.nf'
