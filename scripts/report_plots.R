@@ -7,7 +7,7 @@ create_barplots <- function(sample_reps, total_reads, merged_reads, unmerged_rea
     summary_pct <- summary_reads %>%
                     mutate(pct_merged = round((merged_reads / total_reads) * 100, 1),
                            pct_unmerged = round((unmerged_reads / total_reads) * 100, 1),
-                           library_coverage = as.integer(total_reads / length(unique(barcode_association$varid))),
+                           library_coverage = as.integer(total_reads / length(unique(barcode_association$var_id))),
                            pct_inclusion = round((inclusion_reads / total_reads) * 100, 1),
                            pct_skipping = round((skipping_reads / total_reads) * 100, 1),
                            pct_map = round((map_reads / total_reads) * 100, 1),
@@ -17,25 +17,25 @@ create_barplots <- function(sample_reps, total_reads, merged_reads, unmerged_rea
                         select(sample_reps, pct_merged, pct_unmerged) %>%
                         pivot_longer(cols = -sample_reps, names_to = "type", values_to = "pct")
     tib_pct_total$type <- factor(tib_pct_total$type, levels = c("pct_unmerged", "pct_merged"))
-    tib_cov <- summary_reads %>% select(sample_reps, library_coverage)
+    tib_cov <- summary_pct %>% select(sample_reps, library_coverage)
     tib_cov$type <- "coverage"
 
     tib_pct_canonical <- summary_pct %>% 
                             select(sample_reps, pct_inclusion, pct_skipping) %>%
                             pivot_longer(cols = -sample_reps, names_to = "type", values_to = "pct")
 
-    tib_pct_novel <- summary_reads %>% 
+    tib_pct_novel <- summary_pct %>% 
                         select(sample_reps, pct_map, pct_unexplain) %>%
                         pivot_longer(cols = -sample_reps, names_to = "type", values_to = "pct")
 
     select_colors <- select_colorblind("col15")[1:2]
     fill_colors <- sapply(select_colors, function(x) t_col(x, 0.5), USE.NAMES = FALSE)
 
-    p1 <- ggplot(tib_pct_total,  aes(x = reps, y = pct, fill = type)) +
+    p1 <- ggplot(tib_pct_total,  aes(x = sample_reps, y = pct, fill = type)) +
             geom_bar(stat = "identity", position = "stack") +
             scale_fill_manual(values = fill_colors) +
             labs(x = NULL, y = "percent") +
-            theme(legend.position = "right", legend.title = element_blank()) +
+            theme(legend.position = "bottom", legend.direction = "vertical", legend.title = element_blank()) +
             theme(panel.background = element_rect(fill = "ivory", colour = "white")) +
             theme(axis.title = element_text(size = 16, face = "bold", family = "Arial")) +
             theme(plot.title = element_text(size = 16, face = "bold.italic", family = "Arial")) +
@@ -43,11 +43,11 @@ create_barplots <- function(sample_reps, total_reads, merged_reads, unmerged_rea
             theme(axis.text.x = element_text(angle = 90)) +
             geom_text(aes(label = pct), position = position_stack(vjust = 0.5), size = 3)
 
-    p2 <- ggplot(tib_pct_canonical,  aes(x = reps, y = pct, fill = type)) +
+    p2 <- ggplot(tib_pct_canonical,  aes(x = sample_reps, y = pct, fill = type)) +
             geom_bar(stat = "identity", position = "stack") +
             scale_fill_manual(values = fill_colors) +
             labs(x = NULL, y = "percent") +
-            theme(legend.position = "right", legend.title = element_blank()) +
+            theme(legend.position = "bottom", legend.direction = "vertical", legend.title = element_blank()) +
             theme(panel.background = element_rect(fill = "ivory", colour = "white")) +
             theme(axis.title = element_text(size = 16, face = "bold", family = "Arial")) +
             theme(plot.title = element_text(size = 16, face = "bold.italic", family = "Arial")) +
@@ -55,11 +55,11 @@ create_barplots <- function(sample_reps, total_reads, merged_reads, unmerged_rea
             theme(axis.text.x = element_text(angle = 90)) +
             geom_text(aes(label = pct), position = position_stack(vjust = 0.5), size = 3)
 
-    p3 <- ggplot(tib_pct_novel,  aes(x = reps, y = pct, fill = type)) +
+    p3 <- ggplot(tib_pct_novel,  aes(x = sample_reps, y = pct, fill = type)) +
             geom_bar(stat = "identity", position = "stack") +
             scale_fill_manual(values = fill_colors) +
-            labs(x = NULL, y = "percent", title = sample_prefix) +
-            theme(legend.position = "right", legend.title = element_blank()) +
+            labs(x = NULL, y = "percent") +
+            theme(legend.position = "bottom", legend.direction = "vertical", legend.title = element_blank()) +
             theme(panel.background = element_rect(fill = "ivory", colour = "white")) +
             theme(axis.title = element_text(size = 16, face = "bold", family = "Arial")) +
             theme(plot.title = element_text(size = 16, face = "bold.italic", family = "Arial")) +
@@ -82,3 +82,37 @@ create_venn_diagrams <- function(canonical_barcodes, novel_barcodes, barcode_ass
     }
     return(list_plots)
 }
+
+create_junction_plots <- function(classified_junctions)
+{
+    list_junctions <- lapply(classified_junctions, function(dt) { paste(dt$chrom, dt$donor, dt$acceptor, sep = "_") })
+    p <- ggVennDiagram(list_junctions, label_alpha = 0, edge_size = 0.2) + scale_fill_gradient(low = "ivory", high = "tomato")
+
+    dt_list <- lapply(seq_along(classified_junctions), function(i) {
+                    dt <- classified_junctions[[i]][, .(chrom, donor, acceptor, annotation, coverage)]
+                    setnames(dt, "coverage", sample_reps[i])
+                    dt })
+    dt_junctions <- Reduce(function(x, y) merge(x, y, by = c("chrom", "donor", "acceptor", "annotation"), all = TRUE), dt_list)
+    
+    cov_cols <- setdiff(names(dt_junctions), c("chrom", "donor", "acceptor", "annotation"))
+    dt_junctions[rowSums(!is.na(dt_junctions[, ..cov_cols])) >= 2]
+    dt_junctions[, avg_cov := rowMeans(.SD, na.rm = TRUE), .SDcols = cov_cols]
+    setnames(dt_junctions, "chrom", "var_id")
+
+    return(list(p, dt_junctions))
+}
+
+rescale_junctions <- function(exons, junctions, scale_range = c(1, 700))
+{
+    bounds <- exons[, .(old_min = min(exon_start), old_max = max(exon_end)), by = var_id]
+    bounds[, `:=`(scale_min = scale_range[1], scale_max = scale_range[2], scale_len = scale_range[2] - scale_range[1])]
+    bounds[, old_len := old_max - old_min]
+
+    junctions[,  var_id_scale := sub("(/.*)$", "", var_id)]
+    junctions_scale <- merge(junctions, bounds, by = "var_id", allow.cartesian = TRUE)
+    junctions_scale[, donor_scale := round(scale_min + (donor - old_min) * (scale_len / old_len))]
+    junctions_scale[, acceptor_scale := round(scale_min + (acceptor - old_min) * (scale_len / old_len))]
+  
+    return(junctions_scale)
+}
+
