@@ -82,7 +82,7 @@ def merge_clusters(df: pl.DataFrame) -> pl.DataFrame:
     df_merged = pl.concat(merged, how = "vertical")
     return df_merged.sort(["chrom", "donor", "acceptor"])
 
-def annotate_junction(var_id, donor_pos, acceptor_pos, exon_pos, intron_pos, min_overlap = 1):
+def annotate_junction(var_id, donor_pos, acceptor_pos, exon_pos, intron_pos, min_overlap):
     """
     Annotate junctions based on exon and intron positions.
     Parameters:
@@ -109,12 +109,12 @@ def annotate_junction(var_id, donor_pos, acceptor_pos, exon_pos, intron_pos, min
 
     # intron retention
     for i, intron in intron_pos_var.iterrows():
-        # intron retention: allow 1bp mismatch for start and end
+        # intron retention: allow 2bp mismatch for start and end
         # because of 0-based start and 1-based end in bed format, how to define donor and acceptor positions
-        check_start = (intron["intron_start"] - 1 <= donor_pos <= intron["intron_start"] + 1)
-        check_end   = (intron["intron_end"] - 1   <= acceptor_pos   <= intron["intron_end"] + 1)
+        check_start = (intron["intron_start"] - 2 <= donor_pos <= intron["intron_start"] + 2)
+        check_end   = (intron["intron_end"] - 2   <= acceptor_pos   <= intron["intron_end"] + 2)
         if check_start and check_end:
-            if i == 0 and len(intron_pos_var) > 1:
+            if i == 0:
                 return f"intron_retention_{intron_pos_var.iloc[i+1]['intron_id']}"
             elif i > 0:
                 return f"intron_retention_{intron_pos_var.iloc[i-1]['intron_id']}"
