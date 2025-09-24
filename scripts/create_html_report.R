@@ -5,6 +5,7 @@ invisible(lapply(packages, quiet_library))
 
 # -- options -- #
 option_list <- list(make_option(c("-r", "--rscript_dir"),          type = "character", help = "directory path of R scripts",               default = NULL),
+                    make_option(c("-e", "--exon_pos"),             type = "character", help = "exon position file",                        default = NULL),
                     make_option(c("-b", "--barcode_association"),  type = "character", help = "barcode association file",                  default = NULL),
                     make_option(c("-s", "--sample_id"),            type = "character", help = "list of sample IDs",                        default = NULL),
                     make_option(c("-t", "--trim_stats"),           type = "character", help = "list of trim stats files",                  default = NULL),
@@ -30,6 +31,7 @@ if(length(commandArgs(trailingOnly = TRUE)) == 0)
 # -- check options -- #
 if(is.null(opt$rscript_dir))          stop("-r, directory path of R scripts is required!", call. = FALSE)
 if(is.null(opt$barcode_association))  stop("-b, barcode association file is required!", call. = FALSE)
+if(is.null(opt$exon_pos))             stop("-e, exon position file is required!", call. = FALSE)
 if(is.null(opt$sample_id))            stop("-s, list of sample IDs is required!", call. = FALSE)
 if(is.null(opt$trim_stats))           stop("-t, list of trim stats files is required!", call. = FALSE)
 if(is.null(opt$merge_stats))          stop("-m, list of merge stats files is required!", call. = FALSE)
@@ -42,7 +44,7 @@ if(is.null(opt$splicing_counts))      stop("-d, list of splicing counts is requi
 
 # -- modules -- #
 source(file.path(opt$rscript_dir, "report_utils.R"))
-source(file.path(opt$rscript_dir, "report_utils.R"))
+source(file.path(opt$rscript_dir, "report_plots.R"))
 
 # -- inputs -- #
 sample_reps                <- unlist(strsplit(opt$sample_id, ","))
@@ -63,6 +65,8 @@ output_prefix <- opt$prefix
 
 # -- reading files -- #
 barcode_association <- as.data.table(vroom(opt$barcode_association, delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+exon_pos <- as.data.table(vroom(opt$exon_pos, delim = "\t", comment = "#", col_names = FALSE, show_col_types = FALSE))
+setnames(exon_pos, c("var_id", "exon_id", "exon_start", "exon_end"))
 
 total_reads <- numeric(length(sample_reps))
 
@@ -83,31 +87,41 @@ splicing_counts <- list()
 
 for(i in seq_along(sample_reps))
 {
-    tmp_value <- as.numeric(str_extract(grep("reads passed filter:", readLines(trim_files[i]), value = TRUE), "\\d+"))
+    tmp_value <- as.numeric(str_extract(grep("reads passed filter:", readLines(files_trim_stats[i]), value = TRUE), "\\d+"))
     total_reads[i] <- tmp_value / 2
 
-    merged_reads[i] <- as.numeric(str_extract(grep("Combined pairs:", readLines(merge_files[i]), value = TRUE), "\\d+"))
-    unmerged_reads[i] <- as.numeric(str_extract(grep("Uncombined pairs:", readLines(merge_files[i]), value = TRUE), "\\d+"))
+    merged_reads[i] <- as.numeric(str_extract(grep("Combined pairs:", readLines(files_merge_stats[i]), value = TRUE), "\\d+"))
+    unmerged_reads[i] <- as.numeric(str_extract(grep("Uncombined pairs:", readLines(files_merge_stats[i]), value = TRUE), "\\d+"))
 
-    inclusion_reads[i] <- as.numeric(read.table(filter_files[i])[1, 2])
-    skipping_reads[i] <- as.numeric(read.table(filter_files[i])[2, 2])
+    inclusion_reads[i] <- as.numeric(read.table(files_bwa_idxstats[i])[1, 2])
+    skipping_reads[i] <- as.numeric(read.table(files_bwa_idxstats[i])[2, 2])
 
-    map_reads[i] <- as.numeric(read.table(map_files[i])[1, 2])
-    unexplain_reads[i] <- as.numeric(read.table(map_files[i])[2, 2]) - as.numeric(read.table(map_files[i])[1, 2])
+    map_reads[i] <- as.numeric(read.table(files_hisat2_stats[i])[1, 2])
+    unexplain_reads[i] <- as.numeric(read.table(files_hisat2_stats[i])[2, 2]) - as.numeric(read.table(files_hisat2_stats[i])[1, 2])
 
-    canonical_barcodes[[reps[i]]] <- as.data.table(vroom(canonical_barcode_files[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
-    novel_barcodes[[reps[i]]] <- as.data.table(vroom(novel_barcode_files[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+    canonical_barcodes[[sample_reps[i]]] <- as.data.table(vroom(files_canonical_barcodes[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+    novel_barcodes[[sample_reps[i]]] <- as.data.table(vroom(files_novel_barcodes[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 
-    classified_junctions[[reps[i]]] <- as.data.table(vroom(classified_junctions_files[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
-    splicing_counts[[reps[i]]] <- as.data.table(vroom(splicing_counts_files[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+    classified_junctions[[sample_reps[i]]] <- as.data.table(vroom(files_classified_junctions[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+    splicing_counts[[sample_reps[i]]] <- as.data.table(vroom(files_splicing_counts[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 }
 
 # -- processing -- #
+# 1. bar plots for statistics of sequencing reads
 barplots <- create_barplots(sample_reps, total_reads, merged_reads, unmerged_reads, inclusion_reads, skipping_reads, map_reads, unexplain_reads)
 barplots_combined <- wrap_plots(barplots, nrow = 1)
 
+png(paste0(sample_prefix, ".reads_pct.png"), width = 1200, height = 600, units = "px", res = 300)
+barplots_combined
+dev.off()
+
+# 2. venn diagrams for detected barcodes and talbes of detected barcodes and variants
 venn_diagrams <- create_venn_diagrams(canonical_barcodes, novel_barcodes, barcode_association)
 venn_diagrams_combined <- wrap_plots(venn_diagrams, nrow = 1)
+
+png(paste0(sample_prefix, ".barcodes_venn.png"), width = 1200, height = 400, units = "px", res = 300)
+venn_diagrams_combined
+dev.off()
 
 num_detected_barcodes <- numeric(length(sample_reps))
 num_detected_variants <- numeric(length(sample_reps))
@@ -129,5 +143,72 @@ summary_barvars <- summary_barvars %>%
                         mutate(pct_detected_barcodes = 100 * num_detected_barcodes / num_expected_barcodes,
                                pct_detected_variants = 100 * num_detected_variants / num_expected_variants)
 
+# 3. venn diagrams for detected junctions and correlation of junction quantifications
+junction_plots <- create_junction_plots(classified_junctions)
 
+png(paste0(sample_prefix, ".junctions_venn.png"), width = 1200, height = 400, units = "px", res = 300)
+junction_plots[[1]]
+dev.off()
 
+junctions_category <- junction_plots[[2]]
+cor_data <- junctions_category[, ..sample_reps]
+cor_data[is.na(cor_data)] <- 0
+cor_data_norm <- cor_data %>% mutate(across(everything(), ~ log2((. / sum(.)) * 1e6 + 1)))
+
+png(paste0(sample_prefix, ".junctions_corr.png"), width = 1200, height = 1200, units = "px", res = 100)
+pairs(cor_data_norm,
+      upper.panel = panel.cor,
+      diag.panel = panel.hist,
+      lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
+      use = "complete.obs")
+dev.off()
+
+# 4. upset plots for splicing events and tables of splicing events
+junctions_category_reshape <- junctions_category %>%
+                                separate_rows(annotation, sep = ";") %>%
+                                select(c(var_id, annotation, avg_cov)) %>%
+                                group_by(var_id, annotation) %>%
+                                summarise(avg_cov = sum(avg_cov, na.rm = TRUE), .groups = "drop") %>%
+                                mutate(log_avg_cov = log2(avg_cov + 1)) %>%
+                                select(c(var_id, annotation, log_avg_cov)) %>% 
+                                filter(annotation != "no_annotation")
+upset_input <- junctions_category_reshape %>%
+                distinct(var_id, annotation) %>%
+                mutate(value = 1) %>%
+                pivot_wider(names_from = annotation, values_from = value, values_fill = 0)
+upset_join <- junctions_category_reshape %>% left_join(upset_input, by = "var_id")
+
+png(paste0(sample_prefix, ".junctions_category.png"), width = 2400, height = 1600, units = "px", res = 200)
+upset(as.data.frame(upset_join), 
+      sets = unique(upset_join$annotation), 
+      order.by = "freq", 
+      matrix.color = "yellowgreen",
+      main.bar.color = "royalblue", 
+      sets.bar.color = "yellowgreen",
+      boxplot.summary = c("log_avg_cov"))
+dev.off()
+
+# 5. psi correlation of splicing events
+for(i in 1:length(sample_reps))
+{
+    splicing_counts[[sample_reps[i]]] <- splicing_counts[[sample_reps[i]]] %>%
+                                            rowwise() %>%
+                                            mutate(PSI = canonical_inclusion_E2 / sum(c_across(-var_id))) %>%
+                                            ungroup()
+}
+
+psi_list <- lapply(names(splicing_counts), function(rep_id) { splicing_counts[[rep_id]] %>%
+                                                                select(var_id, PSI) %>%
+                                                                rename(!!rep_id := PSI) })
+psi_wide <- reduce(psi_list, full_join, by = "var_id")
+
+png(paste0(sample_prefix, ".psi_correlation.png"), width = 1200, height = 1200, units = "px", res = 100)
+pairs(psi_wide[, -1],
+      upper.panel = panel.cor,
+      diag.panel = panel.hist,
+      lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
+      use = "complete.obs")
+dev.off()
+
+# 6. individual variant plots
+junctions_scale <- rescale_junctions(exon_pos, junctions_category, c(1, 700))
