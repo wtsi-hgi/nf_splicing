@@ -1,10 +1,11 @@
 #!/usr/bin/env Rscript
 quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, character.only = TRUE))) }
-packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", "reactable", "optparse", "sparkline", "UpSetR", "patchwork", "glue")
+packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", "reactable", "optparse", "sparkline", "UpSetR", "patchwork", "glue", "scales", "ggExtra")
 invisible(lapply(packages, quiet_library))
 
 # -- options -- #
 option_list <- list(make_option(c("-r", "--rscript_dir"),          type = "character", help = "directory path of R scripts",               default = NULL),
+                    make_option(c("-l", "--lib_type"),             type = "character", help = "exon position file",                        default = NULL),
                     make_option(c("-e", "--exon_pos"),             type = "character", help = "exon position file",                        default = NULL),
                     make_option(c("-b", "--barcode_association"),  type = "character", help = "barcode association file",                  default = NULL),
                     make_option(c("-s", "--sample_id"),            type = "character", help = "list of sample IDs",                        default = NULL),
@@ -30,6 +31,7 @@ if(length(commandArgs(trailingOnly = TRUE)) == 0)
 
 # -- check options -- #
 if(is.null(opt$rscript_dir))          stop("-r, directory path of R scripts is required!", call. = FALSE)
+if(is.null(opt$lib_type))             stop("-l, library type is required!", call. = FALSE)
 if(is.null(opt$barcode_association))  stop("-b, barcode association file is required!", call. = FALSE)
 if(is.null(opt$exon_pos))             stop("-e, exon position file is required!", call. = FALSE)
 if(is.null(opt$sample_id))            stop("-s, list of sample IDs is required!", call. = FALSE)
@@ -41,6 +43,12 @@ if(is.null(opt$canonical_barcodes))   stop("-c, list of extracted canonical barc
 if(is.null(opt$novel_barcodes))       stop("-n, list of extracted novel barcode files is required!", call. = FALSE)
 if(is.null(opt$classified_junctions)) stop("-j, list of classified junction file is required!", call. = FALSE)
 if(is.null(opt$splicing_counts))      stop("-d, list of splicing counts is required!", call. = FALSE)
+
+valid_lib_types <- c("random_intron", "random_exon", "muta_intron", "muta_exon")
+if(!(opt$lib_type %in% valid_lib_types))
+{
+    stop(paste0("-l, library type must be one of: ", paste(valid_lib_types, collapse = ", ")), call. = FALSE)
+}
 
 # -- modules -- #
 source(file.path(opt$rscript_dir, "report_utils.R"))
@@ -108,7 +116,7 @@ for(i in seq_along(sample_reps))
 
 # -- processing -- #
 # 1. bar plots for statistics of sequencing reads
-barplots <- create_barplots(sample_reps, total_reads, merged_reads, unmerged_reads, inclusion_reads, skipping_reads, map_reads, unexplain_reads)
+barplots <- create_barplots(barcode_association, sample_reps, total_reads, merged_reads, unmerged_reads, inclusion_reads, skipping_reads, map_reads, unexplain_reads)
 barplots_combined <- wrap_plots(barplots, nrow = 1)
 
 png(paste0(sample_prefix, ".reads_pct.png"), width = 1200, height = 600, units = "px", res = 300)
@@ -147,7 +155,7 @@ summary_barvars <- summary_barvars %>%
 junction_plots <- create_junction_plots(classified_junctions)
 
 png(paste0(sample_prefix, ".junctions_venn.png"), width = 1200, height = 400, units = "px", res = 300)
-junction_plots[[1]]
+print(junction_plots[[1]])
 dev.off()
 
 junctions_category <- junction_plots[[2]]
@@ -193,7 +201,7 @@ for(i in 1:length(sample_reps))
 {
     splicing_counts[[sample_reps[i]]] <- splicing_counts[[sample_reps[i]]] %>%
                                             rowwise() %>%
-                                            mutate(PSI = canonical_inclusion_E2 / sum(c_across(-var_id))) %>%
+                                            mutate(PSI = canonical_inclusion / sum(c_across(-var_id))) %>%
                                             ungroup()
 }
 
@@ -210,5 +218,27 @@ pairs(psi_wide[, -1],
       use = "complete.obs")
 dev.off()
 
-# 6. individual variant plots
-junctions_scale <- rescale_junctions(exon_pos, junctions_category, c(1, 700))
+# 6. junction distribution plots
+data_rescale <- rescale_junctions(junctions_category, exon_pos, opt$lib_type)
+junctions_rescale <- data_rescale[[1]]
+exons_template <- data_rescale[[2]]
+introns_template <- data_rescale[[3]]
+
+junctions_distri <- create_junction_distribution(junctions_rescale, exons_template, introns_template)
+junctions_range <- junctions_distri[[1]]
+junctions_diagramplot <- junctions_distri[[2]]
+junctions_scatterplot <- junctions_distri[[3]]
+
+for(i in seq_along(junctions_range))
+{
+    png(paste0(sample_prefix, ".junctions_diagram_range_", i, ".png"), width = 1600, height = 600, units = "px", res = 200)
+    print(junctions_diagramplot[[i]])
+    dev.off()
+
+    png(paste0(sample_prefix, ".junctions_scatter_range_", i, ".png"), width = 1600, height = 1400, units = "px", res = 200)
+    print(junctions_scatterplot[[i]])
+    dev.off()
+}
+
+# -- reporting -- #
+
