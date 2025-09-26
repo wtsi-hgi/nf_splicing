@@ -123,3 +123,28 @@ panel.smooth <- function(x, y,
         lines(x, pred[, "fit"], col = col.line, ...)
     }
 }
+
+bar_chart_pos_neg <- function(label,
+                              value,
+                              max_value = 1,
+                              height = "1rem",
+                              pos_fill = t_col("tomato", 0.8),
+                              neg_fill = t_col("yellowgreen", 0.8)) {
+    neg_chart <- div(style = list(flex = "1 1 0"))
+    pos_chart <- div(style = list(flex = "1 1 0"))
+    width <- paste0(abs(value / max_value) * 100, "%")
+
+    if (value < 0) {
+        bar <- div(style = list(marginLeft = "0.5rem", background = neg_fill, width = width, height = height))
+        chart <- div(style = list(display = "flex", alignItems = "center", justifyContent = "flex-end"),
+                     label,
+                     bar)
+        neg_chart <- tagAppendChild(neg_chart, chart)
+    } else {
+        bar <- div(style = list(marginRight = "0.5rem", background = pos_fill, width = width, height = height))
+        chart <- div(style = list(display = "flex", alignItems = "center"), bar, label)
+        pos_chart <- tagAppendChild(pos_chart, chart)
+    }
+
+    div(style = list(display = "flex"), neg_chart, pos_chart)
+}
