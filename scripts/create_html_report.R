@@ -5,7 +5,7 @@ invisible(lapply(packages, quiet_library))
 
 # -- options -- #
 option_list <- list(make_option(c("-r", "--rscript_dir"),          type = "character", help = "directory path of R scripts",               default = NULL),
-                    make_option(c("-l", "--lib_type"),             type = "character", help = "exon position file",                        default = NULL),
+                    make_option(c("-l", "--lib_type"),             type = "character", help = "library type",                              default = NULL),
                     make_option(c("-e", "--exon_pos"),             type = "character", help = "exon position file",                        default = NULL),
                     make_option(c("-b", "--barcode_association"),  type = "character", help = "barcode association file",                  default = NULL),
                     make_option(c("-s", "--sample_id"),            type = "character", help = "list of sample IDs",                        default = NULL),
