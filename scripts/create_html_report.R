@@ -53,6 +53,7 @@ if(!(opt$lib_type %in% valid_lib_types))
 # -- modules -- #
 source(file.path(opt$rscript_dir, "report_utils.R"))
 source(file.path(opt$rscript_dir, "report_plots.R"))
+source(file.path(opt$rscript_dir, "report_html.R"))
 
 # -- inputs -- #
 sample_reps                <- unlist(strsplit(opt$sample_id, ","))
@@ -72,6 +73,8 @@ setwd(opt$output_dir)
 output_prefix <- opt$prefix
 
 # -- reading files -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Reading input files ...")
+
 barcode_association <- as.data.table(vroom(opt$barcode_association, delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 exon_pos <- as.data.table(vroom(opt$exon_pos, delim = "\t", comment = "#", col_names = FALSE, show_col_types = FALSE))
 setnames(exon_pos, c("var_id", "exon_id", "exon_start", "exon_end"))
@@ -115,19 +118,30 @@ for(i in seq_along(sample_reps))
 }
 
 # -- processing -- #
-# 1. bar plots for statistics of sequencing reads
-barplots <- create_barplots(barcode_association, sample_reps, total_reads, merged_reads, unmerged_reads, inclusion_reads, skipping_reads, map_reads, unexplain_reads)
-barplots_combined <- wrap_plots(barplots, nrow = 1)
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Preparing tables and figures ...")
 
-png(paste0(sample_prefix, ".reads_pct.png"), width = 1200, height = 600, units = "px", res = 300)
+# 1. bar plots for statistics of sequencing reads
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating read summaries and plots ...")
+
+data_barplots <- create_barplots(barcode_association, sample_reps, total_reads, merged_reads, unmerged_reads, inclusion_reads, skipping_reads, map_reads, unexplain_reads)
+summary_reads <- data_barplots[[1]]
+summary_pct <- data_barplots[[2]]
+barplots_combined <- wrap_plots(data_barplots[[3]], nrow = 1)
+
+fwrite(summary_reads, file = paste0(sample_prefix, ".summary_reads.tsv"), sep = "\t", row.names = FALSE)
+fwrite(summary_pct, file = paste0(sample_prefix, ".summary_pct.tsv"), sep = "\t", row.names = FALSE)
+
+png(paste0(sample_prefix, ".reads_pct.png"), width = 800, height = 800, units = "px", res = 130)
 barplots_combined
 dev.off()
 
 # 2. venn diagrams for detected barcodes and talbes of detected barcodes and variants
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating barcode summaries and plots ...")
+
 venn_diagrams <- create_venn_diagrams(canonical_barcodes, novel_barcodes, barcode_association)
 venn_diagrams_combined <- wrap_plots(venn_diagrams, nrow = 1)
 
-png(paste0(sample_prefix, ".barcodes_venn.png"), width = 1200, height = 400, units = "px", res = 300)
+png(paste0(sample_prefix, ".barcodes_venn.png"), width = 1800, height = 600, units = "px", res = 120)
 venn_diagrams_combined
 dev.off()
 
@@ -152,18 +166,22 @@ summary_barvars <- summary_barvars %>%
                                pct_detected_variants = 100 * num_detected_variants / num_expected_variants)
 
 # 3. venn diagrams for detected junctions and correlation of junction quantifications
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction correlation plot ...")
+
 junction_plots <- create_junction_plots(classified_junctions)
 
-png(paste0(sample_prefix, ".junctions_venn.png"), width = 1200, height = 400, units = "px", res = 300)
+png(paste0(sample_prefix, ".junctions_venn.png"), width = 800, height = 800, units = "px", res = 150)
 print(junction_plots[[1]])
 dev.off()
 
 junctions_category <- junction_plots[[2]]
+fwrite(junctions_category, file = paste0(sample_prefix, ".junctions_category.tsv"), sep = "\t", row.names = FALSE)
+
 cor_data <- junctions_category[, ..sample_reps]
 cor_data[is.na(cor_data)] <- 0
 cor_data_norm <- cor_data %>% mutate(across(everything(), ~ log2((. / sum(.)) * 1e6 + 1)))
 
-png(paste0(sample_prefix, ".junctions_corr.png"), width = 1200, height = 1200, units = "px", res = 100)
+png(paste0(sample_prefix, ".junctions_corr.png"), width = 1200, height = 1200, units = "px", res = 150)
 pairs(cor_data_norm,
       upper.panel = panel.cor,
       diag.panel = panel.hist,
@@ -172,6 +190,8 @@ pairs(cor_data_norm,
 dev.off()
 
 # 4. upset plots for splicing events and tables of splicing events
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction category plot ...")
+
 junctions_category_reshape <- junctions_category %>%
                                 separate_rows(annotation, sep = ";") %>%
                                 select(c(var_id, annotation, avg_cov)) %>%
@@ -197,6 +217,8 @@ upset(as.data.frame(upset_join),
 dev.off()
 
 # 5. psi correlation of splicing events
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating PSI plot ...")
+
 for(i in 1:length(sample_reps))
 {
     splicing_counts[[sample_reps[i]]] <- splicing_counts[[sample_reps[i]]] %>%
@@ -209,6 +231,7 @@ psi_list <- lapply(names(splicing_counts), function(rep_id) { splicing_counts[[r
                                                                 select(var_id, PSI) %>%
                                                                 rename(!!rep_id := PSI) })
 psi_wide <- reduce(psi_list, full_join, by = "var_id")
+fwrite(psi_wide, file = paste0(sample_prefix, ".psi_values.tsv"), sep = "\t", row.names = FALSE)
 
 png(paste0(sample_prefix, ".psi_correlation.png"), width = 1200, height = 1200, units = "px", res = 100)
 pairs(psi_wide[, -1],
@@ -219,6 +242,8 @@ pairs(psi_wide[, -1],
 dev.off()
 
 # 6. junction distribution plots
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction distribution plot ...")
+
 data_rescale <- rescale_junctions(junctions_category, exon_pos, opt$lib_type)
 junctions_rescale <- data_rescale[[1]]
 exons_template <- data_rescale[[2]]
@@ -241,4 +266,39 @@ for(i in seq_along(junctions_range))
 }
 
 # -- reporting -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Creating final html report...")
 
+file_summary_reads <- paste0(sample_prefix, ".summary_reads.tsv")
+file_summary_pct <- paste0(sample_prefix, ".summary_pct.tsv")
+plot_reads_pct <- paste0(sample_prefix, ".reads_pct.png")
+plot_barcodes_venn <- paste0(sample_prefix, ".barcodes_venn.png")
+file_barcodes_summary <- paste0(sample_prefix, ".summary_barvars.tsv")
+plot_junctions_venn <- paste0(sample_prefix, ".junctions_venn.png")
+plot_junctions_corr <- paste0(sample_prefix, ".junctions_corr.png")
+plot_junctions_category <- paste0(sample_prefix, ".junctions_category.png")
+file_junctions_category <- paste0(sample_prefix, ".junctions_category.tsv")
+list_files_junctions_diagram <- list.files(pattern = paste0(sample_prefix, ".junctions_diagram_range_.*.png$"))
+names(list_files_junctions_diagram) <- names(junctions_range)
+list_files_junctions_scatter <- list.files(pattern = paste0(sample_prefix, ".junctions_scatter_range_.*.png$"))
+names(list_files_junctions_scatter) <- names(junctions_range)
+plot_psi_corr <- paste0(sample_prefix, ".psi_correlation.png")
+file_psi <- paste0(sample_prefix, ".psi_values.tsv")
+
+file_render_context <- paste0(sample_prefix, ".html_report.Rmd")
+create_html_render(file_summary_reads, 
+                   file_summary_pct,
+                   plot_reads_pct,
+                   plot_barcodes_venn,
+                   file_barcodes_summary,
+                   plot_junctions_venn,
+                   plot_junctions_corr,
+                   plot_junctions_category,
+                   file_junctions_category
+                   list_files_junctions_diagram,
+                   list_files_junctions_scatter,
+                   plot_psi_corr,
+                   file_psi,
+                   file_render_context)
+
+rmarkdown::render(file_render_context, clean = TRUE, quiet = TRUE)
+invisible(file.remove(file_render_context))
