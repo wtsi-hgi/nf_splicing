@@ -5,9 +5,9 @@ create_barplots <- function(barcode_association, sample_reps, total_reads, merge
 
     summary_reads <- summary_reads %>% mutate(across(c(total_reads, merged_reads, unmerged_reads, inclusion_reads, skipping_reads, map_reads, unexplain_reads), as.numeric))
     summary_pct <- summary_reads %>%
-                    mutate(pct_merged = round((merged_reads / total_reads) * 100, 1),
+                    mutate(library_coverage = as.integer(total_reads / length(unique(barcode_association$var_id))),
+                           pct_merged = round((merged_reads / total_reads) * 100, 1),
                            pct_unmerged = round((unmerged_reads / total_reads) * 100, 1),
-                           library_coverage = as.integer(total_reads / length(unique(barcode_association$var_id))),
                            pct_inclusion = round((inclusion_reads / total_reads) * 100, 1),
                            pct_skipping = round((skipping_reads / total_reads) * 100, 1),
                            pct_map = round((map_reads / total_reads) * 100, 1),
@@ -67,7 +67,7 @@ create_barplots <- function(barcode_association, sample_reps, total_reads, merge
             theme(axis.text.x = element_text(angle = 90)) +
             geom_text(aes(label = pct), position = position_stack(vjust = 0.5), size = 3)
     
-    return(list(p1, p2, p3))
+    return(list(summary_reads, summary_pct[, c("sample_reps", setdiff(names(summary_pct), names(summary_reads))), with = FALSE], list(p1, p2, p3)))
 }
 
 create_venn_diagrams <- function(canonical_barcodes, novel_barcodes, barcode_association)
@@ -165,6 +165,11 @@ create_junction_distribution <- function(junctions, exons, introns)
 
     list_junctions <- list(junctions, junctions_a1b10, junctions_a10b100, junctions_a100b1000, junctions_a1000b10000, junctions_a10000)
     names(list_junctions) <- c("avg_cov:all", "avg_cov:1-10", "avg_cov:10-100", "avg_cov:100-1000", "avg_cov:1000-10000", "avg_cov:10000+")
+
+    check_non_empty <- sapply(list_junctions, function(dt) nrow(dt) > 0)
+    list_junctions <- list_junctions[check_non_empty]
+    names(list_junctions) <- names_junctions[check_non_empty]
+
     list_diagramplots <- list()
     list_scatterplots <- list()
 
