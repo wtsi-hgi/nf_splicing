@@ -23,7 +23,7 @@ include { detect_canonical_pe }       from '../subworkflows/detect_canonical_pe.
 include { detect_novel_se }           from '../subworkflows/detect_novel_se.nf'
 include { detect_novel_pe }           from '../subworkflows/detect_novel_pe.nf'
 include { create_splicing_counts }    from '../subworkflows/create_splicing_counts.nf'
-include { summarise_results }         from '../subworkflows/summarise_results.nf'
+include { generate_summary_report }   from '../subworkflows/generate_summary_report.nf'
 
 /* -- define functions -- */
 def helpMessage() {
@@ -272,34 +272,19 @@ workflow splicing {
     ch_splicing_counts = create_splicing_counts.out.ch_splicing_counts
 
     /* -- step 5: summarise results -- */
-    ch_sample_step5 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode, barcode_up, barcode_down, barcode_temp -> tuple(sample_id, sample) }
-                              .join(ch_sample_barcodes.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp -> tuple(sample_id, barcode) })
+    ch_sample_step5 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode, barcode_up, barcode_down, barcode_temp -> 
+                                        tuple(sample_id, sample) }
+                              .join(ch_sample_barcodes.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp ->
+                                                                 tuple(sample_id, barcode) })
                               .join(ch_exon_pos)
                               .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
                                                                 tuple(sample_id, merge_stats, trim_stats) })   
                               .join(ch_sample_idxstats)
+                              .join(ch_sample_summary)
                               .join(ch_sample_canonical_barcodes)
                               .join(ch_sample_novel_barcodes)
-                              .join(ch_sample_summary)
                               .join(ch_sample_junctions)
-                              .join(ch_splicing_counts.map { sample_id, matrices -> tuple(sample_id, matrices) })
+                              .join(ch_splicing_counts)
 
-
-
-
-    // ch_sample_step4 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode -> tuple(sample_id, sample) }
-    //                           .join(ch_sample.map { sample_id, read1, read2, reference, barcode -> tuple(sample_id, barcode) })
-    //                           .join(ch_exon_pos)
-    //                           .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
-    //                                                             tuple(sample_id, merge_stats, trim_stats) })   
-    //                           .join(ch_sample_idxstats)
-    //                           .join(ch_sample_canonical_barcodes)
-    //                           .join(ch_sample_novel_barcodes)
-    //                           .join(ch_sample_summary)
-    //                           .join(ch_sample_junctions)
-                              
-    // summarise_results(ch_sample_step4)
-
-    // PUBLISH_CANONICAL_BARCODES(ch_sample_canonical_barcodes)
-    // PUBLISH_NOVEL_BARCODES(ch_sample_novel_barcodes)
+    generate_summary_report(ch_sample_step5)
 }
