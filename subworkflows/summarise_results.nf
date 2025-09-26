@@ -6,9 +6,9 @@ workflow summarise_results {
     /* -- 1. classify junctions -- */
     ch_junctions = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions -> 
                                     tuple(sample_id, exon_pos, junctions) }
-    classify_junctions(ch_junctions)
-    ch_classified_junctions = classify_junctions.out.ch_classified_junctions
-    ch_classified_plots = classify_junctions.out.ch_classified_plots
+    CLASSIFY_JUNCTIONS(ch_junctions)
+    ch_classified_junctions = CLASSIFY_JUNCTIONS.out.ch_classified_junctions
+    ch_classified_plots = CLASSIFY_JUNCTIONS.out.ch_classified_plots
 
     /* -- 2. create junction plots -- */
     ch_plots = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions -> 
@@ -21,16 +21,16 @@ workflow summarise_results {
                            .distinct()
     ch_plots = ch_plots.join(ch_exon_pos)
 
-    create_junction_plots(ch_plots)
-    ch_junction_plots = create_junction_plots.out.ch_junction_plots
-    ch_junction_category = create_junction_plots.out.ch_junction_category
+    CREATE_JUNCTION_PLOTS(ch_plots)
+    ch_junction_plots = CREATE_JUNCTION_PLOTS.out.ch_junction_plots
+    ch_junction_category = CREATE_JUNCTION_PLOTS.out.ch_junction_category
 
     /* -- 3. create count matrix -- */
     ch_input = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions -> 
                                 tuple(sample_id, barcode, filter_barcodes) }
                         .join(ch_classified_junctions.map { sample_id, classified_junctions, reduced_junctions -> tuple(sample_id, classified_junctions) })
-    create_splicing_matrix(ch_input)
-    ch_splicing_matrix = create_splicing_matrix.out.ch_splicing_matrix
+    CREATE_SPLICING_MATRIX(ch_input)
+    ch_splicing_matrix = CREATE_SPLICING_MATRIX.out.ch_splicing_matrix
 
     /* -- 4. create summary report -- */
     ch_barcode_association = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, junctions -> 
@@ -55,8 +55,8 @@ workflow summarise_results {
                                                      tuple(sample, barcode, sample_id, merge_stats, trim_stats, sample_idxstats, filter_barcodes, map_barcodes, summary, matrices,
                                                         [junction_venn, junction_scatter, junction_view, junction_distribution, junction_corr], junction_category) }
     
-    create_html_report(ch_report_filtered)
-    ch_html_report = create_html_report.out.ch_html_report
+    CREATE_HTML_REPORT(ch_report_filtered)
+    ch_html_report = CREATE_HTML_REPORT.out.ch_html_report
 
     emit:
     ch_classified_junctions
@@ -66,7 +66,7 @@ workflow summarise_results {
     ch_html_report
 }
 
-process classify_junctions {
+process CLASSIFY_JUNCTIONS {
     label 'process_single'
 
     publishDir "${params.outdir}/novel_junctions/${sample_id}", mode: "copy", overwrite: true
@@ -84,7 +84,7 @@ process classify_junctions {
     """
 }
 
-process create_junction_plots {
+process CREATE_JUNCTION_PLOTS {
     label 'process_single'
 
     publishDir "${params.outdir}/splicing_reports/${sample}", mode: "copy", overwrite: true
@@ -106,7 +106,7 @@ process create_junction_plots {
     """
 }
 
-process create_splicing_matrix {
+process CREATE_SPLICING_MATRIX {
     label 'process_single'
 
     publishDir "${params.outdir}/splicing_counts", mode: "copy", overwrite: true
@@ -123,7 +123,7 @@ process create_splicing_matrix {
     """
 }
 
-process create_html_report {
+process CREATE_HTML_REPORT {
     label 'process_single'
 
     publishDir "${params.outdir}/splicing_reports/${sample}", mode: "copy", overwrite: true
@@ -134,6 +134,8 @@ process create_html_report {
           val(junction_plots), val(junction_category)
 
     output:
+    tuple val(sample), path("${sample}.psi_values.txt"), emit: ch_psi_values
+    tuple val(sample), path("${sample}.junctions_category.txt"), emit: ch_junctions_category
     tuple val(sample), path("${sample}.splicing_report.html"), emit: ch_html_report
     
     script:
