@@ -223,7 +223,9 @@ for(i in 1:length(sample_reps))
 {
     splicing_counts[[sample_reps[i]]] <- splicing_counts[[sample_reps[i]]] %>%
                                             rowwise() %>%
-                                            mutate(PSI = canonical_inclusion / sum(c_across(-var_id))) %>%
+                                            mutate(
+                                                PSI = canonical_inclusion / sum(c_across(-var_id)),
+                                                PSI = ifelse(is.nan(PSI), 0, PSI)) %>%
                                             ungroup()
 }
 
