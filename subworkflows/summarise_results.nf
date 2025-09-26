@@ -56,6 +56,8 @@ workflow summarise_results {
                                                         [junction_venn, junction_scatter, junction_view, junction_distribution, junction_corr], junction_category) }
     
     CREATE_HTML_REPORT(ch_report_filtered)
+    ch_junction_category = CREATE_HTML_REPORT.out.ch_junction_category
+    ch_psi_values = CREATE_HTML_REPORT.out.ch_psi_values
     ch_html_report = CREATE_HTML_REPORT.out.ch_html_report
 
     emit:
@@ -63,6 +65,8 @@ workflow summarise_results {
     ch_classified_plots
     ch_junction_plots
     ch_splicing_matrix
+    ch_junction_category
+    ch_psi_values
     ch_html_report
 }
 
