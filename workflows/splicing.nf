@@ -270,6 +270,7 @@ workflow splicing {
                                         .join(ch_exon_pos)
     create_splicing_counts(ch_sample_step4)
     ch_splicing_counts = create_splicing_counts.out.ch_splicing_counts
+    ch_classified_junctions = create_splicing_counts.out.ch_classified_junctions
 
     /* -- step 5: summarise results -- */
     ch_sample_step5 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode, barcode_up, barcode_down, barcode_temp -> 
@@ -283,7 +284,7 @@ workflow splicing {
                               .join(ch_sample_summary)
                               .join(ch_sample_canonical_barcodes)
                               .join(ch_sample_novel_barcodes)
-                              .join(ch_sample_junctions)
+                              .join(ch_classified_junctions)
                               .join(ch_splicing_counts)
 
     generate_summary_report(ch_sample_step5)

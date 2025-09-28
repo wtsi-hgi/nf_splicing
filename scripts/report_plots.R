@@ -168,7 +168,6 @@ create_junction_distribution <- function(junctions, exons, introns)
 
     check_non_empty <- sapply(list_junctions, function(dt) nrow(dt) > 0)
     list_junctions <- list_junctions[check_non_empty]
-    names(list_junctions) <- names_junctions[check_non_empty]
 
     list_diagramplots <- list()
     list_scatterplots <- list()

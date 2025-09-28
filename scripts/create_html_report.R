@@ -70,7 +70,7 @@ files_splicing_counts      <- unlist(strsplit(opt$splicing_counts, ","))
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
 setwd(opt$output_dir)
 
-output_prefix <- opt$prefix
+sample_prefix <- opt$prefix
 
 # -- reading files -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Reading input files ...")
