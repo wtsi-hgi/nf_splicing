@@ -52,7 +52,7 @@ process CREATE_HTML_REPORT {
 
     """
     ${projectDir}/scripts/create_html_report.R -r ${projectDir}/scripts \
-                                               -l ${params.lib_type} \
+                                               -l ${params.library} \
                                                -b ${file_barcode} \
                                                -e ${file_exon_pos} \
                                                -s ${list_sample_ids} \
