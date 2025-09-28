@@ -295,7 +295,7 @@ create_html_render(file_summary_reads,
                    plot_junctions_venn,
                    plot_junctions_corr,
                    plot_junctions_category,
-                   file_junctions_category
+                   file_junctions_category,
                    list_files_junctions_diagram,
                    list_files_junctions_scatter,
                    plot_psi_corr,
