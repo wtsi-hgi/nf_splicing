@@ -286,7 +286,7 @@ names(list_files_junctions_scatter) <- names(junctions_range)
 plot_psi_corr <- paste0(sample_prefix, ".psi_correlation.png")
 file_psi <- paste0(sample_prefix, ".psi_values.txt")
 
-file_render_context <- paste0(sample_prefix, ".html_report.Rmd")
+file_render_context <- paste0(sample_prefix, ".splicing_report.Rmd")
 create_html_render(file_summary_reads, 
                    file_summary_pct,
                    plot_reads_pct,
