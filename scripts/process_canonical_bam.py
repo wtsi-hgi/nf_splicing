@@ -51,9 +51,10 @@ def process_se_read(read: dict) -> list:
     Returns:
         -- list: list containing read dict, unmapped read dict, and barcode dict
     """
-    # read reference name like exon_inclusion_var1, exon_skipping_var1
-    read_ref_var = re.search(r'[^_]+$', read['rname']).group(0)
-    read_ref_exon = re.sub(r'_[^_]+$', '', read['rname'])
+    # read reference name like exon_inclusion_var1, exon_skipping_ENL_e8
+    parts = read['rname'].split("_", 2) 
+    read_ref_var = parts[2]
+    read_ref_exon = "_".join(parts[:2]) 
 
     read_pos = read['pos']
     read_pos_end = read['pos_end']
@@ -135,9 +136,10 @@ def process_pe_read(read_pair: tuple) -> list:
     read2_cigar = read2['cigar']
 
     if read1_ref == read2_ref:
-        # read reference name like exon_inclusion_var1, exon_skipping_var1
-        read_ref_var = re.search(r'[^_]+$', read1_ref).group(0)
-        read_ref_exon = re.sub(r'_[^_]+$', '', read1_ref)
+        # read reference name like exon_inclusion_var1, exon_skipping_ENL_e8
+        parts = read1_ref.split("_", 2) 
+        read_ref_var = parts[2]
+        read_ref_exon = "_".join(parts[:2]) 
 
         read_start_pass = ( exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'exon_end'].iloc[0] - read1_pos > args.soft_clip )
         read_end_pass = ( read2_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[[0, 1]].sum() > args.soft_clip
