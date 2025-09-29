@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, character.only = TRUE))) }
-packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", "reactable", "optparse", "sparkline", "UpSetR", "patchwork", "glue", "scales", "ggExtra")
+packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", "reactable", "optparse", "sparkline", "UpSetR", "patchwork", "glue", "scales", "ggExtra", "gtools")
 invisible(lapply(packages, quiet_library))
 
 # -- options -- #
@@ -65,6 +65,16 @@ files_canonical_barcodes   <- unlist(strsplit(opt$canonical_barcodes, ","))
 files_novel_barcodes       <- unlist(strsplit(opt$novel_barcodes, ","))
 files_classified_junctions <- unlist(strsplit(opt$classified_junctions, ","))
 files_splicing_counts      <- unlist(strsplit(opt$splicing_counts, ","))
+
+sample_reps                <- mixedsort(sample_reps)
+files_trim_stats           <- sort_paths_by_filename(files_trim_stats)
+files_merge_stats          <- sort_paths_by_filename(files_merge_stats)
+files_bwa_idxstats         <- sort_paths_by_filename(files_bwa_idxstats)
+files_hisat2_stats         <- sort_paths_by_filename(files_hisat2_stats)
+files_canonical_barcodes   <- sort_paths_by_filename(files_canonical_barcodes)
+files_novel_barcodes       <- sort_paths_by_filename(files_novel_barcodes)
+files_classified_junctions <- sort_paths_by_filename(files_classified_junctions)
+files_splicing_counts      <- sort_paths_by_filename(files_splicing_counts)
 
 # -- outputs -- #
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)

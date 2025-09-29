@@ -148,3 +148,10 @@ bar_chart_pos_neg <- function(label,
 
     div(style = list(display = "flex"), neg_chart, pos_chart)
 }
+
+sort_paths_by_filename <- function(full_paths)
+{
+    file_names <- basename(full_paths)
+    ord <- mixedorder(file_names)
+    return(full_paths[ord])
+}
