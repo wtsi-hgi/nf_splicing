@@ -24,7 +24,7 @@ process CHECK_FILES {
 
     output:
     tuple val(sample_id), path("${sample_id}.read_1.fastq.gz"), path("${sample_id}.read_2.fastq.gz"), path("${sample_id}.ref.fasta"), emit: ch_sample_mapping
-    tuple val(sample_id), path("${sample_id}.associated_barcodes.txt"), val(barcode_up), val(barcode_down), val(barcode_temp), emit: ch_sample_barcodes
+    tuple val(sample_id), path("${sample_id}.associated_barcodes.tsv"), val(barcode_up), val(barcode_down), val(barcode_temp), emit: ch_sample_barcodes
 
     script:
     def file_read1 = file("${directory}/${read1}")
@@ -108,6 +108,6 @@ process CHECK_FILES {
     fi
 
     ln -s ${file_reference} ${sample_id}.ref.fasta
-    ln -s ${file_barcode} ${sample_id}.associated_barcodes.txt
+    ln -s ${file_barcode} ${sample_id}.associated_barcodes.tsv
     """
 }

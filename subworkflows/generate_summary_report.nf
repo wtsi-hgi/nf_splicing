@@ -34,8 +34,8 @@ process CREATE_HTML_REPORT {
           val(canonical_barcodes), val(novel_barcodes), val(junctions), val(splicing_counts)
 
     output:
-    tuple val(sample), path("${sample}.psi_values.txt"), emit: ch_psi_values
-    tuple val(sample), path("${sample}.junctions_category.txt"), emit: ch_junctions_category
+    tuple val(sample), path("${sample}.psi_values.tsv"), emit: ch_psi_values
+    tuple val(sample), path("${sample}.junctions_category.tsv"), emit: ch_junctions_category
     tuple val(sample), path("${sample}.splicing_report.html"), emit: ch_html_report
 
     script:

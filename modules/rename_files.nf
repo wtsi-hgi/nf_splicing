@@ -5,11 +5,11 @@ process RENAME_CANONICAL_BARCODES {
     tuple val(sample_id), path(filter_se)
     
     output:
-    tuple val(sample_id), path("${sample_id}.canonical_barcodes.txt"), emit: ch_canonical_barcodes
+    tuple val(sample_id), path("${sample_id}.canonical_barcodes.tsv"), emit: ch_canonical_barcodes
     
     script:
     """
-    mv ${filter_se} ${sample_id}.canonical_barcodes.txt
+    mv ${filter_se} ${sample_id}.canonical_barcodes.tsv
     """
 }
 
@@ -20,10 +20,10 @@ process RENAME_NOVEL_BARCODES {
     tuple val(sample_id), path(map_se)
     
     output:
-    tuple val(sample_id), path("${sample_id}.novel_barcodes.txt"), emit: ch_novel_barcodes
+    tuple val(sample_id), path("${sample_id}.novel_barcodes.tsv"), emit: ch_novel_barcodes
     
     script:
     """
-    mv ${map_se} ${sample_id}.novel_barcodes.txt
+    mv ${map_se} ${sample_id}.novel_barcodes.tsv
     """
 }

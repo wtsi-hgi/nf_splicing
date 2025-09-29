@@ -138,8 +138,8 @@ summary_reads <- data_barplots[[1]]
 summary_pct <- data_barplots[[2]]
 barplots_combined <- wrap_plots(data_barplots[[3]], nrow = 1)
 
-fwrite(summary_reads, file = paste0(sample_prefix, ".summary_reads.txt"), sep = "\t", row.names = FALSE)
-fwrite(summary_pct, file = paste0(sample_prefix, ".summary_pct.txt"), sep = "\t", row.names = FALSE)
+fwrite(summary_reads, file = paste0(sample_prefix, ".summary_reads.tsv"), sep = "\t", row.names = FALSE)
+fwrite(summary_pct, file = paste0(sample_prefix, ".summary_pct.tsv"), sep = "\t", row.names = FALSE)
 
 png(paste0(sample_prefix, ".reads_pct.png"), width = 800, height = 800, units = "px", res = 130)
 barplots_combined
@@ -185,7 +185,7 @@ print(junction_plots[[1]])
 dev.off()
 
 junctions_category <- junction_plots[[2]]
-fwrite(junctions_category, file = paste0(sample_prefix, ".junctions_category.txt"), sep = "\t", row.names = FALSE)
+fwrite(junctions_category, file = paste0(sample_prefix, ".junctions_category.tsv"), sep = "\t", row.names = FALSE)
 
 cor_data <- junctions_category[, ..sample_reps]
 cor_data[is.na(cor_data)] <- 0
@@ -243,7 +243,7 @@ psi_list <- lapply(names(splicing_counts), function(rep_id) { splicing_counts[[r
                                                                 select(var_id, PSI) %>%
                                                                 rename(!!rep_id := PSI) })
 psi_wide <- reduce(psi_list, full_join, by = "var_id")
-fwrite(psi_wide, file = paste0(sample_prefix, ".psi_values.txt"), sep = "\t", row.names = FALSE)
+fwrite(psi_wide, file = paste0(sample_prefix, ".psi_values.tsv"), sep = "\t", row.names = FALSE)
 
 png(paste0(sample_prefix, ".psi_correlation.png"), width = 1200, height = 1200, units = "px", res = 100)
 pairs(psi_wide[, -1],
@@ -280,21 +280,21 @@ for(i in seq_along(junctions_range))
 # -- reporting -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Creating final html report...")
 
-file_summary_reads <- paste0(sample_prefix, ".summary_reads.txt")
-file_summary_pct <- paste0(sample_prefix, ".summary_pct.txt")
+file_summary_reads <- paste0(sample_prefix, ".summary_reads.tsv")
+file_summary_pct <- paste0(sample_prefix, ".summary_pct.tsv")
 plot_reads_pct <- paste0(sample_prefix, ".reads_pct.png")
 plot_barcodes_venn <- paste0(sample_prefix, ".barcodes_venn.png")
-file_barcodes_summary <- paste0(sample_prefix, ".summary_barvars.txt")
+file_barcodes_summary <- paste0(sample_prefix, ".summary_barvars.tsv")
 plot_junctions_venn <- paste0(sample_prefix, ".junctions_venn.png")
 plot_junctions_corr <- paste0(sample_prefix, ".junctions_corr.png")
 plot_junctions_category <- paste0(sample_prefix, ".junctions_category.png")
-file_junctions_category <- paste0(sample_prefix, ".junctions_category.txt")
+file_junctions_category <- paste0(sample_prefix, ".junctions_category.tsv")
 list_files_junctions_diagram <- list.files(pattern = paste0(sample_prefix, ".junctions_diagram_range_.*.png$"))
 names(list_files_junctions_diagram) <- names(junctions_range)
 list_files_junctions_scatter <- list.files(pattern = paste0(sample_prefix, ".junctions_scatter_range_.*.png$"))
 names(list_files_junctions_scatter) <- names(junctions_range)
 plot_psi_corr <- paste0(sample_prefix, ".psi_correlation.png")
-file_psi <- paste0(sample_prefix, ".psi_values.txt")
+file_psi <- paste0(sample_prefix, ".psi_values.tsv")
 
 file_render_context <- paste0(sample_prefix, ".splicing_report.Rmd")
 create_html_render(file_summary_reads, 

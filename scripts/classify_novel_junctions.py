@@ -185,7 +185,7 @@ if __name__ == "__main__":
     os.makedirs(args.output_dir, exist_ok = True)
     os.chdir(args.output_dir)
 
-    junction_out = f"{output_prefix}.classified_junctions.txt"
+    junction_out = f"{output_prefix}.classified_junctions.tsv"
     if os.path.exists(junction_out):
         os.remove(junction_out)
     

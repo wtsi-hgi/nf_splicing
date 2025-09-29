@@ -58,7 +58,7 @@ process BWA_ALIGN_PE_READS {
 process FILTER_PE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.barcodes.txt", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.barcodes.tsv", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(exon_pos), path(bam)
@@ -66,8 +66,8 @@ process FILTER_PE_READS {
     output:
     tuple val(sample_id), path("${sample_id}.filter_pe.wrongmap.r1.fastq.gz"), path("${sample_id}.filter_pe.wrongmap.r2.fastq.gz"), emit: ch_bwa_pe_wrongmap
     tuple val(sample_id), path("${sample_id}.filter_pe.filtered.sorted.bam"), path("${sample_id}.filter_pe.filtered.sorted.bam.bai"), emit: ch_bwa_pe_filtered
-    tuple val(sample_id), path("${sample_id}.filter_pe.filtered.idxstats.txt"), emit: ch_bwa_pe_filtered_idxstats
-    tuple val(sample_id), path("${sample_id}.filter_pe.barcodes.txt"), emit: ch_bwa_pe_barcodes
+    tuple val(sample_id), path("${sample_id}.filter_pe.filtered.idxstats.tsv"), emit: ch_bwa_pe_filtered_idxstats
+    tuple val(sample_id), path("${sample_id}.filter_pe.barcodes.tsv"), emit: ch_bwa_pe_barcodes
 
     script:
     """
@@ -86,7 +86,7 @@ process FILTER_PE_READS {
     samtools sort -@ 40 -o ${sample_id}.filter_pe.filtered.sorted.bam ${sample_id}.filter_pe.filtered.bam
     samtools index -@ 40 ${sample_id}.filter_pe.filtered.sorted.bam
     rm ${sample_id}.filter_pe.filtered.bam
-    samtools idxstats ${sample_id}.filter_pe.filtered.sorted.bam > ${sample_id}.filter_pe.filtered.idxstats.txt
+    samtools idxstats ${sample_id}.filter_pe.filtered.sorted.bam > ${sample_id}.filter_pe.filtered.idxstats.tsv
 
     samtools fastq -@ 40 -c 9 -1 ${sample_id}.filter_pe.wrongmap.r1.fastq.gz -2 ${sample_id}.filter_pe.wrongmap.r2.fastq.gz -n ${sample_id}.filter_pe.wrongmap.bam
     """

@@ -24,13 +24,13 @@ workflow create_splicing_counts {
 process CLASSIFY_NOVEL_JUNCTIONS {
     label 'process_single'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.classified_junctions.txt", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.classified_junctions.tsv", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(novel_junctions), path(exon_pos)
 
     output:
-    tuple val(sample_id), path("${sample_id}.classified_junctions.txt"), emit: ch_classified_junctions
+    tuple val(sample_id), path("${sample_id}.classified_junctions.tsv"), emit: ch_classified_junctions
 
     script:
     """
@@ -46,13 +46,13 @@ process CLASSIFY_NOVEL_JUNCTIONS {
 process CREATE_SPLICING_COUNTS {
     label 'process_single'
 
-    publishDir "${params.outdir}/splicing_counts/", pattern: "*.splicing_counts.txt", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/splicing_counts/", pattern: "*.splicing_counts.tsv", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(barcode), path(canonical_barcodes), path(classified_junctions)
 
     output:
-    tuple val(sample_id), path("${sample_id}.splicing_counts.txt"), emit: ch_splicing_counts
+    tuple val(sample_id), path("${sample_id}.splicing_counts.tsv"), emit: ch_splicing_counts
 
     script:
     """

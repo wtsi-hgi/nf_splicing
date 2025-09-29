@@ -22,7 +22,7 @@ process TRIMMING_READS {
     tuple val(sample_id), path(read1), path(read2)
 
     output:
-    tuple val(sample_id), path("${sample_id}.trimmed.r1.fastq.gz"), path("${sample_id}.trimmed.r2.fastq.gz"), path("${sample_id}.trim.txt"), emit: ch_trim
+    tuple val(sample_id), path("${sample_id}.trimmed.r1.fastq.gz"), path("${sample_id}.trimmed.r2.fastq.gz"), path("${sample_id}.trim.tsv"), emit: ch_trim
 
     script:
     """
@@ -34,7 +34,7 @@ process TRIMMING_READS {
           --cut_tail \
           --cut_mean_quality  ${params.fastp_cut_mean_quality} \
           --thread            16 \
-          --html              ${sample_id}.trim.html 2>&1 | tee ${sample_id}.trim.txt
+          --html              ${sample_id}.trim.html 2>&1 | tee ${sample_id}.trim.tsv
     """
 }
 
@@ -45,7 +45,7 @@ process MERGING_READS {
     tuple val(sample_id), path(read1), path(read2), path(trim_stats)
 
     output:
-    tuple val(sample_id), path("${sample_id}.extendedFrags.fastq.gz"), path("${sample_id}.notCombined_1.fastq.gz"), path("${sample_id}.notCombined_2.fastq.gz"), path("${sample_id}.merge.txt"), path(trim_stats), emit: ch_merge
+    tuple val(sample_id), path("${sample_id}.extendedFrags.fastq.gz"), path("${sample_id}.notCombined_1.fastq.gz"), path("${sample_id}.notCombined_2.fastq.gz"), path("${sample_id}.merge.tsv"), path(trim_stats), emit: ch_merge
 
     script:
     """
@@ -58,6 +58,6 @@ process MERGING_READS {
            --threads               32 \
            --allow-outies \
            --compress \
-           ${read1} ${read2} 2>&1 | tee ${sample_id}.merge.txt
+           ${read1} ${read2} 2>&1 | tee ${sample_id}.merge.tsv
     """
 }

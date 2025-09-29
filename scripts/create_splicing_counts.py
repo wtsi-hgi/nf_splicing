@@ -53,7 +53,7 @@ if __name__ == "__main__":
     os.makedirs(args.output_dir, exist_ok = True)
     os.chdir(args.output_dir)
 
-    counts_out = f"{output_prefix}.splicing_counts.txt"
+    counts_out = f"{output_prefix}.splicing_counts.tsv"
     if os.path.exists(counts_out):
         os.remove(counts_out)
 

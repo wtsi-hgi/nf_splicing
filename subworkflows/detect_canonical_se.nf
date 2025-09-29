@@ -58,7 +58,7 @@ process BWA_ALIGN_SE_READS {
 process FILTER_SE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.barcodes.txt", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.barcodes.tsv", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(exon_pos), path(bam)
@@ -66,8 +66,8 @@ process FILTER_SE_READS {
     output:
     tuple val(sample_id), path("${sample_id}.filter_se.wrongmap.fastq.gz"), emit: ch_bwa_se_wrongmap
     tuple val(sample_id), path("${sample_id}.filter_se.filtered.sorted.bam"), path("${sample_id}.filter_se.filtered.sorted.bam.bai"), emit: ch_bwa_se_filtered
-    tuple val(sample_id), path("${sample_id}.filter_se.filtered.idxstats.txt"), emit: ch_bwa_se_filtered_idxstats
-    tuple val(sample_id), path("${sample_id}.filter_se.barcodes.txt"), emit: ch_bwa_se_barcodes
+    tuple val(sample_id), path("${sample_id}.filter_se.filtered.idxstats.tsv"), emit: ch_bwa_se_filtered_idxstats
+    tuple val(sample_id), path("${sample_id}.filter_se.barcodes.tsv"), emit: ch_bwa_se_barcodes
 
     script:
     """
@@ -86,7 +86,7 @@ process FILTER_SE_READS {
     samtools sort -@ 40 -o ${sample_id}.filter_se.filtered.sorted.bam ${sample_id}.filter_se.filtered.bam
     samtools index -@ 40 ${sample_id}.filter_se.filtered.sorted.bam
     rm ${sample_id}.filter_se.filtered.bam
-    samtools idxstats ${sample_id}.filter_se.filtered.sorted.bam > ${sample_id}.filter_se.filtered.idxstats.txt
+    samtools idxstats ${sample_id}.filter_se.filtered.sorted.bam > ${sample_id}.filter_se.filtered.idxstats.tsv
 
     samtools fastq -@ 40 -c 9 -0 ${sample_id}.filter_se.wrongmap.fastq.gz ${sample_id}.filter_se.wrongmap.bam
     """

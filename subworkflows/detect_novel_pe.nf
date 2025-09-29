@@ -37,7 +37,7 @@ process HISAT2_ALIGN_PE_READS {
     tuple val(sample_id), path(read1), path(read2), path(ref_fasta)
 
     output:
-    tuple val(sample_id), path("${sample_id}.map_pe.summary.txt"), emit: ch_hisat2_pe_summary
+    tuple val(sample_id), path("${sample_id}.map_pe.summary.tsv"), emit: ch_hisat2_pe_summary
     tuple val(sample_id), path("${sample_id}.map_pe.unmapped.R1.fastq.gz"), path("${sample_id}.map_pe.unmapped.R2.fastq.gz"), emit: ch_hisat2_pe_unmapped
     tuple val(sample_id), path("${sample_id}.map_pe.unique.bam"), emit: ch_hisat2_pe_bam
 
@@ -51,7 +51,7 @@ process HISAT2_ALIGN_PE_READS {
            --sp ${params.hisat2_sp} \
            --np ${params.hisat2_np} \
            --pen-noncansplice ${params.hisat2_pen_noncansplice} \
-           --summary-file ${sample_id}.map_pe.summary.txt \
+           --summary-file ${sample_id}.map_pe.summary.tsv \
            --new-summary \
            --threads 32 \
            -S ${sample_id}.map_pe.sam
@@ -64,14 +64,14 @@ process HISAT2_ALIGN_PE_READS {
 process FIX_PE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.barcodes.txt", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.barcodes.tsv", mode: "copy", overwrite: true
     publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.bam*", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(ref_fasta), path(bam)
 
     output:
-    tuple val(sample_id), path("${sample_id}.map_pe.barcodes.txt"), emit: ch_hisat2_pe_barcodes
+    tuple val(sample_id), path("${sample_id}.map_pe.barcodes.tsv"), emit: ch_hisat2_pe_barcodes
     tuple val(sample_id), path("${sample_id}.map_pe.fixed.sorted.bam"), path("${sample_id}.map_pe.fixed.sorted.bam.bai"), emit: ch_hisat2_pe_fixed 
   
     script:
@@ -93,7 +93,7 @@ process FIX_PE_READS {
                                                       --threads 40
     samtools sort -@ 64 -o ${sample_id}.map_pe.fixed.sorted.bam ${sample_id}.map_pe.fixed.bam
     samtools index -@ 64 ${sample_id}.map_pe.fixed.sorted.bam
-    bamtools stats -in ${sample_id}.map_pe.fixed.sorted.bam > ${sample_id}.map_pe.fixed.txt
+    bamtools stats -in ${sample_id}.map_pe.fixed.sorted.bam > ${sample_id}.map_pe.fixed.tsv
     rm ${sample_id}.map_pe.fixed.bam    
     """
 }

@@ -5,13 +5,13 @@ process IDXSTATS_GET_VALUES {
     tuple val(sample_id), path(idxstats_se)
     
     output:
-    tuple val(sample_id), path("${sample_id}.idxstats.txt"), emit: ch_idxstats
+    tuple val(sample_id), path("${sample_id}.idxstats.tsv"), emit: ch_idxstats
     
     script:
     """
     awk -F'\\t' -v OFS='\\t' '{
         if (\$1!="*") {print \$1, \$3}
-    }' ${idxstats_se} | sort -k1,1 >  ${sample_id}.idxstats.txt
+    }' ${idxstats_se} | sort -k1,1 >  ${sample_id}.idxstats.tsv
     """
 }
 
@@ -22,7 +22,7 @@ process IDXSTATS_ADD_VALUES {
     tuple val(sample_id), path(idxstats_se), path(idxstats_pe)
     
     output:
-    tuple val(sample_id), path("${sample_id}.idxstats.txt"), emit: ch_idxstats
+    tuple val(sample_id), path("${sample_id}.idxstats.tsv"), emit: ch_idxstats
     
     script:
     """
@@ -38,6 +38,6 @@ process IDXSTATS_ADD_VALUES {
         for (i in a) {
             print i, a[i]
         }
-    }' | sort -k1,1 > ${sample_id}.idxstats.txt
+    }' | sort -k1,1 > ${sample_id}.idxstats.tsv
     """
 }
