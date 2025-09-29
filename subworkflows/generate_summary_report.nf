@@ -24,8 +24,7 @@ workflow generate_summary_report {
 
 process CREATE_HTML_REPORT {
     label 'process_single'
-    errorStrategy 'retry'
-
+    
     publishDir "${params.outdir}/splicing_reports/${sample}", mode: "copy", overwrite: true
 
     input:
