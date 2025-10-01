@@ -247,7 +247,7 @@ def dict_to_segment(read: dict) -> pysam.AlignedSegment:
     Returns:
         -- pysam.AlignedSegment object
     """
-    segment = pysam.AlignedSegment(header = bamfile.header)
+    segment = pysam.AlignedSegment(header = segment_header)
     segment.query_name = read['qname']
     segment.flag = read['flag']
     segment.reference_name = read['rname']
@@ -276,7 +276,7 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
     """
     with pysam.AlignmentFile(bam_file, "rb", threads = threads) as bam_handle, \
         ProcessPoolExecutor(max_workers=threads) as executor, \
-        pysam.AlignmentFile(fixed_bam, "wb", header = bamfile.header) as fixed_fh:
+        pysam.AlignmentFile(fixed_bam, "wb", header = bam_file_header) as fixed_fh:
     
         batch_size = min(chunk_size, 5000)
         
@@ -301,7 +301,7 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                     fixed_reads, out_barcodes = zip(*flat_results)
                     for dict_read in fixed_reads:
                         fixed_fh.write(dict_to_segment(dict_read))
-                    yield pl.DataFrame(out_barcodes)
+                    yield pl.DataFrame(out_barcodes, schema = {"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8})
 
             # process any remaining reads after file ends
             if read_chunk:
@@ -319,7 +319,8 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                 fixed_reads, out_barcodes = zip(*flat_results)
                 for dict_read in fixed_reads:
                     fixed_fh.write(dict_to_segment(dict_read))
-                yield pl.DataFrame(out_barcodes)
+                yield pl.DataFrame(out_barcodes, schema = {"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8})
+                
         # process paired-end reads
         else:
             read_chunk = []
@@ -354,7 +355,7 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                     for dict_read1, dict_read2 in zip(fixed_reads_r1, fixed_reads_r2):
                         fixed_fh.write(dict_to_segment(dict_read1))
                         fixed_fh.write(dict_to_segment(dict_read2))
-                    yield pl.DataFrame(out_barcodes)
+                    yield pl.DataFrame(out_barcodes, schema = {"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8})
             
             # process any remaining reads after file ends
             if read_chunk:
@@ -373,7 +374,7 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                 for dict_read1, dict_read2 in zip(fixed_reads_r1, fixed_reads_r2):
                     fixed_fh.write(dict_to_segment(dict_read1))
                     fixed_fh.write(dict_to_segment(dict_read2))
-                yield pl.DataFrame(out_barcodes)
+                yield pl.DataFrame(out_barcodes, schema = {"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8})
 
 #-- main execution --#
 if __name__ == "__main__":
@@ -430,7 +431,24 @@ if __name__ == "__main__":
 
     # -- parallel processing -- #
     list_result = []
-    bamfile = pysam.AlignmentFile(args.bam_file, "rb")
+    bam_file = pysam.AlignmentFile(args.bam_file, "rb")
+
+    # !!!important: make sure each variant has a reference sequence
+    if args.lib_type == "muta_exon" or args.lib_type == "muta_intron":
+        var_ids = df_bar_var["var_id"].unique().to_list()
+        var_ids_map = {v: v.split("/")[0] for v in var_ids}
+
+        bam_file_header = bam_file.header.to_dict()
+        existing_refs = {sq["SN"]: sq["LN"] for sq in bam_file_header["SQ"]}
+        for var_id, ref_id in var_ids_map.items():
+            if var_id not in existing_refs:
+                ln_val = existing_refs.get(ref_id, 1000)
+                bam_file_header["SQ"].append({"LN": ln_val, "SN": var_id})
+                existing_refs[var_id] = ln_val
+        segment_header = pysam.AlignmentHeader.from_dict(bam_file_header)
+    else:
+        bam_file_header = bam_file.header
+        segment_header = bam_file.header
 
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing bam file, please wait...", flush = True)
     for i, chunk_result in enumerate(read_bam_in_chunk(args.bam_file, args.read_type, args.chunk_size, args.threads)):
