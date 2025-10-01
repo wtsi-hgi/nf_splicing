@@ -214,7 +214,7 @@ def dict_to_segment(read: dict) -> pysam.AlignedSegment:
     Returns:
         -- pysam.AlignedSegment object
     """
-    segment = pysam.AlignedSegment(header = bam_file.header)
+    segment = pysam.AlignedSegment(header = bam_file_header)
     segment.query_name = read['qname']
     segment.flag = read['flag']
     segment.reference_name = read['rname']
@@ -243,8 +243,8 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
     """
     with pysam.AlignmentFile(bam_file, "rb", threads = threads) as bam_handle, \
         ProcessPoolExecutor(max_workers=threads) as executor, \
-        pysam.AlignmentFile(mapped_bam, "wb", header = bam_file.header) as mapped_fh, \
-        pysam.AlignmentFile(wrong_bam, "wb", header = bam_file.header) as unmapped_fh:
+        pysam.AlignmentFile(mapped_bam, "wb", header = bam_file_header) as mapped_fh, \
+        pysam.AlignmentFile(wrong_bam, "wb", header = bam_file_header) as unmapped_fh:
     
         batch_size = min(chunk_size, 5000)
         
@@ -433,6 +433,8 @@ if __name__ == "__main__":
     # -- parallel processing -- #
     barcode_list = []
     bam_file = pysam.AlignmentFile(args.bam_file, "rb")
+    bam_file_header = bam_file.header
+
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing bam file, please wait...", flush = True)
     for i, chunk_result in enumerate(read_bam_in_chunk(args.bam_file, args.read_type, args.chunk_size, args.threads)):
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {len(chunk_result)} reads", flush = True)
