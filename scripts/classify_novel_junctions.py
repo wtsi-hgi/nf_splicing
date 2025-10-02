@@ -66,7 +66,8 @@ def merge_clusters(df: pl.DataFrame) -> pl.DataFrame:
         -- df: polars DataFrame, merged junctions with summarized coverage
     """
     merged = []
-    for (chrom, strand, cluster_id), df_sub in df.group_by(["chrom", "strand", "cluster_id"]):
+    n_groups = df.select(pl.struct(["chrom", "strand", "cluster_id"])).unique().height
+    for i, ((chrom, strand, cluster_id), df_sub) in enumerate(df.group_by(["chrom", "strand", "cluster_id"]), start = 1):
         dominant_junction = df_sub.sort("coverage", descending = True).head(1)
         total_score = df_sub["coverage"].sum()
 
@@ -78,6 +79,9 @@ def merge_clusters(df: pl.DataFrame) -> pl.DataFrame:
                                      "strand":   [strand],
                                      "donor":    dominant_junction["donor"],
                                      "acceptor": dominant_junction["acceptor"] }))
+        
+        if i % 10000 == 0:
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed {i} / {n_groups} clusters", flush = True)
 
     df_merged = pl.concat(merged, how = "vertical")
     return df_merged.sort(["chrom", "donor", "acceptor"])
