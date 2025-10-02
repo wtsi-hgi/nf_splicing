@@ -22,12 +22,20 @@ workflow create_splicing_counts {
 }
 
 process CLASSIFY_NOVEL_JUNCTIONS {
-    label 'process_single'
+    label 'process_single_dynamic_mem'
 
     publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.classified_junctions.tsv", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(novel_junctions), path(exon_pos)
+
+    memory {
+        def file_size = novel_junctions.size()     
+        file_size <= 1000000 ? check_max( 2.GB * task.attempt, 'memory') :
+        file_size <= 10000000 ? check_max( 8.GB * task.attempt, 'memory') :
+        file_size <= 100000000 ? check_max( 16.GB * task.attempt, 'memory') : 
+        check_max( 32.GB * task.attempt, 'memory')
+    }
 
     output:
     tuple val(sample_id), path("${sample_id}.classified_junctions.tsv"), emit: ch_classified_junctions
