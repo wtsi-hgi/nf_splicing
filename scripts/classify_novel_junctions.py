@@ -99,8 +99,10 @@ def annotate_junction(var_id, donor_pos, acceptor_pos, exon_pos, intron_pos, min
     Returns:
         -- annotation: str, annotation string
     """
-    exon_pos_var = exon_pos.filter(pl.col("var_id") == var_id).to_pandas()
-    intron_pos_var = intron_pos.filter(pl.col("var_id") == var_id).to_pandas()
+    var_id_base = var_id if args.lib_type in ["random_intron", "random_exon"] else var_id.split("/")[0]
+    
+    exon_pos_var = exon_pos.filter(pl.col("var_id") == var_id_base).to_pandas()
+    intron_pos_var = intron_pos.filter(pl.col("var_id") == var_id_base).to_pandas()
 
     if exon_pos_var.empty:
         return "exon_data_missing"
@@ -147,6 +149,7 @@ def annotate_junction(var_id, donor_pos, acceptor_pos, exon_pos, intron_pos, min
 #-- main execution --#
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Classifying junctions types from a junction bed file.", allow_abbrev = False)
+    parser.add_argument("--lib_type",            type = str, required = True,       help = "Library type (random_intron, random_exon, muta_intron, muta_exon)")
     parser.add_argument("--bed_file",            type = str, required = True,       help = "bed file generated from regtools junctions extract")
     parser.add_argument("--exon_pos",            type = str, required = True,       help = "exon position file")
     parser.add_argument("--cluster_tol",         type = int, default = 2,           help = "maximum tolerance of donor/acceptor positions for clustering")
