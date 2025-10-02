@@ -42,7 +42,8 @@ process CLASSIFY_NOVEL_JUNCTIONS {
 
     script:
     """
-    python ${projectDir}/scripts/classify_novel_junctions.py --bed_file ${novel_junctions} \
+    python ${projectDir}/scripts/classify_novel_junctions.py --lib_type ${params.library} \
+                                                             --bed_file ${novel_junctions} \
                                                              --exon_pos ${exon_pos} \
                                                              --cluster_tol ${params.classify_cluster_tol} \
                                                              --junc_cov ${params.classify_min_cov} \
