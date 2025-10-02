@@ -114,8 +114,13 @@ for(i in seq_along(sample_reps))
     merged_reads[i] <- as.numeric(str_extract(grep("Combined pairs:", readLines(files_merge_stats[i]), value = TRUE), "\\d+"))
     unmerged_reads[i] <- as.numeric(str_extract(grep("Uncombined pairs:", readLines(files_merge_stats[i]), value = TRUE), "\\d+"))
 
-    inclusion_reads[i] <- as.numeric(read.table(files_bwa_idxstats[i])[1, 2])
-    skipping_reads[i] <- as.numeric(read.table(files_bwa_idxstats[i])[2, 2])
+    # inclusion_reads[i] <- as.numeric(read.table(files_bwa_idxstats[i])[1, 2])
+    # skipping_reads[i] <- as.numeric(read.table(files_bwa_idxstats[i])[2, 2])
+
+    # exon library has multiple lines for inclusion reads
+    tmp_dt <- read.table(files_bwa_idxstats[i])
+    inclusion_reads[i] <- as.numeric(sum(tmp_dt[grep("_inclusion", tmp_dt$V1), 2]))
+    skipping_reads[i] <- as.numeric(sum(tmp_dt[grep("_skipping", tmp_dt$V1), 2]))
 
     map_reads[i] <- as.numeric(read.table(files_hisat2_stats[i])[1, 2])
     unexplain_reads[i] <- as.numeric(read.table(files_hisat2_stats[i])[2, 2]) - as.numeric(read.table(files_hisat2_stats[i])[1, 2])
