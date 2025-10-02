@@ -58,8 +58,8 @@ process CREATE_SPLICING_COUNTS {
     memory {
         def file_size = canonical_barcodes.size()
         def mem = file_size <= 10_000_000 ? 2 :
-                  file_size <= 100_000_000 ? 8 :
-                  file_size <= 1000_000_000 ? 16 : 32
+                  file_size <= 100_000_000 ? 4 :
+                  file_size <= 1000_000_000 ? 6 : 8
         "${mem * task.attempt} GB"
     }
 
