@@ -198,7 +198,7 @@ knitr::include_graphics(c("{plot_junctions_venn}", "{plot_junctions_corr}"), rel
 jucntion_category <- as_tibble(vroom("{file_junctions_category}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
 min_row <- ifelse(nrow(jucntion_category) > 20, 20, nrow(jucntion_category))
 reactable(jucntion_category, highlight = TRUE, bordered = TRUE, striped = TRUE, compact = TRUE, wrap = TRUE,
-          filterable = TRUE, minRows = min_row, defaultPageSize = 20, defaultColDef = colDef(minWidth = 80, align = "left"),
+          filterable = TRUE, minRows = min_row, defaultPageSize = 20, defaultColDef = colDef(minWidth = 150, align = "left"),
           columns = list("annotation" = colDef(minWidth = 400),
                          "avg_cov" = colDef(filterMethod = JS("filterMinValue"),
                                             filterInput = JS("rangeMore"),
