@@ -177,6 +177,10 @@ for(i in seq_along(sample_reps))
                                       )[, .(count = sum(count)), by = .(var_id, barcode)]
 }
 
+# release MEM as barcode files are huge
+rm(canonical_barcodes, novel_barcodes)
+gc(verbose = FALSE)
+
 summary_barvars <- as.data.table(cbind(rep(length(barcode_association$barcode), 3),
                                        rep(length(unique(barcode_association$var_id)), 3),
                                        num_detected_barcodes,
