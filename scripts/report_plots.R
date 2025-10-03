@@ -102,7 +102,7 @@ create_junction_plots <- function(classified_junctions)
     return(list(p, dt_junctions))
 }
 
-rescale_junctions <- function(junctions, exons, lib_type)
+rescale_junctions <- function(sample_reps, junctions, exons, lib_type)
 {   
     exon_template <- exons[1:3,]
     introns_template <- exon_template[, .(intron_id   = paste0("I", .I - 1),
@@ -147,7 +147,7 @@ rescale_junctions <- function(junctions, exons, lib_type)
                              acceptor)]
 
     junctions_tmp <- junctions_tmp[, .(donor_rescale = min(donor_rescale), acceptor_rescale = min(acceptor_rescale)), 
-                                    by = .(var_id, donor, acceptor, annotation, I4_Rep1, I4_Rep2, I4_Rep3, avg_cov)]
+                                    by = .(var_id, donor, acceptor, annotation, ..sample_reps, avg_cov)]
     junctions_tmp <- junctions_tmp %>% select(-c(donor, acceptor))
     setnames(junctions_tmp, c("donor_rescale", "acceptor_rescale"), c("donor", "acceptor"))
     setcolorder(junctions_tmp, colnames(junctions))
