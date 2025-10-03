@@ -227,6 +227,7 @@ if __name__ == "__main__":
             return_dtype=pl.String
         ).alias("annotation")
     ])
+    df_junctions_classes = df_junctions_classes.filter(pl.col("annotation") != "no_annotation")
     df_junctions_classes.write_csv(junction_out, separator = "\t")
 
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Finished", flush = True)
