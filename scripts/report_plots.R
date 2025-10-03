@@ -147,7 +147,7 @@ rescale_junctions <- function(sample_reps, junctions, exons, lib_type)
                              acceptor)]
 
     junctions_tmp <- junctions_tmp[, .(donor_rescale = min(donor_rescale), acceptor_rescale = min(acceptor_rescale)), 
-                                    by = .(var_id, donor, acceptor, annotation, ..sample_reps, avg_cov)]
+                                    by = c("var_id", "donor", "acceptor", "annotation", sample_reps, "avg_cov")]
     junctions_tmp <- junctions_tmp %>% select(-c(donor, acceptor))
     setnames(junctions_tmp, c("donor_rescale", "acceptor_rescale"), c("donor", "acceptor"))
     setcolorder(junctions_tmp, colnames(junctions))
