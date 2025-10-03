@@ -148,7 +148,7 @@ fwrite(summary_pct, file = paste0(sample_prefix, ".summary_pct.tsv"), sep = "\t"
 
 png(paste0(sample_prefix, ".reads_pct.png"), width = 800, height = 800, units = "px", res = 130)
 barplots_combined
-dev.off()
+invisible(dev.off())
 
 # 2. venn diagrams for detected barcodes and talbes of detected barcodes and variants
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating barcode summaries and plots ...")
@@ -158,7 +158,7 @@ venn_diagrams_combined <- wrap_plots(venn_diagrams, nrow = 1)
 
 png(paste0(sample_prefix, ".barcodes_venn.png"), width = 1800, height = 600, units = "px", res = 120)
 venn_diagrams_combined
-dev.off()
+invisible(dev.off())
 
 num_detected_barcodes <- numeric(length(sample_reps))
 num_detected_variants <- numeric(length(sample_reps))
@@ -187,7 +187,7 @@ junction_plots <- create_junction_plots(classified_junctions)
 
 png(paste0(sample_prefix, ".junctions_venn.png"), width = 800, height = 800, units = "px", res = 150)
 print(junction_plots[[1]])
-dev.off()
+invisible(dev.off())
 
 junctions_category <- junction_plots[[2]]
 fwrite(junctions_category, file = paste0(sample_prefix, ".junctions_category.tsv"), sep = "\t", row.names = FALSE)
@@ -202,7 +202,7 @@ pairs(cor_data_norm,
       diag.panel = panel.hist,
       lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
       use = "complete.obs")
-dev.off()
+invisible(dev.off())
 
 # 4. upset plots for splicing events and tables of splicing events
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction category plot ...")
@@ -229,7 +229,7 @@ upset(as.data.frame(upset_join),
       main.bar.color = "royalblue", 
       sets.bar.color = "yellowgreen",
       boxplot.summary = c("log_avg_cov"))
-dev.off()
+invisible(dev.off())
 
 # 5. psi correlation of splicing events
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating PSI plot ...")
@@ -256,12 +256,12 @@ pairs(psi_wide[, -1],
       diag.panel = panel.hist,
       lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
       use = "complete.obs")
-dev.off()
+invisible(dev.off())
 
 # 6. junction distribution plots
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction distribution plot ...")
 
-data_rescale <- rescale_junctions(junctions_category, exon_pos, opt$lib_type)
+data_rescale <- rescale_junctions(sample_reps, junctions_category, exon_pos, opt$lib_type)
 junctions_rescale <- data_rescale[[1]]
 exons_template <- data_rescale[[2]]
 introns_template <- data_rescale[[3]]
@@ -275,11 +275,11 @@ for(i in seq_along(junctions_range))
 {
     png(paste0(sample_prefix, ".junctions_diagram_range_", i, ".png"), width = 1600, height = 600, units = "px", res = 200)
     print(junctions_diagramplot[[i]])
-    dev.off()
+    invisible(dev.off())
 
     png(paste0(sample_prefix, ".junctions_scatter_range_", i, ".png"), width = 1600, height = 1400, units = "px", res = 200)
     print(junctions_scatterplot[[i]])
-    dev.off()
+    invisible(dev.off())
 }
 
 # -- reporting -- #
