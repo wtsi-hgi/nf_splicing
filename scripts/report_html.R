@@ -264,8 +264,7 @@ dt_psi[, (cols_to_scale) := lapply(.SD, `*`, 100), .SDcols = cols_to_scale]
 reactable(dt_psi, highlight = TRUE, bordered = TRUE, striped = TRUE, compact = TRUE, wrap = TRUE,
           filterable = TRUE, minRows = 20, defaultPageSize = 20, 
           defaultColDef = colDef(minWidth = 100, align = "left", format = colFormat(digits = 2),
-                                 filterMethod = JS("filterMinValue"), filterInput = JS("rangeMore")),
-          columns = list(var_id = colDef(filterMethod = NULL, filterInput = "input")))
+                                 filterMethod = JS("filterMinValue"), filterInput = JS("rangeMore")))
 
 knitr::include_graphics("{plot_psi_corr}", rel_path = FALSE)
 ```
