@@ -85,7 +85,8 @@ sample_prefix <- opt$prefix
 # -- reading files -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Reading input files ...")
 
-barcode_association <- as.data.table(vroom(opt$barcode_association, delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+barcode_association <- as.data.table(vroom(opt$barcode_association, delim = "\t", comment = "#", show_col_types = FALSE, 
+                                     col_names = TRUE, col_select = c("barcode", "var_id")))
 exon_pos <- as.data.table(vroom(opt$exon_pos, delim = "\t", comment = "#", col_names = FALSE, show_col_types = FALSE))
 setnames(exon_pos, c("var_id", "exon_id", "exon_start", "exon_end"))
 
@@ -175,11 +176,12 @@ for(i in seq_along(sample_reps))
     library_barcodes[[i]] <- rbindlist(list(canonical_barcodes[[i]][var_id != "NA", .(var_id, barcode, count)], 
                                             novel_barcodes[[i]][var_id != "NA", .(var_id, barcode, count)])
                                       )[, .(count = sum(count)), by = .(var_id, barcode)]
-}
 
-# release MEM as barcode files are huge
-rm(canonical_barcodes, novel_barcodes)
-gc(verbose = FALSE)
+    # ---- free memory ----
+    canonical_barcodes[[i]] <- NULL
+    novel_barcodes[[i]] <- NULL
+    gc(verbose = FALSE)
+}
 
 summary_barvars <- as.data.table(cbind(rep(length(barcode_association$barcode), 3),
                                        rep(length(unique(barcode_association$var_id)), 3),
@@ -191,6 +193,12 @@ summary_barvars <- summary_barvars %>%
                                pct_detected_variants = 100 * num_detected_variants / num_expected_variants)
 
 fwrite(summary_barvars, file = paste0(sample_prefix, ".summary_barvars.tsv"), sep = "\t", row.names = FALSE)
+
+
+
+# ---- free memory ----
+rm(barcode_association)
+gc(verbose = FALSE)
 
 # 3. venn diagrams for detected junctions and correlation of junction quantifications
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction correlation plot ...")
