@@ -23,8 +23,19 @@ workflow generate_summary_report {
 }
 
 process CREATE_HTML_REPORT {
-    label 'process_single'
+    label 'process_single_dynamic_mem'
     
+    memory {
+        def file_size_1 = canonical_barcodes[0].size()
+        def file_size_2 = novel_barcodes[0].size()
+        def file_size_total = file_size_1 + file_size_2
+        def mem = file_size_total <= 100_000_000 ? 2 :
+                  file_size_total <= 1_000_000_000 ? 4 :
+                  file_size_total <= 4_000_000_000 ? 8 :
+                  file_size_total <= 8_000_000_000 ? 16 : 32
+        "${mem * task.attempt} GB"
+    }
+
     publishDir "${params.outdir}/splicing_reports/${sample}", mode: "copy", overwrite: true
 
     input:
