@@ -162,13 +162,19 @@ invisible(dev.off())
 
 num_detected_barcodes <- numeric(length(sample_reps))
 num_detected_variants <- numeric(length(sample_reps))
+library_barcodes <- list()
 for(i in seq_along(sample_reps))
 {
-    sequencing_barcodes <- unique(c(canonical_barcodes[[i]]$barcode, novel_barcodes[[i]]$barcode))
-    num_detected_barcodes[i] <- length(intersect(sequencing_barcodes, barcode_association$barcode))
+    num_detected_barcodes[i] <- length(intersect(unique(c(canonical_barcodes[[i]]$barcode, 
+                                                          novel_barcodes[[i]]$barcode)),
+                                                 barcode_association$barcode))
 
-    sequencing_variants <- unique(c(canonical_barcodes[[i]]$var_id, novel_barcodes[[i]]$var_id))
-    num_detected_variants[i] <- length(sequencing_variants) - 1 # there is NAs in var_id
+    num_detected_variants[i] <- length(unique(c(canonical_barcodes[[i]]$var_id, 
+                                                novel_barcodes[[i]]$var_id))) - 1 # there is NAs in var_id
+
+    library_barcodes[[i]] <- rbindlist(list(canonical_barcodes[[i]][var_id != "NA", .(var_id, barcode, count)], 
+                                            novel_barcodes[[i]][var_id != "NA", .(var_id, barcode, count)])
+                                      )[, .(count = sum(count)), by = .(var_id, barcode)]
 }
 
 summary_barvars <- as.data.table(cbind(rep(length(barcode_association$barcode), 3),
@@ -179,6 +185,8 @@ colnames(summary_barvars) <- c("num_expected_barcodes", "num_expected_variants",
 summary_barvars <- summary_barvars %>% 
                         mutate(pct_detected_barcodes = 100 * num_detected_barcodes / num_expected_barcodes,
                                pct_detected_variants = 100 * num_detected_variants / num_expected_variants)
+
+fwrite(summary_barvars, file = paste0(sample_prefix, ".summary_barvars.tsv"), sep = "\t", row.names = FALSE)
 
 # 3. venn diagrams for detected junctions and correlation of junction quantifications
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction correlation plot ...")
