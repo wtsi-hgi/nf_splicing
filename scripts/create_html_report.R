@@ -197,12 +197,11 @@ for(i in seq_along(sample_reps))
     invisible(gc(verbose = FALSE))
 }
 
-summary_barvars <- as.data.table(cbind(sample_reps,
-                                       rep(length(barcode_association$barcode), 3),
-                                       rep(length(unique(barcode_association$var_id)), 3),
-                                       num_detected_barcodes,
-                                       num_detected_variants))
-setnames(summary_barvars, c("num_expected_barcodes", "num_expected_variants", "num_detected_barcodes", "num_detected_variants"))
+summary_barvars <- data.table(samples_reps = sample_reps,
+                              num_expected_barcodes = rep(length(barcode_association$barcode), 3),
+                              num_expected_variants = rep(length(unique(barcode_association$var_id)), 3),
+                              num_detected_barcodes = num_detected_barcodes,
+                              num_detected_variants = num_detected_variants)
 summary_barvars[, `:=`( pct_detected_barcodes = round(100 * num_detected_barcodes / num_expected_barcodes, 2),
                         pct_detected_variants = round(100 * num_detected_variants / num_expected_variants, 2),
                         mean_pct_recovered_barcodes = round(mean_pct_recovered_barcodes, 2),
