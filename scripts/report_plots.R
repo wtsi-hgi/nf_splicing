@@ -6,12 +6,12 @@ create_barplots <- function(barcode_association, sample_reps, total_reads, merge
     summary_reads <- summary_reads %>% mutate(across(c(total_reads, merged_reads, unmerged_reads, inclusion_reads, skipping_reads, map_reads, unexplain_reads), as.numeric))
     summary_pct <- summary_reads %>%
                     mutate(library_coverage = as.integer(total_reads / length(unique(barcode_association$var_id))),
-                           pct_merged = round((merged_reads / total_reads) * 100, 1),
-                           pct_unmerged = round((unmerged_reads / total_reads) * 100, 1),
-                           pct_inclusion = round((inclusion_reads / total_reads) * 100, 1),
-                           pct_skipping = round((skipping_reads / total_reads) * 100, 1),
-                           pct_map = round((map_reads / total_reads) * 100, 1),
-                           pct_unexplain = round((unexplain_reads / total_reads) * 100, 1))
+                           pct_merged = round((merged_reads / total_reads) * 100, 2),
+                           pct_unmerged = round((unmerged_reads / total_reads) * 100, 2),
+                           pct_inclusion = round((inclusion_reads / total_reads) * 100, 2),
+                           pct_skipping = round((skipping_reads / total_reads) * 100, 2),
+                           pct_map = round((map_reads / total_reads) * 100, 2),
+                           pct_unexplain = round((unexplain_reads / total_reads) * 100, 2))
 
     tib_pct_total <- summary_pct %>% 
                         select(sample_reps, pct_merged, pct_unmerged) %>%
