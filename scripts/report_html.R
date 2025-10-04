@@ -179,6 +179,14 @@ knitr::include_graphics("{plot_barcodes_venn}", rel_path = FALSE)
 ```
 <br>
 
+```{{r, echo = FALSE}}
+df <- as.data.frame(read.table("{file_barcodes_summary}", header = TRUE, sep = "\t", check.names = FALSE))
+min_row <- ifelse(nrow(df) > 10, 10, nrow(df))
+reactable(df, highlight = TRUE, bordered = TRUE, striped = TRUE, compact = TRUE, wrap = TRUE,
+          minRows = min_row, defaultColDef = colDef(minWidth = 150, align = "left"))
+```
+<br>
+
 ---
 
 ## 4. Junction Processing

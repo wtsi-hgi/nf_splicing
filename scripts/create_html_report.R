@@ -115,9 +115,6 @@ for(i in seq_along(sample_reps))
     merged_reads[i] <- as.numeric(str_extract(grep("Combined pairs:", readLines(files_merge_stats[i]), value = TRUE), "\\d+"))
     unmerged_reads[i] <- as.numeric(str_extract(grep("Uncombined pairs:", readLines(files_merge_stats[i]), value = TRUE), "\\d+"))
 
-    # inclusion_reads[i] <- as.numeric(read.table(files_bwa_idxstats[i])[1, 2])
-    # skipping_reads[i] <- as.numeric(read.table(files_bwa_idxstats[i])[2, 2])
-
     # exon library has multiple lines for inclusion reads
     tmp_dt <- read.table(files_bwa_idxstats[i])
     inclusion_reads[i] <- as.numeric(sum(tmp_dt[grep("_inclusion", tmp_dt$V1), 2]))
@@ -163,7 +160,11 @@ invisible(dev.off())
 
 num_detected_barcodes <- numeric(length(sample_reps))
 num_detected_variants <- numeric(length(sample_reps))
-library_barcodes <- list()
+barcode_association_num <- barcode_association[, .(num_barcodes = uniqueN(barcode)), by = var_id]
+library_barcodes_num <- list()
+mean_count_per_barcode <- vector()
+mean_count_per_variant <- vector()
+mean_pct_recovered_barcodes <- vector()
 for(i in seq_along(sample_reps))
 {
     num_detected_barcodes[i] <- length(intersect(unique(c(canonical_barcodes[[i]]$barcode, 
@@ -173,37 +174,55 @@ for(i in seq_along(sample_reps))
     num_detected_variants[i] <- length(unique(c(canonical_barcodes[[i]]$var_id, 
                                                 novel_barcodes[[i]]$var_id))) - 1 # there is NAs in var_id
 
-    library_barcodes[[i]] <- rbindlist(list(canonical_barcodes[[i]][var_id != "NA", .(var_id, barcode, count)], 
+    library_barcodes <- rbindlist(list(canonical_barcodes[[i]][var_id != "NA", .(var_id, barcode, count)], 
                                             novel_barcodes[[i]][var_id != "NA", .(var_id, barcode, count)])
                                       )[, .(count = sum(count)), by = .(var_id, barcode)]
 
+    mean_count_per_barcode[i] <- mean(library_barcodes$count)
+    mean_count_per_variant[i] <- mean(library_barcodes[, .(sum_count = sum(count)), by = var_id]$sum_count)
+
+    library_barcodes_num[[i]] <- merge(barcode_association_num, 
+                                       library_barcodes[, .(num_barcodes = uniqueN(barcode)), by = var_id], 
+                                       by = "var_id", all.x = TRUE)
+    setnames(library_barcodes_num[[i]], c("var_id", "asso_num_barcodes", "lib_num_barcodes"))
+    library_barcodes_num[[i]][is.na(lib_num_barcodes), lib_num_barcodes := 0]
+    library_barcodes_num[[i]][, pct_lib_vs_asso := 100 * lib_num_barcodes / asso_num_barcodes]
+
+    mean_pct_recovered_barcodes[i] <- mean(library_barcodes_num[[i]]$pct_lib_vs_asso)
+
     # ---- free memory ----
-    canonical_barcodes[[i]] <- NULL
-    novel_barcodes[[i]] <- NULL
-    gc(verbose = FALSE)
+    canonical_barcodes[[i]] <- data.table()
+    novel_barcodes[[i]] <- data.table()
+    rm(library_barcodes)
+    invisible(gc(verbose = FALSE))
 }
 
-summary_barvars <- as.data.table(cbind(rep(length(barcode_association$barcode), 3),
+summary_barvars <- as.data.table(cbind(sample_reps,
+                                       rep(length(barcode_association$barcode), 3),
                                        rep(length(unique(barcode_association$var_id)), 3),
                                        num_detected_barcodes,
                                        num_detected_variants))
-colnames(summary_barvars) <- c("num_expected_barcodes", "num_expected_variants", "num_detected_barcodes", "num_detected_variants")
-summary_barvars <- summary_barvars %>% 
-                        mutate(pct_detected_barcodes = 100 * num_detected_barcodes / num_expected_barcodes,
-                               pct_detected_variants = 100 * num_detected_variants / num_expected_variants)
+setnames(summary_barvars, c("num_expected_barcodes", "num_expected_variants", "num_detected_barcodes", "num_detected_variants"))
+summary_barvars[, `:=`( pct_detected_barcodes = round(100 * num_detected_barcodes / num_expected_barcodes, 2),
+                        pct_detected_variants = round(100 * num_detected_variants / num_expected_variants, 2),
+                        mean_pct_recovered_barcodes = round(mean_pct_recovered_barcodes, 2),
+                        mean_count_per_barcode = round(mean_count_per_barcode, 2),
+                        mean_count_per_variant = round(mean_count_per_variant, 2) )]
 
 fwrite(summary_barvars, file = paste0(sample_prefix, ".summary_barvars.tsv"), sep = "\t", row.names = FALSE)
 
-
-
 # ---- free memory ----
 rm(barcode_association)
-gc(verbose = FALSE)
+invisible(gc(verbose = FALSE))
 
 # 3. venn diagrams for detected junctions and correlation of junction quantifications
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction correlation plot ...")
 
 junction_plots <- create_junction_plots(classified_junctions)
+
+# ---- free memory ----
+rm(classified_junctions)
+invisible(gc(verbose = FALSE))
 
 png(paste0(sample_prefix, ".junctions_venn.png"), width = 800, height = 800, units = "px", res = 150)
 print(junction_plots[[1]])
@@ -211,6 +230,10 @@ invisible(dev.off())
 
 junctions_category <- junction_plots[[2]]
 fwrite(junctions_category, file = paste0(sample_prefix, ".junctions_category.tsv"), sep = "\t", row.names = FALSE)
+
+# ---- free memory ----
+rm(junction_plots)
+invisible(gc(verbose = FALSE))
 
 cor_data <- junctions_category[, ..sample_reps]
 cor_data[is.na(cor_data)] <- 0
@@ -223,6 +246,11 @@ pairs(cor_data_norm,
       lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
       use = "complete.obs")
 invisible(dev.off())
+
+# ---- free memory ----
+rm(cor_data)
+rm(cor_data_norm)
+invisible(gc(verbose = FALSE))
 
 # 4. upset plots for splicing events and tables of splicing events
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction category plot ...")
@@ -251,6 +279,12 @@ upset(as.data.frame(upset_join),
       boxplot.summary = c("log_avg_cov"))
 invisible(dev.off())
 
+# ---- free memory ----
+rm(junctions_category_reshape)
+rm(upset_input)
+rm(upset_join)
+invisible(gc(verbose = FALSE))
+
 # 5. psi correlation of splicing events
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating PSI plot ...")
 
@@ -278,6 +312,11 @@ pairs(psi_wide[, -1],
       use = "complete.obs")
 invisible(dev.off())
 
+# ---- free memory ----
+rm(splicing_counts)
+rm(psi_list)
+invisible(gc(verbose = FALSE))
+
 # 6. junction distribution plots
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction distribution plot ...")
 
@@ -286,10 +325,21 @@ junctions_rescale <- data_rescale[[1]]
 exons_template <- data_rescale[[2]]
 introns_template <- data_rescale[[3]]
 
+# ---- free memory ----
+rm(data_rescale)
+invisible(gc(verbose = FALSE))
+
 junctions_distri <- create_junction_distribution(junctions_rescale, exons_template, introns_template)
 junctions_range <- junctions_distri[[1]]
 junctions_diagramplot <- junctions_distri[[2]]
 junctions_scatterplot <- junctions_distri[[3]]
+
+# ---- free memory ----
+rm(junctions_distri)
+rm(junctions_rescale)
+rm(exons_template)
+rm(introns_template)
+invisible(gc(verbose = FALSE))
 
 for(i in seq_along(junctions_range))
 {
@@ -301,6 +351,11 @@ for(i in seq_along(junctions_range))
     print(junctions_scatterplot[[i]])
     invisible(dev.off())
 }
+
+# ---- free memory ----
+rm(junctions_diagramplot)
+rm(junctions_scatterplot)
+invisible(gc(verbose = FALSE))
 
 # -- reporting -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Creating final html report...")
