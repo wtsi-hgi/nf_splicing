@@ -268,11 +268,11 @@ This section summarises the correlation of PSI values between replicates.
 ```{{r, echo = FALSE, fig.show = "hold", fig.align = "center", out.height = "80%", out.width = "80%"}}
 dt_psi <- as.data.table(vroom("{file_psi}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
 cols_to_scale <- names(dt_psi)[-1]
-dt_psi[, (cols_to_scale) := lapply(.SD, `*`, 100), .SDcols = cols_to_scale]
+dt_psi[, (cols_to_scale) := lapply(.SD, function(x) round(x * 100, 2)), .SDcols = cols_to_scale]
+dt_psi[, avg_psi := round(rowMeans(.SD, na.rm = TRUE), 2), .SDcols = cols_to_scale]
 reactable(dt_psi, highlight = TRUE, bordered = TRUE, striped = TRUE, compact = TRUE, wrap = TRUE,
-          filterable = TRUE, minRows = 20, defaultPageSize = 20, 
-          defaultColDef = colDef(minWidth = 100, align = "left", format = colFormat(digits = 2),
-                                 filterMethod = JS("filterMinValue"), filterInput = JS("rangeMore")))
+          filterable = TRUE, minRows = 20, defaultPageSize = 20, defaultColDef = colDef(minWidth = 100, align = "left"),
+          columns = list(avg_psi = colDef(filterMethod = JS("filterMinValue"), filterInput = JS("rangeMore"))))
 
 knitr::include_graphics("{plot_psi_corr}", rel_path = FALSE)
 ```
