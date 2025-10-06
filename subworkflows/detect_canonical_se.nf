@@ -45,7 +45,8 @@ process BWA_ALIGN_SE_READS {
     script:
     """
     bwa index ${exon_fasta}
-    bwa mem -t 32 -O ${params.bwa_gap_open} \
+    bwa mem -t 32 -B ${params.bwa_mismatch} \
+                  -O ${params.bwa_gap_open} \
                   -E ${params.bwa_gap_ext} \
                   -L ${params.bwa_clip} \
                   ${exon_fasta} ${extended_frags} > ${sample_id}.filter_se.sam

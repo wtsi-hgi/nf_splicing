@@ -50,6 +50,7 @@ Usage:
         --flash2_max_mismatch_density max mismatch density for flash2, default: 0.25
     
     BWA:
+        --bwa_mismatch                mismatch penalty for BWA, default: 4
         --bwa_gap_open                gap open penalty for BWA, default: 10,10
         --bwa_gap_ext                 gap extension penalty for BWA, default: 5,5
         --bwa_clip                    clip penalty for BWA, default: 1,1
@@ -93,6 +94,7 @@ params.flash2_max_overlap          = params.flash2_max_overlap          ?: 250
 params.flash2_min_overlap_outie    = params.flash2_min_overlap_outie    ?: 20
 params.flash2_max_mismatch_density = params.flash2_max_mismatch_density ?: 0.25
 
+params.bwa_mismatch                = params.bwa_mismatch                ?: 4
 params.bwa_gap_open                = params.bwa_gap_open                ?: "10,10"
 params.bwa_gap_ext                 = params.bwa_gap_ext                 ?: "5,5"
 params.bwa_clip                    = params.bwa_clip                    ?: "1,1"
