@@ -82,10 +82,12 @@ if __name__ == "__main__":
 
     # -- integrate the counts -- #
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Integrating counts, please wait...", flush = True)
-    df_bar_var = df_bar_var.unique(subset=["var_id"])
-    df_bar_var = (df_bar_var.with_columns(pl.col("var_id").str.extract(r"(\d+)").cast(pl.Int64).alias("var_num"))
-                            .sort("var_num")
-                            .drop("var_num"))
+    # df_bar_var = df_bar_var.unique(subset=["var_id"])
+    # df_bar_var = (df_bar_var.with_columns(pl.col("var_id").str.extract(r"(\d+)").cast(pl.Int64).alias("var_num"))
+    #                         .sort("var_num")
+    #                         .drop("var_num"))
+
+    df_bar_var = df_bar_var.unique(subset = ["var_id"], keep = "first", maintain_order = True).sort("var_id")
     
     df_integrated = (df_bar_var.join(df_canonical_pivot, on = "var_id", how = "left")
                                .join(df_novel_pivot, on = "var_id", how = "left")
