@@ -273,20 +273,19 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 
                     list_barcode = []
                     for batch_result in executor.map(function_processpool_se, read_batches):
-                        for mapped_reads, unmapped_reads, reads_barcodes in batch_result:
-                            for dict_read in mapped_reads:
-                                if dict_read:
-                                    mapped_fh.write(dict_to_segment(dict_read))
-                            for dict_read in unmapped_reads:
-                                if dict_read:
-                                    unmapped_fh.write(dict_to_segment(dict_read))
-                            if reads_barcodes:
-                                list_barcode.append(reads_barcodes)
+                        for mapped_read, unmapped_read, reads_barcode in batch_result:
+                            if mapped_read:
+                                mapped_fh.write(dict_to_segment(mapped_read))
+                            if unmapped_read:
+                                unmapped_fh.write(dict_to_segment(unmapped_read))
+                            if reads_barcode:
+                                list_barcode.append(reads_barcode)
 
                     df_yield = pl.DataFrame(list_barcode)
 
                     # -- free memory -- #
-                    del read_chunk, read_batches, list_barcode
+                    read_chunk = []
+                    del read_batches, list_barcode
                     gc.collect()
                     
                     yield df_yield
@@ -317,20 +316,19 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 
                 list_barcode = []
                 for batch_result in executor.map(function_processpool_se, read_batches):
-                    for mapped_reads, unmapped_reads, reads_barcodes in batch_result:
-                        for dict_read in mapped_reads:
-                            if dict_read:
-                                mapped_fh.write(dict_to_segment(dict_read))
-                        for dict_read in unmapped_reads:
-                            if dict_read:
-                                unmapped_fh.write(dict_to_segment(dict_read))
-                        if reads_barcodes:
-                            list_barcode.append(reads_barcodes)
+                    for mapped_read, unmapped_read, reads_barcode in batch_result:
+                        if mapped_read:
+                            mapped_fh.write(dict_to_segment(mapped_read))
+                        if unmapped_read:
+                            unmapped_fh.write(dict_to_segment(unmapped_read))
+                        if reads_barcode:
+                            list_barcode.append(reads_barcode)
 
                 df_yield = pl.DataFrame(list_barcode)
 
                 # -- free memory -- #
-                del read_chunk, read_batches, list_barcode
+                read_chunk = []
+                del read_batches, list_barcode
                 gc.collect()
                     
                 yield df_yield
@@ -377,22 +375,21 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 
                     list_barcode = []
                     for batch_result in executor.map(function_processpool_se, read_batches):
-                        for mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes in batch_result:
-                            for dict_read1, dict_read2 in zip(mapped_reads1, mapped_reads2):
-                                if dict_read1 and dict_read2:
-                                    mapped_fh.write(dict_to_segment(dict_read1))
-                                    mapped_fh.write(dict_to_segment(dict_read2))
-                            for dict_read1, dict_read2 in zip(unmapped_reads1, unmapped_reads2):
-                                if dict_read1 and dict_read2:
-                                    unmapped_fh.write(dict_to_segment(dict_read1))
-                                    unmapped_fh.write(dict_to_segment(dict_read2))
-                            if reads_barcodes:
-                                list_barcode.append(reads_barcodes)
+                        for mapped_read1, mapped_read2, unmapped_read1, unmapped_read2, reads_barcode in batch_result:
+                            if mapped_read1 and mapped_read2:
+                                mapped_fh.write(dict_to_segment(mapped_read1))
+                                mapped_fh.write(dict_to_segment(mapped_read2))
+                            if unmapped_read1 and unmapped_read2:
+                                unmapped_fh.write(dict_to_segment(unmapped_read1))
+                                unmapped_fh.write(dict_to_segment(unmapped_read2))
+                            if reads_barcode:
+                                list_barcode.append(reads_barcode)
 
                     df_yield = pl.DataFrame(list_barcode)
 
                     # -- free memory -- #
-                    del read_chunk, read_batches, list_barcode
+                    read_chunk = []
+                    del read_batches, list_barcode
                     gc.collect()
                     
                     yield df_yield
@@ -425,22 +422,21 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 
                 list_barcode = []
                 for batch_result in executor.map(function_processpool_se, read_batches):
-                    for mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes in batch_result:
-                        for dict_read1, dict_read2 in zip(mapped_reads1, mapped_reads2):
-                            if dict_read1 and dict_read2:
-                                mapped_fh.write(dict_to_segment(dict_read1))
-                                mapped_fh.write(dict_to_segment(dict_read2))
-                        for dict_read1, dict_read2 in zip(unmapped_reads1, unmapped_reads2):
-                            if dict_read1 and dict_read2:
-                                unmapped_fh.write(dict_to_segment(dict_read1))
-                                unmapped_fh.write(dict_to_segment(dict_read2))
-                        if reads_barcodes:
-                            list_barcode.append(reads_barcodes)
+                    for mapped_read1, mapped_read2, unmapped_read1, unmapped_read2, reads_barcode in batch_result:
+                        if mapped_read1 and mapped_read2:
+                            mapped_fh.write(dict_to_segment(mapped_read1))
+                            mapped_fh.write(dict_to_segment(mapped_read2))
+                        if unmapped_read1 and unmapped_read2:
+                            unmapped_fh.write(dict_to_segment(unmapped_read1))
+                            unmapped_fh.write(dict_to_segment(unmapped_read2))
+                        if reads_barcode:
+                            list_barcode.append(reads_barcode)
 
                 df_yield = pl.DataFrame(list_barcode)
 
                 # -- free memory -- #
-                del read_chunk, read_batches, list_barcode
+                read_chunk = []
+                del read_batches, list_barcode
                 gc.collect()
                 
                 yield df_yield
@@ -546,7 +542,7 @@ if __name__ == "__main__":
 
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing bam file, please wait...", flush = True)
     for i, chunk_result in enumerate(read_bam_in_chunk(args.bam_file, args.read_type, args.chunk_size, args.threads)):
-        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {len(chunk_result)} reads", flush = True)
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {args.chunk_size} reads", flush = True)
         barcode_list.append(chunk_result)
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Finished.", flush = True)
 
