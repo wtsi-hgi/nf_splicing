@@ -501,11 +501,14 @@ if __name__ == "__main__":
     # -- read input files -- #
     exon_positions = pl.read_csv(args.exon_pos, separator = "\t", has_header = False)
     exon_positions.columns = ["var_id", "exon_id", "exon_start", "exon_end"]
-    exon_positions["var_id"] = exon_positions["var_id"].astype(str)
-    exon_positions["exon_id"] = exon_positions["exon_id"].astype(str)
-    exon_positions["exon_start"] = exon_positions["exon_start"].astype(int)
-    exon_positions["exon_end"] = exon_positions["exon_end"].astype(int)
-    exon_positions["length"] = exon_positions["exon_end"] - exon_positions["exon_start"] + 1
+    exon_positions = exon_positions.with_columns((pl.col("exon_end") - pl.col("exon_start") + 1).alias("length"))
+
+    # exon_positions.columns = ["var_id", "exon_id", "exon_start", "exon_end"]
+    # exon_positions["var_id"] = exon_positions["var_id"].astype(str)
+    # exon_positions["exon_id"] = exon_positions["exon_id"].astype(str)
+    # exon_positions["exon_start"] = exon_positions["exon_start"].astype(int)
+    # exon_positions["exon_end"] = exon_positions["exon_end"].astype(int)
+    # exon_positions["length"] = exon_positions["exon_end"] - exon_positions["exon_start"] + 1
 
     dict_exon_positions = defaultdict(list)
     for row in exon_positions.iter_rows(named=True):
