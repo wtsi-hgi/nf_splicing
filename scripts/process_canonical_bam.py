@@ -3,6 +3,7 @@ import os
 import sys
 import argparse
 import re
+import gc
 import pysam
 import csv
 import pandas as pd
@@ -60,10 +61,15 @@ def process_se_read(read: dict) -> list:
     read_pos_end = read['pos_end']
     read_seq = read['seq']
 
-    read_start_pass = ( exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'exon_end'].iloc[0] - read_pos > args.soft_clip )
-    read_end_pass = ( read_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[[0, 1]].sum() > args.soft_clip
+    # read_start_pass = ( exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'exon_end'].iloc[0] - read_pos > args.soft_clip )
+    # read_end_pass = ( read_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[[0, 1]].sum() > args.soft_clip
+    #                   if read_ref_exon == "exon_inclusion" 
+    #                   else read_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[0] > args.soft_clip ) 
+
+    read_start_pass = ( dict_exon_positions[read_ref_var][0]["exon_end"] - read_pos > args.soft_clip )
+    read_end_pass = ( read_pos_end - (dict_exon_positions[read_ref_var][0]["length"] + dict_exon_positions[read_ref_var][1]["length"]) > args.soft_clip 
                       if read_ref_exon == "exon_inclusion" 
-                      else read_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[0] > args.soft_clip ) 
+                      else read_pos_end - dict_exon_positions[read_ref_var][0]["length"] > args.soft_clip ) 
 
     if read_start_pass and read_end_pass:
         barcode_seq = extract_sequence(read_seq, args.barcode_up, args.barcode_down, args.max_mismatch)
@@ -141,10 +147,15 @@ def process_pe_read(read_pair: tuple) -> list:
         read_ref_var = parts[2]
         read_ref_exon = "_".join(parts[:2]) 
 
-        read_start_pass = ( exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'exon_end'].iloc[0] - read1_pos > args.soft_clip )
-        read_end_pass = ( read2_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[[0, 1]].sum() > args.soft_clip
+        # read_start_pass = ( exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'exon_end'].iloc[0] - read1_pos > args.soft_clip )
+        # read_end_pass = ( read2_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[[0, 1]].sum() > args.soft_clip
+        #                   if read_ref_exon == "exon_inclusion" 
+        #                   else read2_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[0] > args.soft_clip )
+
+        read_start_pass = ( dict_exon_positions[read_ref_var][0]["exon_end"] - read1_pos > args.soft_clip )
+        read_end_pass = ( read2_pos_end - (dict_exon_positions[read_ref_var][0]["length"] + dict_exon_positions[read_ref_var][1]["length"]) > args.soft_clip 
                           if read_ref_exon == "exon_inclusion" 
-                          else read2_pos_end - exon_positions.loc[exon_positions['var_id'] == read_ref_var, 'length'].iloc[0] > args.soft_clip )
+                          else read2_pos_end - dict_exon_positions[read_ref_var][0]["length"] > args.soft_clip ) 
 
         if read_start_pass and read_end_pass:
             if condition1(read1_cigar, args.soft_clip) and \
@@ -260,22 +271,42 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                         for i in range(0, len(read_chunk), batch_size)
                     ]
 
-                    args_list = [ batch for batch in read_batches]
-                    batch_results = list(executor.map(function_processpool_se, args_list))
+                    list_barcode = []
+                    for batch_result in executor.map(function_processpool_se, read_batches):
+                        for mapped_reads, unmapped_reads, reads_barcodes in batch_result:
+                            for dict_read in mapped_reads:
+                                if dict_read:
+                                    mapped_fh.write(dict_to_segment(dict_read))
+                            for dict_read in unmapped_reads:
+                                if dict_read:
+                                    unmapped_fh.write(dict_to_segment(dict_read))
+                            if reads_barcodes:
+                                list_barcode.append(reads_barcodes)
 
-                    flat_results = [item for batch in batch_results for item in batch]
-                    mapped_reads, unmapped_reads, reads_barcodes = zip(*flat_results)
+                    df_yield = pl.DataFrame(list_barcode)
 
-                    for dict_read in mapped_reads:
-                        if dict_read:
-                            mapped_fh.write(dict_to_segment(dict_read))
+                    # -- free memory -- #
+                    del read_chunk, read_batches, list_barcode
+                    gc.collect()
+                    
+                    yield df_yield
 
-                    for dict_read in unmapped_reads:
-                        if dict_read:
-                            unmapped_fh.write(dict_to_segment(dict_read))
+                    # args_list = [ batch for batch in read_batches]
+                    # batch_results = list(executor.map(function_processpool_se, args_list))
 
-                    read_chunk = []
-                    yield pl.DataFrame(reads_barcodes)
+                    # flat_results = [item for batch in batch_results for item in batch]
+                    # mapped_reads, unmapped_reads, reads_barcodes = zip(*flat_results)
+
+                    # for dict_read in mapped_reads:
+                    #     if dict_read:
+                    #         mapped_fh.write(dict_to_segment(dict_read))
+
+                    # for dict_read in unmapped_reads:
+                    #     if dict_read:
+                    #         unmapped_fh.write(dict_to_segment(dict_read))
+
+                    # read_chunk = []
+                    # yield pl.DataFrame(reads_barcodes)
 
             # process any remaining reads after file ends
             if read_chunk:
@@ -284,22 +315,42 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                     for i in range(0, len(read_chunk), batch_size)
                 ]
 
-                args_list = [ batch for batch in read_batches]
-                batch_results = list(executor.map(function_processpool_se, args_list))
+                list_barcode = []
+                for batch_result in executor.map(function_processpool_se, read_batches):
+                    for mapped_reads, unmapped_reads, reads_barcodes in batch_result:
+                        for dict_read in mapped_reads:
+                            if dict_read:
+                                mapped_fh.write(dict_to_segment(dict_read))
+                        for dict_read in unmapped_reads:
+                            if dict_read:
+                                unmapped_fh.write(dict_to_segment(dict_read))
+                        if reads_barcodes:
+                            list_barcode.append(reads_barcodes)
 
-                flat_results = [item for batch in batch_results for item in batch]
-                mapped_reads, unmapped_reads, reads_barcodes = zip(*flat_results)
+                df_yield = pl.DataFrame(list_barcode)
 
-                for dict_read in mapped_reads:
-                    if dict_read:
-                        mapped_fh.write(dict_to_segment(dict_read))
+                # -- free memory -- #
+                del read_chunk, read_batches, list_barcode
+                gc.collect()
+                    
+                yield df_yield
 
-                for dict_read in unmapped_reads:
-                    if dict_read:
-                        unmapped_fh.write(dict_to_segment(dict_read))
+                # args_list = [ batch for batch in read_batches]
+                # batch_results = list(executor.map(function_processpool_se, args_list))
+
+                # flat_results = [item for batch in batch_results for item in batch]
+                # mapped_reads, unmapped_reads, reads_barcodes = zip(*flat_results)
+
+                # for dict_read in mapped_reads:
+                #     if dict_read:
+                #         mapped_fh.write(dict_to_segment(dict_read))
+
+                # for dict_read in unmapped_reads:
+                #     if dict_read:
+                #         unmapped_fh.write(dict_to_segment(dict_read))
                 
-                read_chunk = []
-                yield pl.DataFrame(reads_barcodes)
+                # read_chunk = []
+                # yield pl.DataFrame(reads_barcodes)
         # process paired-end reads
         else:
             read_chunk = []
@@ -324,24 +375,46 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                         for i in range(0, len(read_chunk), batch_size)
                     ]
 
-                    args_list = [ batch for batch in read_batches]
-                    batch_results = list(executor.map(function_processpool_pe, args_list))
+                    list_barcode = []
+                    for batch_result in executor.map(function_processpool_se, read_batches):
+                        for mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes in batch_result:
+                            for dict_read1, dict_read2 in zip(mapped_reads1, mapped_reads2):
+                                if dict_read1 and dict_read2:
+                                    mapped_fh.write(dict_to_segment(dict_read1))
+                                    mapped_fh.write(dict_to_segment(dict_read2))
+                            for dict_read1, dict_read2 in zip(unmapped_reads1, unmapped_reads2):
+                                if dict_read1 and dict_read2:
+                                    unmapped_fh.write(dict_to_segment(dict_read1))
+                                    unmapped_fh.write(dict_to_segment(dict_read2))
+                            if reads_barcodes:
+                                list_barcode.append(reads_barcodes)
 
-                    flat_results = [item for batch in batch_results for item in batch]
-                    mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes = zip(*flat_results)
+                    df_yield = pl.DataFrame(list_barcode)
 
-                    for dict_read1, dict_read2 in zip(mapped_reads1, mapped_reads2):
-                        if dict_read1 and dict_read2:
-                            mapped_fh.write(dict_to_segment(dict_read1))
-                            mapped_fh.write(dict_to_segment(dict_read2))
+                    # -- free memory -- #
+                    del read_chunk, read_batches, list_barcode
+                    gc.collect()
                     
-                    for dict_read1, dict_read2 in zip(unmapped_reads1, unmapped_reads2):
-                        if dict_read1 and dict_read2:
-                            unmapped_fh.write(dict_to_segment(dict_read1))
-                            unmapped_fh.write(dict_to_segment(dict_read2))
+                    yield df_yield
+
+                    # args_list = [ batch for batch in read_batches]
+                    # batch_results = list(executor.map(function_processpool_pe, args_list))
+
+                    # flat_results = [item for batch in batch_results for item in batch]
+                    # mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes = zip(*flat_results)
+
+                    # for dict_read1, dict_read2 in zip(mapped_reads1, mapped_reads2):
+                    #     if dict_read1 and dict_read2:
+                    #         mapped_fh.write(dict_to_segment(dict_read1))
+                    #         mapped_fh.write(dict_to_segment(dict_read2))
                     
-                    read_chunk = []
-                    yield pl.DataFrame(reads_barcodes)
+                    # for dict_read1, dict_read2 in zip(unmapped_reads1, unmapped_reads2):
+                    #     if dict_read1 and dict_read2:
+                    #         unmapped_fh.write(dict_to_segment(dict_read1))
+                    #         unmapped_fh.write(dict_to_segment(dict_read2))
+                    
+                    # read_chunk = []
+                    # yield pl.DataFrame(reads_barcodes)
             
             # process any remaining reads after file ends
             if read_chunk:
@@ -350,24 +423,46 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                     for i in range(0, len(read_chunk), batch_size)
                 ]
 
-                args_list = [ batch for batch in read_batches]
-                batch_results = list(executor.map(function_processpool_pe, args_list))
+                list_barcode = []
+                for batch_result in executor.map(function_processpool_se, read_batches):
+                    for mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes in batch_result:
+                        for dict_read1, dict_read2 in zip(mapped_reads1, mapped_reads2):
+                            if dict_read1 and dict_read2:
+                                mapped_fh.write(dict_to_segment(dict_read1))
+                                mapped_fh.write(dict_to_segment(dict_read2))
+                        for dict_read1, dict_read2 in zip(unmapped_reads1, unmapped_reads2):
+                            if dict_read1 and dict_read2:
+                                unmapped_fh.write(dict_to_segment(dict_read1))
+                                unmapped_fh.write(dict_to_segment(dict_read2))
+                        if reads_barcodes:
+                            list_barcode.append(reads_barcodes)
 
-                flat_results = [item for batch in batch_results for item in batch]
-                mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes = zip(*flat_results)
+                df_yield = pl.DataFrame(list_barcode)
 
-                for dict_read1, dict_read2 in zip(mapped_reads1, mapped_reads2):
-                    if dict_read1 and dict_read2:
-                        mapped_fh.write(dict_to_segment(dict_read1))
-                        mapped_fh.write(dict_to_segment(dict_read2))
+                # -- free memory -- #
+                del read_chunk, read_batches, list_barcode
+                gc.collect()
                 
-                for dict_read1, dict_read2 in zip(unmapped_reads1, unmapped_reads2):
-                    if dict_read1 and dict_read2:
-                        unmapped_fh.write(dict_to_segment(dict_read1))
-                        unmapped_fh.write(dict_to_segment(dict_read2))
+                yield df_yield
+
+                # args_list = [ batch for batch in read_batches]
+                # batch_results = list(executor.map(function_processpool_pe, args_list))
+
+                # flat_results = [item for batch in batch_results for item in batch]
+                # mapped_reads1, mapped_reads2, unmapped_reads1, unmapped_reads2, reads_barcodes = zip(*flat_results)
+
+                # for dict_read1, dict_read2 in zip(mapped_reads1, mapped_reads2):
+                #     if dict_read1 and dict_read2:
+                #         mapped_fh.write(dict_to_segment(dict_read1))
+                #         mapped_fh.write(dict_to_segment(dict_read2))
                 
-                read_chunk = []
-                yield pl.DataFrame(reads_barcodes)
+                # for dict_read1, dict_read2 in zip(unmapped_reads1, unmapped_reads2):
+                #     if dict_read1 and dict_read2:
+                #         unmapped_fh.write(dict_to_segment(dict_read1))
+                #         unmapped_fh.write(dict_to_segment(dict_read2))
+                
+                # read_chunk = []
+                # yield pl.DataFrame(reads_barcodes)
 
 #-- main execution --#
 if __name__ == "__main__":
@@ -404,13 +499,24 @@ if __name__ == "__main__":
         output_prefix = args.output_prefix
 
     # -- read input files -- #
-    exon_positions = pd.read_csv(args.exon_pos, sep = "\t", header = None)
+    exon_positions = pl.read_csv(args.exon_pos, sep = "\t", header = None)
     exon_positions.columns = ["var_id", "exon_id", "exon_start", "exon_end"]
     exon_positions["var_id"] = exon_positions["var_id"].astype(str)
     exon_positions["exon_id"] = exon_positions["exon_id"].astype(str)
     exon_positions["exon_start"] = exon_positions["exon_start"].astype(int)
     exon_positions["exon_end"] = exon_positions["exon_end"].astype(int)
     exon_positions["length"] = exon_positions["exon_end"] - exon_positions["exon_start"] + 1
+
+    dict_exon_positions = defaultdict(list)
+    for row in exon_positions.iter_rows(named=True):
+        dict_exon_positions[row["var_id"]].append({ "exon_id"   : row["exon_id"],
+                                                    "exon_start": row["exon_start"],
+                                                    "exon_end"  : row["exon_end"],
+                                                    "length"    : row["length"] })
+
+    # -- free memory -- #
+    del exon_positions
+    gc.collect()
 
     df_bar_var = pl.read_csv(args.barcode_file, separator = "\t", has_header = True, columns = ["barcode", "var_id"])
 
