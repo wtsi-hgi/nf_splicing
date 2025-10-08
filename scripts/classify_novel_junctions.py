@@ -3,8 +3,10 @@ import os
 import sys
 import argparse
 import re
+import gc
 import csv
 import polars as pl
+import pandas as pd
 import pyarrow
 from datetime import datetime
 
@@ -101,8 +103,13 @@ def annotate_junction(var_id, donor_pos, acceptor_pos, exon_pos, intron_pos, min
     """
     var_id_base = var_id if args.lib_type in ["random_intron", "random_exon"] else var_id.split("/")[0]
     
-    exon_pos_var = exon_pos.filter(pl.col("var_id") == var_id_base).to_pandas()
-    intron_pos_var = intron_pos.filter(pl.col("var_id") == var_id_base).to_pandas()
+    # exon_pos_var = exon_pos.filter(pl.col("var_id") == var_id_base).to_pandas()
+    # intron_pos_var = intron_pos.filter(pl.col("var_id") == var_id_base).to_pandas()
+
+    exon_list = exon_pos.get(var_id_base, [])
+    intron_list = intron_pos.get(var_id_base, [])
+    exon_pos_var = pd.DataFrame(exon_list)
+    intron_pos_var = pd.DataFrame(intron_list)
 
     if exon_pos_var.empty:
         return "exon_data_missing"
@@ -188,6 +195,16 @@ if __name__ == "__main__":
                                        "column_3": "exon_start",
                                        "column_4": "exon_end" })
 
+    grouped = df_exon_pos.group_by("var_id").agg([pl.struct(["exon_id", "exon_start", "exon_end"]).alias("exons")])
+    dict_exon_pos = {}
+    for row in grouped.to_dicts():
+        exons = row["exons"]
+        dict_exon_pos[row["var_id"]] = [ e if isinstance(e, dict) else e.as_dict() for e in exons ]
+    
+    # -- free memory -- #
+    del df_exon_pos
+    gc.collect()
+
     # -- prepare output files -- #
     os.makedirs(args.output_dir, exist_ok = True)
     os.chdir(args.output_dir)
@@ -220,10 +237,20 @@ if __name__ == "__main__":
                                  .select(["var_id", "intron_start", "intron_end"])
                                  .with_columns([pl.format("I{}", pl.arange(1, pl.len() + 1).over("var_id")).alias("intron_id")]))
 
+    grouped = df_intron_pos.group_by("var_id").agg([pl.struct(["intron_id", "intron_start", "intron_end"]).alias("introns")])
+    dict_intron_pos = {}
+    for row in grouped.to_dicts():
+        introns = row["introns"]
+        dict_intron_pos[row["var_id"]] = [ e if isinstance(e, dict) else e.as_dict() for e in introns ]
+
+    # -- free memory -- #
+    del df_intron_pos, grouped
+    gc.collect()
+
     df_junctions_filtered = df_junctions_merged.filter(pl.col("coverage") >= args.junc_cov)
     df_junctions_classes = df_junctions_filtered.with_columns([
         pl.struct(["chrom", "donor", "acceptor"]).map_elements(
-            lambda row: annotate_junction(row["chrom"], row["donor"], row["acceptor"], df_exon_pos, df_intron_pos, args.min_overlap),
+            lambda row: annotate_junction(row["chrom"], row["donor"], row["acceptor"], dict_exon_pos, dict_intron_pos, args.min_overlap),
             return_dtype=pl.String
         ).alias("annotation")
     ])
