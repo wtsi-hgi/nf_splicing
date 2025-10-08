@@ -499,7 +499,7 @@ if __name__ == "__main__":
         output_prefix = args.output_prefix
 
     # -- read input files -- #
-    exon_positions = pl.read_csv(args.exon_pos, sep = "\t", header = None)
+    exon_positions = pl.read_csv(args.exon_pos, separator = "\t", has_header = False)
     exon_positions.columns = ["var_id", "exon_id", "exon_start", "exon_end"]
     exon_positions["var_id"] = exon_positions["var_id"].astype(str)
     exon_positions["exon_id"] = exon_positions["exon_id"].astype(str)
