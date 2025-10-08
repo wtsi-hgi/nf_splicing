@@ -1,4 +1,54 @@
 import re
+import subprocess
+
+def pigz_open(path: str):
+    """
+    Open a gzip file using pigz for faster decompression
+    Parameters:
+        -- path: file path to the gzip file
+    Returns:
+        -- io_wrapper: a TextIOWrapper for reading the decompressed file
+    """
+    return subprocess.Popen(["pigz", "-dc", path], stdout = subprocess.PIPE)
+
+def fastq_iter(handle):
+    """
+    FASTQ parser yielding (header, seq, qual)
+    Parameters:
+        -- handle: file handle for the FASTQ file
+    Yields:
+        -- (header, seq, qual): a tuple containing the header, sequence, and quality
+    """
+    while True:
+        header = handle.readline()
+        if not header:
+            break  # EOF
+        seq = handle.readline()
+        plus = handle.readline()
+        qual = handle.readline()
+        if not (seq and plus and qual):
+            raise ValueError("Truncated FASTQ record")
+
+        yield (header.rstrip("\n"), seq.rstrip("\n"), qual.rstrip("\n"))
+
+def read_first_fasta_seq(fasta_path):
+    """
+    Read the first record of the fasta file
+    Parameters:
+        -- fasta_path: the path of fasta file
+    Returns:
+        -- str: the first sequence of the fasta file
+    """
+    seq_lines = []
+    with open(fasta_path, "r") as f:
+        for line in f:
+            line = line.rstrip()
+            if line.startswith(">"):
+                if seq_lines:
+                    break
+                continue
+            seq_lines.append(line)
+    return "".join(seq_lines)
 
 def reverse_complement(seq: str) -> str:
     """
