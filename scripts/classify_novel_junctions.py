@@ -200,10 +200,6 @@ if __name__ == "__main__":
     for row in grouped.to_dicts():
         exons = row["exons"]
         dict_exon_pos[row["var_id"]] = [ e if isinstance(e, dict) else e.as_dict() for e in exons ]
-    
-    # -- free memory -- #
-    del df_exon_pos
-    gc.collect()
 
     # -- prepare output files -- #
     os.makedirs(args.output_dir, exist_ok = True)
@@ -244,7 +240,7 @@ if __name__ == "__main__":
         dict_intron_pos[row["var_id"]] = [ e if isinstance(e, dict) else e.as_dict() for e in introns ]
 
     # -- free memory -- #
-    del df_intron_pos, grouped
+    del df_exon_pos, df_intron_pos, grouped
     gc.collect()
 
     df_junctions_filtered = df_junctions_merged.filter(pl.col("coverage") >= args.junc_cov)
