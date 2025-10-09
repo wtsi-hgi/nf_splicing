@@ -22,7 +22,7 @@ def fastq_iter(handle):
     while True:
         header = handle.readline()
         if not header:
-            break  # EOF
+            break
         seq = handle.readline()
         plus = handle.readline()
         qual = handle.readline()
