@@ -6,38 +6,20 @@ import argparse
 import re
 import gc
 import subprocess
-import numpy as np
-import marisa_trie
 import polars as pl
 from datetime import datetime
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import islice
 from sequence_utils import pigz_open, fastq_iter, read_first_fasta_seq, match_approximate, extract_sequence, reverse_complement, check_barcode
 
 def init_worker():
-    global trie_global, var_ids_global, exons_global
-    trie_global = trie
-    var_ids_global = var_ids
-    exons_global = exons
-
-def lookup_barcode(barcode_seq: str):
     """
-    Return variant info dict if barcode found, else None
+    Initilize worker
     """
-    global trie_global, var_ids_global, exons_global
-    if barcode_seq in trie_global:
-        idx = trie_global.key_id(barcode_seq)
-        return {"var_id": var_ids_global[idx], "exon": exons_global[idx]}
-    return None
-
-def lookup_barcode_index(barcode_seq: str):
-    """
-    Return only the index of the barcode, not a dict
-    """
-    global trie_global
-    if barcode_seq in trie_global:
-        return trie_global.key_id(barcode_seq)
-    return None
+    global global_dict_bar_var, global_pre_exon, global_post_exon
+    global_dict_bar_var = dict_bar_var
+    global_pre_exon = pre_exon
+    global_post_exon = post_exon
 
 def process_se_read(read: tuple) -> list:
     """
@@ -51,11 +33,12 @@ def process_se_read(read: tuple) -> list:
 
     barcode_seq = extract_sequence(read_seq, args.barcode_up, args.barcode_down, args.max_mismatch)
     if (barcode_seq in {"upstream not found", "downstream not found"}):
-        barcode_seq = extract_sequence(reverse_complement(read_seq), args.barcode_up, args.barcode_down, args.max_mismatch)
+        read_seq_rc = reverse_complement(read_seq)
+        barcode_seq = extract_sequence(read_seq_rc, args.barcode_up, args.barcode_down, args.max_mismatch)
         if (barcode_seq in {"upstream not found", "downstream not found"}):
             return read, {}
         else:
-            read_seq = reverse_complement(read[1])
+            read_seq = read_seq_rc
 
     if args.barcode_check:
         check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
@@ -64,33 +47,25 @@ def process_se_read(read: tuple) -> list:
         else:
             barcode_seq = check_res
 
-    # dict_bar_var costs lot of MEM as it is copied to each processor
-    # res_bar_var = dict_bar_var.get(barcode_seq)
-    # res_bar_var = lookup_barcode(barcode_seq)
-    idx = lookup_barcode_index(barcode_seq)
-
-    # if res_bar_var is not None:
-        # dict_barcode['read_ref'] = res_bar_var["var_id"]
-        # dict_barcode['var_id'] = res_bar_var["var_id"]
-        # exon = res_bar_var["exon"]
-    if idx is not None:
-        exon_seq = exons[idx]
-        ref_canonical_inclusion = pre_exon + exon_seq + post_exon
-        ref_canonical_skipping = pre_exon + post_exon
+    res_bar_var = global_dict_bar_var.get(barcode_seq)    
+    if res_bar_var is not None:
+        exon_seq = res_bar_var["exon"]
+        ref_canonical_inclusion = global_pre_exon + exon_seq + global_post_exon
+        ref_canonical_skipping = global_pre_exon + global_post_exon
         ref_found = match_approximate(read_seq, ref_canonical_inclusion, args.max_mismatch)
         if ref_found == -1:
             ref_found = match_approximate(read_seq, ref_canonical_skipping, args.max_mismatch)
             if ref_found == -1:
                 return read, {}
             else:
-                dict_barcode = { 'read_ref' : var_ids[idx],
-                                 'var_id'   : var_ids[idx],
+                dict_barcode = { 'read_ref' : res_bar_var["var_id"],
+                                 'var_id'   : res_bar_var["var_id"],
                                  'barcode'  : barcode_seq,
                                  'ref_type' : "canonical_skipping" }
                 return (), dict_barcode
         else:
-            dict_barcode = { 'read_ref' : var_ids[idx],
-                             'var_id'   : var_ids[idx],
+            dict_barcode = { 'read_ref' : res_bar_var["var_id"],
+                             'var_id'   : res_bar_var["var_id"],
                              'barcode'  : barcode_seq,
                              'ref_type' : "canonical_inclusion" }
             return (), dict_barcode
@@ -117,7 +92,7 @@ def function_processpool_se(args):
     """
     return batch_process_se_reads(args)
 
-def process_se_reads_in_chunk(read_path):
+def process_se_reads_in_chunk(read_path, fastq_fh):
     """
     Read paired-end FASTQ files in chunks and process each pair of reads in parallel
     Parameters:
@@ -143,10 +118,19 @@ def process_se_reads_in_chunk(read_path):
                 for i in range(0, len(read_chunk), batch_size)
             ]
 
-            # not duplicate variables to save MEM
             list_barcode = []
-            
-            for batch_result in executor.map(function_processpool_se, read_batches):
+
+            # executor.map() --> memeory may grow accumulatively
+            # 1. creates all tasks upfront for the entire input list (read_batches)
+            # 2. stores them all in an internal queue inside the Executor.
+            # 3. waits for results in order — not as they finish.
+            # 
+            # as_completed()
+            # 1. Yields each Future as soon as it finishes, regardless of submission order
+            # 2. You can process and discard the result immediately.
+            futures = [ executor.submit(function_processpool_se, batch) for batch in read_batches ]
+            for future in as_completed(futures):
+                batch_result = future.result()
                 for read, dict_barcode in batch_result:
                     if read:
                         fastq_fh.write(f"{read[0]}\n{read[1]}\n+\n{read[2]}\n".encode("utf-8"))
@@ -157,10 +141,10 @@ def process_se_reads_in_chunk(read_path):
                 df_yield = pl.DataFrame(list_barcode)
                 df_yield = df_yield.group_by(["read_ref", "var_id", "barcode", "ref_type"]).agg(pl.len().alias("count"))
             else:
-                df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Utf8})
+                df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Int64})
 
             # -- free memory -- #
-            del read_chunk, read_batches, list_barcode
+            del read_chunk, read_batches, futures, list_barcode
             gc.collect()
 
             yield df_yield
@@ -208,7 +192,7 @@ if __name__ == "__main__":
         parser.error("--barcode_temp is required when --barcode_check is set")
 
     if args.output_prefix == '':
-        output_prefix = os.path.splitext(os.path.basename(args.bam_file))[0]
+        output_prefix = os.path.splitext(os.path.basename(input_path_parts[0]))[0]
     else:
         output_prefix = args.output_prefix
 
@@ -219,13 +203,8 @@ if __name__ == "__main__":
                                            .map_elements(lambda s: "".join(c for c in s if c.isupper()), return_dtype = pl.Utf8)
                                            .alias("exon"))
     df_bar_var = df_bar_var.drop("variant")
-    # dict_bar_var = { row["barcode"]: {"var_id": row["var_id"], "exon": row["exon"]}
-    #                  for row in df_bar_var.iter_rows(named = True) }
-
-    barcodes = list(df_bar_var["barcode"].to_numpy())
-    var_ids = np.array(df_bar_var["var_id"].to_numpy(), dtype = object)
-    exons = np.array(df_bar_var["exon"].to_numpy(), dtype = object)
-    trie = marisa_trie.Trie(barcodes)
+    dict_bar_var = { row["barcode"]: {"var_id": row["var_id"], "exon": row["exon"]}
+                     for row in df_bar_var.iter_rows(named = True) }
 
     # -- free memory -- #
     del df_bar_var
@@ -258,43 +237,31 @@ if __name__ == "__main__":
         os.remove(barcode_out)
     
     # -- parallel processing -- #
-    # barcode_list = []
-    df_barcodes = pl.DataFrame()
+    barcode_list = []
     pigz_proc = subprocess.Popen( ["pigz", "-c", "-p", str(args.threads)],
                                   stdin=subprocess.PIPE,
                                   stdout=open(fail_fastq, "wb") )
     if args.read_type == 'se':
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing fastq file, please wait...", flush = True)
         with pigz_proc.stdin as fastq_fh:
-            for i, chunk_result in enumerate(process_se_reads_in_chunk(path_read)):
+            for i, chunk_result in enumerate(process_se_reads_in_chunk(path_read, fastq_fh)):
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {args.chunk_size} reads", flush = True)                
                 if not chunk_result.is_empty():
-                    # barcode_list.append(chunk_result)
-                    if df_barcodes.is_empty():
-                        df_barcodes = chunk_result
-                    else:
-                        df_barcodes = ( df_barcodes.join(chunk_result, on = ["read_ref", "var_id", "barcode", "ref_type"], how = "full", coalesce = True)
-                                                   .with_columns([(pl.col("count").fill_null(0) + pl.col("count_right").fill_null(0)).alias("count")])
-                                                   .select(["read_ref", "var_id", "barcode", "ref_type", "count"]) )
+                    barcode_list.append(chunk_result)
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Finished.", flush = True)
         pigz_proc.wait()
-    
-    if not df_barcodes.is_empty():
-        df_barcodes.write_csv(barcode_out, separator = "\t", null_value = "NA")
+
+    # -- clean and format the extracted barcodes from reads -- #
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Generating barcode results, please wait...", flush = True)
+    filtered_barcode_list = [df for df in barcode_list if df.height > 0]
+    if filtered_barcode_list:
+        df_barcode = pl.concat(filtered_barcode_list, how = "vertical")
+        df_barcode_counts = ( df_barcode.group_by(["read_ref", "var_id", "barcode", "ref_type"])
+                                        .agg(pl.sum("count").alias("count"))
+                                        .select(["read_ref", "var_id", "barcode", "count", "ref_type"]) )
+        df_barcode_counts.write_csv(barcode_out, separator = "\t", null_value = "NA")
     else:
         with open(barcode_out, "w") as f:
             f.write("no barcode found in the reads, please check your barcode marker or template!\n")
-
-    # -- clean and format the extracted barcodes from reads -- #
-    # print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Generating barcode results, please wait...", flush = True)
-    # filtered_barcode_list = [df for df in barcode_list if df.shape[1] > 0]
-    # if filtered_barcode_list:
-    #     df_barcode = pl.concat(filtered_barcode_list, how = "vertical")
-    #     df_barcode_counts = df_barcode.group_by(["read_ref", "var_id", "barcode", "ref_type"]).agg(pl.sum("count").alias("count"))
-    #     df_barcode_counts = df_barcode_counts.select(["read_ref", "var_id", "barcode", "count", "ref_type"])
-    #     df_barcode_counts.write_csv(barcode_out, separator = "\t", null_value = "NA")
-    # else:
-    #     with open(barcode_out, "w") as f:
-    #         f.write("no barcode found in the reads, please check your barcode marker or template!\n")
 
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Done.", flush = True)
