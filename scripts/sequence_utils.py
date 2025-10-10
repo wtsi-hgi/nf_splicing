@@ -1,5 +1,6 @@
 import re
 import subprocess
+import Levenshtein
 
 def pigz_open(path: str):
     """
@@ -11,9 +12,9 @@ def pigz_open(path: str):
     """
     return subprocess.Popen(["pigz", "-dc", path], stdout = subprocess.PIPE)
 
-def fastq_iter(handle):
+def fastq_iter_se(handle):
     """
-    FASTQ parser yielding (header, seq, qual)
+    FASTQ single-end parser yielding (header, seq, qual)
     Parameters:
         -- handle: file handle for the FASTQ file
     Yields:
@@ -30,6 +31,35 @@ def fastq_iter(handle):
             raise ValueError("Truncated FASTQ record")
 
         yield (header.rstrip("\n"), seq.rstrip("\n"), qual.rstrip("\n"))
+
+def fastq_iter_pe(handle1, handle2):
+    """
+    FASTQ paired-end parser yielding ((header1, seq1, qual1), (header2, seq2, qual2))
+    Parameters:
+        -- handle1: file handle for read 1 FASTQ
+        -- handle2: file handle for read 2 FASTQ
+    Yields:
+        -- ((header1, seq1, qual1), (header2, seq2, qual2))
+    """
+    while True:
+        header1 = handle1.readline()
+        header2 = handle2.readline()
+        if not header1 or not header2:
+            break
+
+        seq1 = handle1.readline()
+        seq2 = handle2.readline()
+        plus1 = handle1.readline()
+        plus2 = handle2.readline()
+        qual1 = handle1.readline()
+        qual2 = handle2.readline()
+
+        # check for truncated records
+        if not (seq1 and plus1 and qual1 and seq2 and plus2 and qual2):
+            raise ValueError("Truncated FASTQ record in one of the pairs")
+
+        yield ((header1.rstrip("\n"), seq1.rstrip("\n"), qual1.rstrip("\n")), 
+               (header2.rstrip("\n"), seq2.rstrip("\n"), qual2.rstrip("\n")))
 
 def read_first_fasta_seq(fasta_path):
     """
@@ -74,7 +104,7 @@ def hamming_distance(str1: str, str2: str) -> int:
         return max(len(str1), len(str2))
     return sum(c1 != c2 for c1, c2 in zip(str1, str2))
 
-def match_approximate(seq: str, pattern: str, max_mismatches: int) -> int:
+def match_approximate(seq: str, pattern: str, max_mismatches: int, distance: str) -> int:
     """
     Find approximate match of pattern in seq allowing max_mismatches.
     Returns start index of match or -1 if not found.
@@ -86,10 +116,25 @@ def match_approximate(seq: str, pattern: str, max_mismatches: int) -> int:
         -- int: start index of the match or -1 if not found
     """
     k = len(pattern)
-    for i in range(len(seq) - k + 1):
+    n = len(seq)
+
+    if k > n:
+        return -1
+
+    # Select distance function
+    if distance == "hamming":
+        dist_func = hamming_distance
+    elif distance == "levenshtein":
+        dist_func = Levenshtein.distance
+    else:
+        raise ValueError(f"Unknown distance metric: {distance}")
+
+    # Slide window
+    for i in range(n - k + 1):
         window = seq[i:i+k]
-        if hamming_distance(window, pattern) <= max_mismatches:
+        if dist_func(window, pattern) <= max_mismatches:
             return i
+
     return -1
 
 def extract_sequence(seq: str, up_seq: str, down_seq: str, max_mismatches: int) -> str:
@@ -103,12 +148,12 @@ def extract_sequence(seq: str, up_seq: str, down_seq: str, max_mismatches: int) 
     Returns:
         -- str: the extracted sequence or an error message if not found
     """
-    start_idx = match_approximate(seq, up_seq, max_mismatches)
+    start_idx = match_approximate(seq, up_seq, max_mismatches, "hamming")
     if start_idx == -1:
         return "upstream not found"
     start_idx += len(up_seq)
 
-    end_idx = match_approximate(seq[start_idx:], down_seq, max_mismatches)
+    end_idx = match_approximate(seq[start_idx:], down_seq, max_mismatches, "hamming")
     if end_idx == -1:
         return "downstream not found"
     end_idx += start_idx
