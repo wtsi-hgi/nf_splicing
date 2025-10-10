@@ -22,7 +22,7 @@ workflow create_splicing_counts {
 }
 
 process CLASSIFY_NOVEL_JUNCTIONS {
-    label 'process_single_dynamic_mem'
+    label 'process_single_dynamic_memory'
 
     memory {
         def file_size = novel_junctions.size()
@@ -53,7 +53,7 @@ process CLASSIFY_NOVEL_JUNCTIONS {
 }
 
 process CREATE_SPLICING_COUNTS {
-    label 'process_single_dynamic_mem'
+    label 'process_single_dynamic_memory'
 
     memory {
         def file_size = canonical_barcodes.size()

@@ -23,7 +23,7 @@ workflow generate_summary_report {
 }
 
 process CREATE_HTML_REPORT {
-    label 'process_single_dynamic_mem'
+    label 'process_single_dynamic_memory'
     
     memory {
         def file_size_1 = canonical_barcodes[0].size()
