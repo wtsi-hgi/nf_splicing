@@ -293,9 +293,9 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 
                     if list_barcode:
                         df_yield = pl.DataFrame(list_barcode)
-                        df_yield = df_yield.group_by(["read_ref", "var_id", "barcode", "ref_type"]).agg(pl.len().alias("count"))
+                        df_yield = df_yield.group_by(["read_ref", "barcode", "ref_type"]).agg(pl.len().alias("count"))
                     else:
-                        df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Int64})
+                        df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Int64})
 
                     # -- free memory -- #
                     read_chunk = []
@@ -336,9 +336,9 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 
                 if list_barcode:
                     df_yield = pl.DataFrame(list_barcode)
-                    df_yield = df_yield.group_by(["read_ref", "var_id", "barcode", "ref_type"]).agg(pl.len().alias("count"))
+                    df_yield = df_yield.group_by(["read_ref", "barcode", "ref_type"]).agg(pl.len().alias("count"))
                 else:
-                    df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Int64})
+                    df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Int64})
 
                 # -- free memory -- #
                 read_chunk = []
@@ -397,9 +397,9 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 
                     if list_barcode:
                         df_yield = pl.DataFrame(list_barcode)
-                        df_yield = df_yield.group_by(["read_ref", "var_id", "barcode", "ref_type"]).agg(pl.len().alias("count"))
+                        df_yield = df_yield.group_by(["read_ref", "barcode", "ref_type"]).agg(pl.len().alias("count"))
                     else:
-                        df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Int64})
+                        df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Int64})
 
                     # -- free memory -- #
                     read_chunk = []
@@ -442,9 +442,9 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                 
                 if list_barcode:
                     df_yield = pl.DataFrame(list_barcode)
-                    df_yield = df_yield.group_by(["read_ref", "var_id", "barcode", "ref_type"]).agg(pl.len().alias("count"))
+                    df_yield = df_yield.group_by(["read_ref", "barcode", "ref_type"]).agg(pl.len().alias("count"))
                 else:
-                    df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Int64})
+                    df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Int64})
 
                 # -- free memory -- #
                 read_chunk = []
@@ -542,6 +542,7 @@ if __name__ == "__main__":
     filtered_barcode_list = [df for df in barcode_list if df.height > 0]
     if filtered_barcode_list:
         df_barcode = pl.concat(filtered_barcode_list, how = "vertical")
+        df_barcode = df_barcode.join(df_bar_var, on = "barcode", how = "left")
         df_barcode_counts = ( df_barcode.group_by(["read_ref", "var_id", "barcode", "ref_type"])
                                         .agg(pl.sum("count").alias("count"))
                                         .select(["read_ref", "var_id", "barcode", "count", "ref_type"]) )
