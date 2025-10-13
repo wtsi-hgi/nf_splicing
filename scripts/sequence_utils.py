@@ -92,52 +92,6 @@ def reverse_complement(seq: str) -> str:
     complement = str.maketrans("ACGTacgt", "TGCAtgca")
     return seq.translate(complement)[::-1]
 
-# def hamming_distance(str1: str, str2: str) -> int:
-#     """
-#     Calculate the Hamming distance between two strings
-#     Parameters:
-#         -- str1: first string
-#         -- str2: second string
-#     Returns:
-#         -- int: the Hamming distance, or the maximum length if they differ in length
-#     """
-#     str1_bytes = str1.encode("ascii")
-#     str2_bytes = str2.encode("ascii")
-#     return sum(b1 != b2 for b1, b2 in zip(str1_bytes, str2_bytes))
-
-# def match_approximate(seq: str, pattern: str, max_mismatches: int, distance: str) -> int:
-#     """
-#     Find approximate match of pattern in seq allowing max_mismatches.
-#     Returns start index of match or -1 if not found.
-#     Parameters:
-#         -- seq: the sequence to search in
-#         -- pattern: the pattern to match
-#         -- max_mismatches: maximum number of mismatches allowed
-#     Returns:
-#         -- int: start index of the match or -1 if not found
-#     """
-#     k = len(pattern)
-#     n = len(seq)
-
-#     if k > n:
-#         return -1
-
-#     # Select distance function
-#     if distance == "hamming":
-#         dist_func = hamming_distance
-#     elif distance == "levenshtein":
-#         dist_func = Levenshtein.distance
-#     else:
-#         raise ValueError(f"Unknown distance metric: {distance}")
-
-#     # Slide window
-#     for i in range(n - k + 1):
-#         window = seq[i:i+k]
-#         if dist_func(window, pattern) <= max_mismatches:
-#             return i
-
-#     return -1
-
 def match_hamming_numpy(seq: str, pattern: str, max_mismatches: int) -> int:
     """
     Find approximate match of pattern in seq by hamming distance allowing max_mismatches
