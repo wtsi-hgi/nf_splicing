@@ -10,6 +10,7 @@ import polars as pl
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import islice
+from collections import Counter
 
 from sequence_utils import (
     pigz_open,
@@ -205,7 +206,7 @@ def process_se_reads_in_chunk(path_read, fh_fastq):
                 for i in range(0, len(read_chunk), batch_size)
             ]
 
-            list_barcode = []
+            barcode_counts = Counter()
             # executor.map() --> memeory may grow accumulatively
             # 1. creates all tasks upfront for the entire input list (read_batches)
             # 2. stores them all in an internal queue inside the Executor.
@@ -221,19 +222,26 @@ def process_se_reads_in_chunk(path_read, fh_fastq):
                     if read:
                         fh_fastq.write(f"{read[0]}\n{read[1]}\n+\n{read[2]}\n".encode("utf-8"))
                     elif dict_barcode:
-                        list_barcode.append(dict_barcode)
+                        key = (dict_barcode["read_ref"], 
+                               dict_barcode["var_id"],
+                               dict_barcode["barcode"], 
+                               dict_barcode["ref_type"])
+                        barcode_counts[key] += 1
                 # -- free memory -- #
                 del batch_result
                 gc.collect()
 
-            if list_barcode:
-                df_yield = pl.DataFrame(list_barcode)
-                df_yield = df_yield.group_by(["read_ref", "var_id", "barcode", "ref_type"]).agg(pl.len().alias("count"))
+            if barcode_counts:
+                df_yield = pl.DataFrame({"read_ref": [k[0] for k in barcode_counts.keys()],
+                                         "var_id":   [k[1] for k in barcode_counts.keys()],
+                                         "barcode":  [k[2] for k in barcode_counts.keys()],
+                                         "ref_type": [k[3] for k in barcode_counts.keys()],
+                                         "count":    [v for v in barcode_counts.values()]})
             else:
                 df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Int64})
 
             # -- free memory -- #
-            del read_chunk, read_batches, futures, list_barcode
+            del read_chunk, read_batches, futures, barcode_counts
             gc.collect()
 
             yield df_yield
@@ -267,7 +275,7 @@ def process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2):
                 for i in range(0, len(read_chunk), batch_size)
             ]
 
-            list_barcode = []
+            barcode_counts = Counter()
             # executor.map() --> memeory may grow accumulatively
             # 1. creates all tasks upfront for the entire input list (read_batches)
             # 2. stores them all in an internal queue inside the Executor.
@@ -284,19 +292,26 @@ def process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2):
                         fh_fastq_r1.write(f"{read1[0]}\n{read1[1]}\n+\n{read1[2]}\n".encode("utf-8"))
                         fh_fastq_r2.write(f"{read2[0]}\n{read2[1]}\n+\n{read2[2]}\n".encode("utf-8"))
                     elif dict_barcode:
-                        list_barcode.append(dict_barcode)
+                        key = (dict_barcode["read_ref"], 
+                               dict_barcode["var_id"],
+                               dict_barcode["barcode"], 
+                               dict_barcode["ref_type"])
+                        barcode_counts[key] += 1
                 # -- free memory -- #
                 del batch_result
                 gc.collect()
 
-            if list_barcode:
-                df_yield = pl.DataFrame(list_barcode)
-                df_yield = df_yield.group_by(["read_ref", "var_id", "barcode", "ref_type"]).agg(pl.len().alias("count"))
+            if barcode_counts:
+                df_yield = pl.DataFrame({"read_ref": [k[0] for k in barcode_counts.keys()],
+                                         "var_id":   [k[1] for k in barcode_counts.keys()],
+                                         "barcode":  [k[2] for k in barcode_counts.keys()],
+                                         "ref_type": [k[3] for k in barcode_counts.keys()],
+                                         "count":    [v for v in barcode_counts.values()]})
             else:
                 df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "ref_type": pl.Utf8, "count": pl.Int64})
 
             # -- free memory -- #
-            del read_chunk, read_batches, futures, list_barcode
+            del read_chunk, read_batches, futures, barcode_counts
             gc.collect()
 
             yield df_yield
@@ -390,7 +405,7 @@ if __name__ == "__main__":
         os.remove(barcode_out)
     
     # -- parallel processing -- #
-    barcode_list = []
+    list_results = []
     if args.read_type == 'se':
         pigz_proc = subprocess.Popen( ["pigz", "-c", "-p", str(args.threads)],
                                       stdin=subprocess.PIPE,
@@ -400,7 +415,7 @@ if __name__ == "__main__":
             for i, chunk_result in enumerate(process_se_reads_in_chunk(path_read, fh_fastq)):
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {args.chunk_size} reads", flush = True)                
                 if not chunk_result.is_empty():
-                    barcode_list.append(chunk_result)
+                    list_results.append(chunk_result)
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Finished.", flush = True)
         pigz_proc.wait()
     else:
@@ -415,16 +430,16 @@ if __name__ == "__main__":
             for i, chunk_result in enumerate(process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2)):
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {args.chunk_size} reads", flush = True)                
                 if not chunk_result.is_empty():
-                    barcode_list.append(chunk_result)
+                    list_results.append(chunk_result)
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Finished.", flush = True)
         pigz_proc1.wait()
         pigz_proc2.wait()
 
     # -- clean and format the extracted barcodes from reads -- #
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Generating barcode results, please wait...", flush = True)
-    filtered_barcode_list = [df for df in barcode_list if df.height > 0]
-    if filtered_barcode_list:
-        df_barcode = pl.concat(filtered_barcode_list, how = "vertical")
+    list_results_filtered = [df for df in list_results if df.height > 0]
+    if list_results_filtered:
+        df_barcode = pl.concat(list_results_filtered, how = "vertical")
         df_barcode_counts = ( df_barcode.group_by(["read_ref", "var_id", "barcode", "ref_type"])
                                         .agg(pl.sum("count").alias("count"))
                                         .select(["read_ref", "var_id", "barcode", "count", "ref_type"]) )

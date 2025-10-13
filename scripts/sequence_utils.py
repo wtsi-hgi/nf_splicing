@@ -1,4 +1,5 @@
 import re
+import numpy as np
 import subprocess
 import Levenshtein
 
@@ -91,23 +92,81 @@ def reverse_complement(seq: str) -> str:
     complement = str.maketrans("ACGTacgt", "TGCAtgca")
     return seq.translate(complement)[::-1]
 
-def hamming_distance(str1: str, str2: str) -> int:
+# def hamming_distance(str1: str, str2: str) -> int:
+#     """
+#     Calculate the Hamming distance between two strings
+#     Parameters:
+#         -- str1: first string
+#         -- str2: second string
+#     Returns:
+#         -- int: the Hamming distance, or the maximum length if they differ in length
+#     """
+#     str1_bytes = str1.encode("ascii")
+#     str2_bytes = str2.encode("ascii")
+#     return sum(b1 != b2 for b1, b2 in zip(str1_bytes, str2_bytes))
+
+# def match_approximate(seq: str, pattern: str, max_mismatches: int, distance: str) -> int:
+#     """
+#     Find approximate match of pattern in seq allowing max_mismatches.
+#     Returns start index of match or -1 if not found.
+#     Parameters:
+#         -- seq: the sequence to search in
+#         -- pattern: the pattern to match
+#         -- max_mismatches: maximum number of mismatches allowed
+#     Returns:
+#         -- int: start index of the match or -1 if not found
+#     """
+#     k = len(pattern)
+#     n = len(seq)
+
+#     if k > n:
+#         return -1
+
+#     # Select distance function
+#     if distance == "hamming":
+#         dist_func = hamming_distance
+#     elif distance == "levenshtein":
+#         dist_func = Levenshtein.distance
+#     else:
+#         raise ValueError(f"Unknown distance metric: {distance}")
+
+#     # Slide window
+#     for i in range(n - k + 1):
+#         window = seq[i:i+k]
+#         if dist_func(window, pattern) <= max_mismatches:
+#             return i
+
+#     return -1
+
+def match_hamming_numpy(seq: str, pattern: str, max_mismatches: int) -> int:
     """
-    Calculate the Hamming distance between two strings
+    Find approximate match of pattern in seq by hamming distance allowing max_mismatches
     Parameters:
-        -- str1: first string
-        -- str2: second string
+        -- seq: the target sequence
+        -- pattern: the pattern to match
     Returns:
         -- int: the Hamming distance, or the maximum length if they differ in length
     """
-    if len(str1) != len(str2):
-        return max(len(str1), len(str2))
-    return sum(c1 != c2 for c1, c2 in zip(str1, str2))
+    k = len(pattern)
+    n = len(seq)
+    if k > n:
+        return -1
 
-def match_approximate(seq: str, pattern: str, max_mismatches: int, distance: str) -> int:
+    # convert the sequence to np.uint8 arrays of ASCII codes
+    seq_arr = np.frombuffer(seq.encode("ascii"), dtype = np.uint8)
+    pat_arr = np.frombuffer(pattern.encode("ascii"), dtype = np.uint8)
+
+    # sliding window: create a 2D view of seq_arr of shape (n-k+1, k)
+    windows = np.lib.stride_tricks.sliding_window_view(seq_arr, window_shape = k)
+
+    # calculate hamming distances vectorized
+    mismatches = np.sum(windows != pat_arr, axis = 1)
+    matches = np.where(mismatches <= max_mismatches)[0]
+    return int(matches[0]) if matches.size > 0 else -1
+
+def match_levenshtein(seq: str, pattern: str, max_mismatches: int) -> int:
     """
-    Find approximate match of pattern in seq allowing max_mismatches.
-    Returns start index of match or -1 if not found.
+    Find approximate match of pattern in seq by levenshtein distance allowing max_mismatches
     Parameters:
         -- seq: the sequence to search in
         -- pattern: the pattern to match
@@ -117,25 +176,31 @@ def match_approximate(seq: str, pattern: str, max_mismatches: int, distance: str
     """
     k = len(pattern)
     n = len(seq)
-
     if k > n:
         return -1
 
-    # Select distance function
-    if distance == "hamming":
-        dist_func = hamming_distance
-    elif distance == "levenshtein":
-        dist_func = Levenshtein.distance
-    else:
-        raise ValueError(f"Unknown distance metric: {distance}")
-
-    # Slide window
     for i in range(n - k + 1):
         window = seq[i:i+k]
-        if dist_func(window, pattern) <= max_mismatches:
+        if Levenshtein.distance(window, pattern) <= max_mismatches:
             return i
-
     return -1
+
+def match_approximate(seq: str, pattern: str, max_mismatches: int, distance: str) -> int:
+    """
+    Hybrid approximate match supporting Hamming and Levenshtein
+    Parameters:
+        -- seq: the sequence to search in
+        -- pattern: the pattern to match
+        -- max_mismatches: maximum number of mismatches allowed
+    Returns:
+        -- int: start index of the match or -1 if not found
+    """
+    if distance == "hamming":
+        return match_hamming_numpy(seq, pattern, max_mismatches)
+    elif distance == "levenshtein":
+        return match_levenshtein(seq, pattern, max_mismatches)
+    else:
+        raise ValueError(f"Unknown distance metric: {distance}")
 
 def extract_sequence(seq: str, up_seq: str, down_seq: str, max_mismatches: int) -> str:
     """
