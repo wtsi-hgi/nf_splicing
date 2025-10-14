@@ -7,27 +7,26 @@ workflow detect_novel_se {
     ch_align_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, se_reads, ref_fasta -> 
                                         tuple(sample_id, se_reads, ref_fasta) }
     HISAT2_ALIGN_SE_READS(ch_align_input)
-    ch_hisat2_se_summary = HISAT2_ALIGN_SE_READS.out.ch_hisat2_se_summary
-    ch_hisat2_se_unmapped = HISAT2_ALIGN_SE_READS.out.ch_hisat2_se_unmapped
-    ch_hisat2_se_bam = HISAT2_ALIGN_SE_READS.out.ch_hisat2_se_bam
+    ch_se_unique_bam = HISAT2_ALIGN_SE_READS.out.ch_se_unique_bam
+    ch_se_novel_stats = HISAT2_ALIGN_SE_READS.out.ch_se_novel_stats
 
     /* -- 2. fix alignments -- */
     ch_fix_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, se_reads, ref_fasta -> 
                                         tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, ref_fasta) }
-                            .join(ch_hisat2_se_bam)
+                            .join(ch_se_unique_bam)
     FIX_SE_READS(ch_fix_input)
-    ch_hisat2_se_barcodes = FIX_SE_READS.out.ch_hisat2_se_barcodes
-    ch_hisat2_se_fixed = FIX_SE_READS.out.ch_hisat2_se_fixed
-    
+    ch_se_fixed_bam = FIX_SE_READS.out.ch_se_fixed_bam
+    ch_se_novel_barcodes = FIX_SE_READS.out.ch_se_novel_barcodes
+
     /* -- 3. extract junctions -- */
-    EXTRACT_SE_JUNCTIONS(ch_hisat2_se_fixed)
+    EXTRACT_SE_JUNCTIONS(ch_se_fixed_bam)
     ch_se_junctions = EXTRACT_SE_JUNCTIONS.out.ch_se_junctions
 
     emit:
-    ch_hisat2_se_summary
-    ch_hisat2_se_barcodes
-    ch_hisat2_se_fixed
+    ch_se_fixed_bam
+    ch_se_novel_barcodes
     ch_se_junctions
+    ch_se_novel_stats
 }
 
 process HISAT2_ALIGN_SE_READS {
@@ -37,9 +36,9 @@ process HISAT2_ALIGN_SE_READS {
     tuple val(sample_id), path(se_reads), path(ref_fasta)
 
     output:
-    tuple val(sample_id), path("${sample_id}.map_se.summary.tsv"), emit: ch_hisat2_se_summary
-    tuple val(sample_id), path("${sample_id}.map_se.unmapped.fastq.gz"), emit: ch_hisat2_se_unmapped
-    tuple val(sample_id), path("${sample_id}.map_se.unique.bam"), emit: ch_hisat2_se_bam
+    tuple val(sample_id), path("${sample_id}.hisat2_se.unique.bam"), emit: ch_se_unique_bam
+    tuple val(sample_id), path("${sample_id}.hisat2_se.unmapped.fastq.gz"), emit: ch_se_unmapped
+    tuple val(sample_id), path("${sample_id}.hisat2_se.novel_stats.tsv"), emit: ch_se_novel_stats
 
     script:
     """
@@ -51,29 +50,29 @@ process HISAT2_ALIGN_SE_READS {
            --sp ${params.hisat2_sp} \
            --np ${params.hisat2_np} \
            --pen-noncansplice ${params.hisat2_pen_noncansplice} \
-           --summary-file ${sample_id}.map_se.summary.tsv \
+           --summary-file ${sample_id}.hisat2_se.novel_stats.tsv \
            --new-summary \
            --threads 32 \
-           -S ${sample_id}.map_se.sam
-    samtools fastq -@ 32 -f 4 -c 9 -0 ${sample_id}.map_se.unmapped.fastq.gz ${sample_id}.map_se.sam
-    awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==0)||(\$2==16)){print \$0}}' ${sample_id}.map_se.sam | grep "NH:i:1\\|^@" | samtools view -b - > ${sample_id}.map_se.unique.bam
-    rm ${sample_id}.map_se.sam
+           -S ${sample_id}.hisat2_se.sam
+    samtools fastq -@ 32 -f 4 -c 9 -0 ${sample_id}.hisat2_se.unmapped.fastq.gz ${sample_id}.hisat2_se.sam
+    awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==0)||(\$2==16)){print \$0}}' ${sample_id}.hisat2_se.sam | grep "NH:i:1\\|^@" | samtools view -b - > ${sample_id}.hisat2_se.unique.bam
+    rm ${sample_id}.hisat2_se.sam
     """
 }
 
 process FIX_SE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.barcodes.tsv", mode: "copy", overwrite: true
     publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.bam*", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.novel_barcodes.tsv", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(ref_fasta), path(bam)
 
     output:
-    tuple val(sample_id), path("${sample_id}.map_se.barcodes.tsv"), emit: ch_hisat2_se_barcodes
-    tuple val(sample_id), path("${sample_id}.map_se.fixed.sorted.bam"), path("${sample_id}.map_se.fixed.sorted.bam.bai"), emit: ch_hisat2_se_fixed 
-  
+    tuple val(sample_id), path("${sample_id}.hisat2_se.fixed.sorted.bam"), path("${sample_id}.hisat2_se.fixed.sorted.bam.bai"), emit: ch_se_fixed_bam 
+    tuple val(sample_id), path("${sample_id}.hisat2_se.novel_barcodes.tsv"), emit: ch_se_novel_barcodes
+
     script:
     def do_spliced_products = params.do_spliced_products ? '--spliced' : ''
 
@@ -88,13 +87,13 @@ process FIX_SE_READS {
                                                       --barcode_check \
                                                       --barcode_temp ${barcode_temp} \
                                                       ${do_spliced_products} \
-                                                      --output_prefix ${sample_id}.map_se \
+                                                      --output_prefix ${sample_id}.hisat2_se \
                                                       --chunk_size 100000 \
                                                       --threads 40
-    samtools sort -@ 64 -o ${sample_id}.map_se.fixed.sorted.bam ${sample_id}.map_se.fixed.bam
-    samtools index -@ 64 ${sample_id}.map_se.fixed.sorted.bam
-    bamtools stats -in ${sample_id}.map_se.fixed.sorted.bam > ${sample_id}.map_se.fixed.tsv
-    rm ${sample_id}.map_se.fixed.bam    
+    samtools sort -@ 64 -o ${sample_id}.hisat2_se.fixed.sorted.bam ${sample_id}.hisat2_se.fixed.bam
+    samtools index -@ 64 ${sample_id}.hisat2_se.fixed.sorted.bam
+    bamtools stats -in ${sample_id}.hisat2_se.fixed.sorted.bam > ${sample_id}.hisat2_se.fixed.tsv
+    rm ${sample_id}.hisat2_se.fixed.bam
     """
 }
 
@@ -107,10 +106,10 @@ process EXTRACT_SE_JUNCTIONS {
     tuple val(sample_id), path(bam), path(bai)
 
     output:
-    tuple val(sample_id), path("${sample_id}.map_se.junctions.bed"), emit: ch_se_junctions
+    tuple val(sample_id), path("${sample_id}.hisat2_se.junctions.bed"), emit: ch_se_junctions
 
     script:
     """
-    regtools junctions extract -s RF -a ${params.regtools_min_anchor} -m ${params.regtools_min_intron} -o ${sample_id}.map_se.junctions.bed ${bam}
+    regtools junctions extract -s RF -a ${params.regtools_min_anchor} -m ${params.regtools_min_intron} -o ${sample_id}.hisat2_se.junctions.bed ${bam}
     """
 }

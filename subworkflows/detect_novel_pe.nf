@@ -6,28 +6,28 @@ workflow detect_novel_pe {
     /* -- 1. align reads -- */
     ch_align_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, read1, read2, ref_fasta -> 
                                         tuple(sample_id, read1, read2, ref_fasta) }
-    HISAT2_ALIGN_PE_READS(ch_align_input)                                    
-    ch_hisat2_pe_summary = HISAT2_ALIGN_PE_READS.out.ch_hisat2_pe_summary
-    ch_hisat2_pe_unmapped = HISAT2_ALIGN_PE_READS.out.ch_hisat2_pe_unmapped
-    ch_hisat2_pe_bam = HISAT2_ALIGN_PE_READS.out.ch_hisat2_pe_bam
+    HISAT2_ALIGN_PE_READS(ch_align_input)
+    ch_pe_unique_bam = HISAT2_ALIGN_PE_READS.out.ch_pe_unique_bam                               
+    ch_pe_novel_stats = HISAT2_ALIGN_PE_READS.out.ch_pe_novel_stats
+
 
     /* -- 2. fix alignments -- */
     ch_fix_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, read1, read2, ref_fasta -> 
                                         tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, ref_fasta) }
-                            .join(ch_hisat2_pe_bam)
+                            .join(ch_pe_unique_bam)
     FIX_PE_READS(ch_fix_input)
-    ch_hisat2_pe_barcodes = FIX_PE_READS.out.ch_hisat2_pe_barcodes
-    ch_hisat2_pe_fixed = FIX_PE_READS.out.ch_hisat2_pe_fixed
+    ch_pe_fixed_bam = FIX_PE_READS.out.ch_pe_fixed_bam
+    ch_pe_novel_barcodes = FIX_PE_READS.out.ch_pe_novel_barcodes
     
     /* -- 3. extract junctions -- */
-    EXTRACT_PE_JUNCTIONS(ch_hisat2_pe_fixed)
+    EXTRACT_PE_JUNCTIONS(ch_pe_fixed_bam)
     ch_pe_junctions = EXTRACT_PE_JUNCTIONS.out.ch_pe_junctions
 
     emit:
-    ch_hisat2_pe_summary
-    ch_hisat2_pe_barcodes
-    ch_hisat2_pe_fixed
+    ch_pe_fixed_bam
+    ch_pe_novel_barcodes
     ch_pe_junctions
+    ch_pe_novel_stats
 }
 
 process HISAT2_ALIGN_PE_READS {
@@ -37,9 +37,9 @@ process HISAT2_ALIGN_PE_READS {
     tuple val(sample_id), path(read1), path(read2), path(ref_fasta)
 
     output:
-    tuple val(sample_id), path("${sample_id}.map_pe.summary.tsv"), emit: ch_hisat2_pe_summary
-    tuple val(sample_id), path("${sample_id}.map_pe.unmapped.R1.fastq.gz"), path("${sample_id}.map_pe.unmapped.R2.fastq.gz"), emit: ch_hisat2_pe_unmapped
-    tuple val(sample_id), path("${sample_id}.map_pe.unique.bam"), emit: ch_hisat2_pe_bam
+    tuple val(sample_id), path("${sample_id}.hisat2_pe.unique.bam"), emit: ch_pe_unique_bam
+    tuple val(sample_id), path("${sample_id}.hisat2_pe.unmapped.R1.fastq.gz"), path("${sample_id}.hisat2_pe.unmapped.R2.fastq.gz"), emit: ch_pe_unmapped
+    tuple val(sample_id), path("${sample_id}.hisat2_pe.novel_stats.tsv"), emit: ch_pe_novel_stats
 
     script:
     """
@@ -51,29 +51,29 @@ process HISAT2_ALIGN_PE_READS {
            --sp ${params.hisat2_sp} \
            --np ${params.hisat2_np} \
            --pen-noncansplice ${params.hisat2_pen_noncansplice} \
-           --summary-file ${sample_id}.map_pe.summary.tsv \
+           --summary-file ${sample_id}.hisat2_pe.novel_stats.tsv \
            --new-summary \
            --threads 32 \
-           -S ${sample_id}.map_pe.sam
-    samtools fastq -@ 32 -F 2 -c 9 -1 ${sample_id}.map_pe.unmapped.R1.fastq.gz -2 ${sample_id}.map_pe.unmapped.R2.fastq.gz -n ${sample_id}.map_pe.sam
-    awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==99)||(\$2==147)||(\$2==83)||(\$2==163)){print \$0}}' ${sample_id}.map_pe.sam | grep "NH:i:1\\|^@" | samtools view -b - > ${sample_id}.map_pe.unique.bam
-    rm ${sample_id}.map_pe.sam
+           -S ${sample_id}.hisat2_pe.sam
+    samtools fastq -@ 32 -F 2 -c 9 -1 ${sample_id}.hisat2_pe.unmapped.R1.fastq.gz -2 ${sample_id}.hisat2_pe.unmapped.R2.fastq.gz -n ${sample_id}.hisat2_pe.sam
+    awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==99)||(\$2==147)||(\$2==83)||(\$2==163)){print \$0}}' ${sample_id}.hisat2_pe.sam | grep "NH:i:1\\|^@" | samtools view -b - > ${sample_id}.hisat2_pe.unique.bam
+    rm ${sample_id}.hisat2_pe.sam
     """
 }
 
 process FIX_PE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.barcodes.tsv", mode: "copy", overwrite: true
     publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.bam*", mode: "copy", overwrite: true
-
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.novel_barcodes.tsv", mode: "copy", overwrite: true
+ 
     input:
     tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(ref_fasta), path(bam)
 
     output:
-    tuple val(sample_id), path("${sample_id}.map_pe.barcodes.tsv"), emit: ch_hisat2_pe_barcodes
-    tuple val(sample_id), path("${sample_id}.map_pe.fixed.sorted.bam"), path("${sample_id}.map_pe.fixed.sorted.bam.bai"), emit: ch_hisat2_pe_fixed 
-  
+    tuple val(sample_id), path("${sample_id}.hisat2_pe.fixed.sorted.bam"), path("${sample_id}.hisat2_pe.fixed.sorted.bam.bai"), emit: ch_pe_fixed_bam 
+    tuple val(sample_id), path("${sample_id}.hisat2_pe.novel_barcodes.tsv"), emit: ch_pe_novel_barcodes
+
     script:
     def do_spliced_products = params.do_spliced_products ? '--spliced' : ''
 
@@ -88,13 +88,13 @@ process FIX_PE_READS {
                                                       --barcode_check \
                                                       --barcode_temp ${barcode_temp} \
                                                       ${do_spliced_products} \
-                                                      --output_prefix ${sample_id}.map_pe \
+                                                      --output_prefix ${sample_id}.hisat2_pe \
                                                       --chunk_size 100000 \
                                                       --threads 40
-    samtools sort -@ 64 -o ${sample_id}.map_pe.fixed.sorted.bam ${sample_id}.map_pe.fixed.bam
-    samtools index -@ 64 ${sample_id}.map_pe.fixed.sorted.bam
-    bamtools stats -in ${sample_id}.map_pe.fixed.sorted.bam > ${sample_id}.map_pe.fixed.tsv
-    rm ${sample_id}.map_pe.fixed.bam    
+    samtools sort -@ 64 -o ${sample_id}.hisat2_pe.fixed.sorted.bam ${sample_id}.hisat2_pe.fixed.bam
+    samtools index -@ 64 ${sample_id}.hisat2_pe.fixed.sorted.bam
+    bamtools stats -in ${sample_id}.hisat2_pe.fixed.sorted.bam > ${sample_id}.hisat2_pe.fixed.tsv
+    rm ${sample_id}.hisat2_pe.fixed.bam    
     """
 }
 
@@ -107,10 +107,10 @@ process EXTRACT_PE_JUNCTIONS {
     tuple val(sample_id), path(bam), path(bai)
 
     output:
-    tuple val(sample_id), path("${sample_id}.map_pe.junctions.bed"), emit: ch_pe_junctions
+    tuple val(sample_id), path("${sample_id}.hisat2_pe.junctions.bed"), emit: ch_pe_junctions
 
     script:
     """
-    regtools junctions extract -s RF -a ${params.regtools_min_anchor} -m ${params.regtools_min_intron} -o ${sample_id}.map_pe.junctions.bed ${bam}
+    regtools junctions extract -s RF -a ${params.regtools_min_anchor} -m ${params.regtools_min_intron} -o ${sample_id}.hisat2_pe.junctions.bed ${bam}
     """
 }
