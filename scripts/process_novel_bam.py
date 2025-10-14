@@ -425,7 +425,7 @@ if __name__ == "__main__":
     if os.path.exists(fixed_bam):
         os.remove(fixed_bam)
 
-    barcode_out = f"{output_prefix}.barcodes.tsv"
+    barcode_out = f"{output_prefix}.novel_barcodes.tsv"
     if os.path.exists(barcode_out):
         os.remove(barcode_out)
 
