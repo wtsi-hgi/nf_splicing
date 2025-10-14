@@ -3,18 +3,26 @@ import os
 import sys
 import argparse
 import re
+import gc
 import pysam
 import csv
 import pandas as pd
 import polars as pl
 from Bio import SeqIO
 from datetime import datetime
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections import Counter
 from collections import defaultdict
 from sequence_utils import reverse_complement, extract_sequence, check_barcode
 
 #-- functions --#
+def init_worker():
+    """
+    Initilize worker
+    """
+    global global_dict_bar_var
+    global_dict_bar_var = dict_bar_var
+
 def extract_read_info(read: pysam.AlignedSegment) -> dict:
     """
     Parse pysam read object to extract relevant information.
@@ -68,9 +76,9 @@ def process_se_read(read: dict) -> list:
                 var_id = None
             else:
                 barcode_seq = check_res
-                var_id = dict_bar_var.get(barcode_seq, None)
+                var_id = global_dict_bar_var.get(barcode_seq, None)
         else:
-            var_id = dict_bar_var.get(barcode_seq, None)
+            var_id = global_dict_bar_var.get(barcode_seq, None)
 
     if var_id is not None:
         read['rname'] = var_id
@@ -93,20 +101,20 @@ def process_se_read(read: dict) -> list:
             elif op in (1, 4, 5): # I, S, H
                 continue
 
-        dict_readout = { 
+        dict_barcode = { 
             'read_ref': read_ref,
             'var_id': var_id,
             'barcode': barcode_seq,
             'spliced_sequence': ''.join(read_spliced_list) if read_spliced_list else None
         }
     else:
-        dict_readout = { 
+        dict_barcode = { 
             'read_ref': read_ref,
             'var_id': var_id,
             'barcode': barcode_seq
         }
 
-    return read, dict_readout
+    return read, dict_barcode
 
 def process_pe_read(read_pair: tuple) -> list:
     """
@@ -137,9 +145,9 @@ def process_pe_read(read_pair: tuple) -> list:
                 var_id = None
             else:
                 barcode_seq = check_res
-                var_id = dict_bar_var.get(barcode_seq, None)
+                var_id = global_dict_bar_var.get(barcode_seq, None)
         else:
-            var_id = dict_bar_var.get(barcode_seq, None)
+            var_id = global_dict_bar_var.get(barcode_seq, None)
 
     if var_id is not None:
         read1['rname'] = var_id
@@ -184,20 +192,20 @@ def process_pe_read(read_pair: tuple) -> list:
             pe_gap_seq = ''
         spliced_sequence = ''.join(read1_spliced_list) + pe_gap_seq + ''.join(read2_spliced_list)
 
-        dict_readout = { 
+        dict_barcode = { 
             'read_ref': read1_ref,
             'var_id': var_id,
             'barcode': barcode_seq,
             'spliced_sequence': spliced_sequence if spliced_sequence else None
         }
     else:
-        dict_readout = { 
+        dict_barcode = { 
             'read_ref': read1_ref,
             'var_id': var_id,
             'barcode': barcode_seq
         }
 
-    return read1, read2, dict_readout
+    return read1, read2, dict_barcode
     
 def batch_process_se_reads(batch_reads: list) -> list:
     """
@@ -275,7 +283,7 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
         Generator yielding processed reads.
     """
     with pysam.AlignmentFile(bam_file, "rb", threads = threads) as bam_handle, \
-        ProcessPoolExecutor(max_workers=threads) as executor, \
+        ProcessPoolExecutor(max_workers = threads, initializer = init_worker) as executor, \
         pysam.AlignmentFile(fixed_bam, "wb", header = bam_file_header) as fixed_fh:
     
         batch_size = min(chunk_size, 5000)
@@ -292,16 +300,45 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                         for i in range(0, len(read_chunk), batch_size)
                     ]
 
-                    args_list = [ batch for batch in read_batches]
-                    batch_results = list(executor.map(function_processpool_se, args_list))
+                    list_barcodes = []
+                    # executor.map() --> memeory may grow accumulatively
+                    # 1. creates all tasks upfront for the entire input list (read_batches)
+                    # 2. stores them all in an internal queue inside the Executor.
+                    # 3. waits for results in order — not as they finish.
+                    # 
+                    # as_completed()
+                    # 1. Yields each Future as soon as it finishes, regardless of submission order
+                    # 2. You can process and discard the result immediately.
+                    futures = [ executor.submit(function_processpool_se, batch) for batch in read_batches ]
+                    for future in as_completed(futures):
+                        batch_result = future.result()
+                        for fixed_read, read_barcode in batch_result:
+                            if fixed_read:
+                                fixed_fh.write(dict_to_segment(fixed_read))
+                            if read_barcode:
+                                list_barcodes.append(read_barcode)
+                        # -- free memory -- #
+                        del batch_result
+                        gc.collect()
 
-                    flat_results = [item for batch in batch_results for item in batch]
-
+                    if list_barcodes:
+                        df_yield = pl.DataFrame(list_barcodes)
+                        if args.spliced:
+                            df_yield = df_yield.group_by(["read_ref", "var_id", "barcode", "spliced_sequence"]).agg(pl.len().alias("count"))
+                        else:
+                            df_yield = df_yield.group_by(["read_ref", "var_id", "barcode"]).agg(pl.len().alias("count"))
+                    else:
+                        if args.spliced:
+                            df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "spliced_sequence": pl.Utf8, "count": pl.Int64})
+                        else:
+                            df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "count": pl.Int64})
+                        
+                    # -- free memory -- #
                     read_chunk = []
-                    fixed_reads, out_barcodes = zip(*flat_results)
-                    for dict_read in fixed_reads:
-                        fixed_fh.write(dict_to_segment(dict_read))
-                    yield pl.DataFrame(out_barcodes, schema = {"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8})
+                    del read_batches, list_barcodes
+                    gc.collect()
+                    
+                    yield df_yield
 
             # process any remaining reads after file ends
             if read_chunk:
@@ -310,16 +347,45 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                     for i in range(0, len(read_chunk), batch_size)
                 ]
 
-                args_list = [ batch for batch in read_batches]
-                batch_results = list(executor.map(function_processpool_se, args_list))
+                list_barcodes = []
+                # executor.map() --> memeory may grow accumulatively
+                # 1. creates all tasks upfront for the entire input list (read_batches)
+                # 2. stores them all in an internal queue inside the Executor.
+                # 3. waits for results in order — not as they finish.
+                # 
+                # as_completed()
+                # 1. Yields each Future as soon as it finishes, regardless of submission order
+                # 2. You can process and discard the result immediately.
+                futures = [ executor.submit(function_processpool_se, batch) for batch in read_batches ]
+                for future in as_completed(futures):
+                    batch_result = future.result()
+                    for fixed_read, read_barcode in batch_result:
+                        if fixed_read:
+                            fixed_fh.write(dict_to_segment(fixed_read))
+                        if read_barcode:
+                            list_barcodes.append(read_barcode)
+                    # -- free memory -- #
+                    del batch_result
+                    gc.collect()
 
-                flat_results = [item for batch in batch_results for item in batch]
-
+                if list_barcodes:
+                    df_yield = pl.DataFrame(list_barcodes)
+                    if args.spliced:
+                        df_yield = df_yield.group_by(["read_ref", "var_id", "barcode", "spliced_sequence"]).agg(pl.len().alias("count"))
+                    else:
+                        df_yield = df_yield.group_by(["read_ref", "var_id", "barcode"]).agg(pl.len().alias("count"))
+                else:
+                    if args.spliced:
+                        df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "spliced_sequence": pl.Utf8, "count": pl.Int64})
+                    else:
+                        df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "count": pl.Int64})
+                        
+                # -- free memory -- #
                 read_chunk = []
-                fixed_reads, out_barcodes = zip(*flat_results)
-                for dict_read in fixed_reads:
-                    fixed_fh.write(dict_to_segment(dict_read))
-                yield pl.DataFrame(out_barcodes, schema = {"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8})
+                del read_batches, list_barcodes
+                gc.collect()
+                    
+                yield df_yield
                 
         # process paired-end reads
         else:
@@ -345,17 +411,46 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                         for i in range(0, len(read_chunk), batch_size)
                     ]
 
-                    args_list = [ batch for batch in read_batches]
-                    batch_results = list(executor.map(function_processpool_pe, args_list))
+                    list_barcodes = []
+                    # executor.map() --> memeory may grow accumulatively
+                    # 1. creates all tasks upfront for the entire input list (read_batches)
+                    # 2. stores them all in an internal queue inside the Executor.
+                    # 3. waits for results in order — not as they finish.
+                    # 
+                    # as_completed()
+                    # 1. Yields each Future as soon as it finishes, regardless of submission order
+                    # 2. You can process and discard the result immediately.
+                    futures = [ executor.submit(function_processpool_pe, batch) for batch in read_batches ]
+                    for future in as_completed(futures):
+                        batch_result = future.result()
+                        for fixed_reads_r1, fixed_reads_r2, read_barcode in batch_result:
+                            if fixed_read:
+                                fixed_fh.write(dict_to_segment(fixed_reads_r1))
+                                fixed_fh.write(dict_to_segment(fixed_reads_r2))
+                            if read_barcode:
+                                list_barcodes.append(read_barcode)
+                        # -- free memory -- #
+                        del batch_result
+                        gc.collect()
 
-                    flat_results = [item for batch in batch_results for item in batch]
-                    
+                    if list_barcodes:
+                        df_yield = pl.DataFrame(list_barcodes)
+                        if args.spliced:
+                            df_yield = df_yield.group_by(["read_ref", "var_id", "barcode", "spliced_sequence"]).agg(pl.len().alias("count"))
+                        else:
+                            df_yield = df_yield.group_by(["read_ref", "var_id", "barcode"]).agg(pl.len().alias("count"))
+                    else:
+                        if args.spliced:
+                            df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "spliced_sequence": pl.Utf8, "count": pl.Int64})
+                        else:
+                            df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "count": pl.Int64})
+                        
+                    # -- free memory -- #
                     read_chunk = []
-                    fixed_reads_r1, fixed_reads_r2, out_barcodes = zip(*flat_results)
-                    for dict_read1, dict_read2 in zip(fixed_reads_r1, fixed_reads_r2):
-                        fixed_fh.write(dict_to_segment(dict_read1))
-                        fixed_fh.write(dict_to_segment(dict_read2))
-                    yield pl.DataFrame(out_barcodes, schema = {"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8})
+                    del read_batches, list_barcodes
+                    gc.collect()
+                    
+                    yield df_yield
             
             # process any remaining reads after file ends
             if read_chunk:
@@ -364,17 +459,46 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
                     for i in range(0, len(read_chunk), batch_size)
                 ]
 
-                args_list = [ batch for batch in read_batches]
-                batch_results = list(executor.map(function_processpool_pe, args_list))
+                list_barcodes = []
+                # executor.map() --> memeory may grow accumulatively
+                # 1. creates all tasks upfront for the entire input list (read_batches)
+                # 2. stores them all in an internal queue inside the Executor.
+                # 3. waits for results in order — not as they finish.
+                # 
+                # as_completed()
+                # 1. Yields each Future as soon as it finishes, regardless of submission order
+                # 2. You can process and discard the result immediately.
+                futures = [ executor.submit(function_processpool_pe, batch) for batch in read_batches ]
+                for future in as_completed(futures):
+                    batch_result = future.result()
+                    for fixed_reads_r1, fixed_reads_r2, read_barcode in batch_result:
+                        if fixed_read:
+                            fixed_fh.write(dict_to_segment(fixed_reads_r1))
+                            fixed_fh.write(dict_to_segment(fixed_reads_r2))
+                        if read_barcode:
+                            list_barcodes.append(read_barcode)
+                    # -- free memory -- #
+                    del batch_result
+                    gc.collect()
 
-                flat_results = [item for batch in batch_results for item in batch]
-
+                if list_barcodes:
+                    df_yield = pl.DataFrame(list_barcodes)
+                    if args.spliced:
+                        df_yield = df_yield.group_by(["read_ref", "var_id", "barcode", "spliced_sequence"]).agg(pl.len().alias("count"))
+                    else:
+                        df_yield = df_yield.group_by(["read_ref", "var_id", "barcode"]).agg(pl.len().alias("count"))
+                else:
+                    if args.spliced:
+                        df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "spliced_sequence": pl.Utf8, "count": pl.Int64})
+                    else:
+                        df_yield = pl.DataFrame(schema={"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8, "count": pl.Int64})
+                        
+                # -- free memory -- #
                 read_chunk = []
-                fixed_reads_r1, fixed_reads_r2, out_barcodes = zip(*flat_results)
-                for dict_read1, dict_read2 in zip(fixed_reads_r1, fixed_reads_r2):
-                    fixed_fh.write(dict_to_segment(dict_read1))
-                    fixed_fh.write(dict_to_segment(dict_read2))
-                yield pl.DataFrame(out_barcodes, schema = {"read_ref": pl.Utf8, "var_id": pl.Utf8, "barcode": pl.Utf8})
+                del read_batches, list_barcodes
+                gc.collect()
+                    
+                yield df_yield
 
 #-- main execution --#
 if __name__ == "__main__":
@@ -430,7 +554,7 @@ if __name__ == "__main__":
         os.remove(barcode_out)
 
     # -- parallel processing -- #
-    list_result = []
+    list_results = []
     bam_file = pysam.AlignmentFile(args.bam_file, "rb")
 
     # !!!important: make sure each variant has a reference sequence
@@ -453,18 +577,25 @@ if __name__ == "__main__":
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing bam file, please wait...", flush = True)
     for i, chunk_result in enumerate(read_bam_in_chunk(args.bam_file, args.read_type, args.chunk_size, args.threads)):
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {len(chunk_result)} reads", flush = True)
-        list_result.append(chunk_result)
+        list_results.append(chunk_result)    
+        # -- free memory -- #
+        del chunk_result
+        gc.collect()
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Finished.", flush = True)    
 
-    list_result_filtered = [df for df in list_result if df.shape[1] > 0]
-    if list_result_filtered:
-        df_result = pl.concat(list_result_filtered, how = "vertical")
+    # -- clean and format the extracted barcodes from reads -- #
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Generating barcode results, please wait...", flush = True)
+    list_results_filtered = [df for df in list_results if df.height > 0]
+    if list_results_filtered:
+        df_barcode = pl.concat(list_results_filtered, how = "vertical")
         if args.spliced:
-            df_result_count = df_result.group_by(["read_ref", "var_id", "barcode", "spliced_sequence"]).agg(pl.count().alias("count"))
-            df_result_count.write_csv(barcode_out, separator = "\t", null_value = "NA")
+            df_barcode_counts = df_barcode.group_by(["read_ref", "var_id", "barcode", "spliced_sequence"]).agg(pl.sum("count").alias("count"))
         else:
-            df_result_count = df_result.group_by(["read_ref", "var_id", "barcode"]).agg(pl.count().alias("count"))
-            df_result_count.write_csv(barcode_out, separator = "\t", null_value = "NA")
+            df_barcode_counts = df_barcode.group_by(["read_ref", "var_id", "barcode"]).agg(pl.sum("count").alias("count"))
+        df_barcode_counts.write_csv(barcode_out, separator = "\t", null_value = "NA")
     else:
         with open(barcode_out, "w") as f:
-            f.write("no results, please check the input files and script options!\n")
+            f.write("no barcode found in the reads, please check your barcode marker or template!\n")
+
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Done.", flush = True)
+
