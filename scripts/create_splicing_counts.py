@@ -64,6 +64,10 @@ if __name__ == "__main__":
                                        .group_by(["var_id", "ref_type"])
                                        .agg(pl.col("count").sum()))
     df_canonical_pivot = df_canonical_format.pivot(values = "count", index = "var_id", on = "ref_type").fill_null(0)
+    # checking canonical splicing exists
+    for col in ["exon_inclusion", "exon_skipping"]:
+        if col not in df_canonical_pivot.columns:
+            df_canonical_pivot = df_canonical_pivot.with_columns(pl.lit(0).alias(col))
     df_canonical_pivot = df_canonical_pivot.rename({"exon_inclusion": "canonical_inclusion", "exon_skipping": "canonical_skipping"})
 
     df_novel_format = (df_novel.select(["chrom", "coverage", "annotation"])
@@ -82,11 +86,6 @@ if __name__ == "__main__":
 
     # -- integrate the counts -- #
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Integrating counts, please wait...", flush = True)
-    # df_bar_var = df_bar_var.unique(subset=["var_id"])
-    # df_bar_var = (df_bar_var.with_columns(pl.col("var_id").str.extract(r"(\d+)").cast(pl.Int64).alias("var_num"))
-    #                         .sort("var_num")
-    #                         .drop("var_num"))
-
     df_bar_var = df_bar_var.unique(subset = ["var_id"], keep = "first", maintain_order = True).sort("var_id")
     
     df_integrated = (df_bar_var.join(df_canonical_pivot, on = "var_id", how = "left")
