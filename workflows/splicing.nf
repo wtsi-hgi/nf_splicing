@@ -18,8 +18,10 @@ include { PUBLISH_CANONICAL_BARCODES;
 include { check_input_files }         from '../subworkflows/check_input_files.nf'
 include { prepare_files }             from '../subworkflows/prepare_files.nf'
 include { process_reads }             from '../subworkflows/process_reads.nf'
-include { detect_canonical_se }       from '../subworkflows/detect_canonical_se.nf'
-include { detect_canonical_pe }       from '../subworkflows/detect_canonical_pe.nf'
+include { detect_canonical_se_bwa }   from '../subworkflows/detect_canonical_se_bwa.nf'
+include { detect_canonical_pe_bwa }   from '../subworkflows/detect_canonical_pe_bwa.nf'
+include { detect_canonical_se_match } from '../subworkflows/detect_canonical_se_match.nf'
+include { detect_canonical_pe_match } from '../subworkflows/detect_canonical_pe_match.nf'
 include { detect_novel_se }           from '../subworkflows/detect_novel_se.nf'
 include { detect_novel_pe }           from '../subworkflows/detect_novel_pe.nf'
 include { create_splicing_counts }    from '../subworkflows/create_splicing_counts.nf'
@@ -39,6 +41,7 @@ Usage:
     Optional arguments:
     Basic:
         --do_pe_reads                 whether to process paired-end reads, default: false
+        --canonical_method            the method of detecting canonical splicing events, bwa or match, default: match
     
     Fastp:
         --fastp_cut_mean_quality      mean quality for fastp, default: 20
@@ -54,8 +57,6 @@ Usage:
         --bwa_gap_open                gap open penalty for BWA, default: 10,10
         --bwa_gap_ext                 gap extension penalty for BWA, default: 5,5
         --bwa_clip                    clip penalty for BWA, default: 1,1
-
-    Barcode extraction:
         --filter_softclip_base        softclip base for filtering, default: 5
     
     HISAT2:
@@ -83,10 +84,11 @@ Usage:
 params.help                        = null
 
 params.sample_sheet                = null
+params.library                     = params.library                     ?: "random_intron"
 params.outdir                      = params.outdir                      ?: "$PWD"
 
 params.do_pe_reads                 = params.do_pe_reads                 ?: false
-params.library                     = params.library                     ?: "random_intron"
+params.canonical_method            = params.canonical_method            ?: "match"
 
 params.fastp_cut_mean_quality      = params.fastp_cut_mean_quality      ?: 20
 params.flash2_min_overlap          = params.flash2_min_overlap          ?: 10
@@ -98,7 +100,6 @@ params.bwa_mismatch                = params.bwa_mismatch                ?: 4
 params.bwa_gap_open                = params.bwa_gap_open                ?: "10,10"
 params.bwa_gap_ext                 = params.bwa_gap_ext                 ?: "5,5"
 params.bwa_clip                    = params.bwa_clip                    ?: "1,1"
-
 params.filter_softclip_base        = params.filter_softclip_base        ?: 5
 
 params.hisat2_score_min            = params.hisat2_score_min            ?: "L,0,-0.3"
@@ -161,7 +162,13 @@ if (!file(params.outdir).isDirectory()) {
 
 def valid_library = ['random_intron', 'random_exon', 'muta_intron', 'muta_exon']
 if (!(params.library in valid_library)) {
-    log.error("Invalid protocol option: ${params.library}. Valid options: ${valid_options.join(', ')}")
+    log.error("Invalid library: ${params.library}. Valid options: ${valid_library.join(', ')}")
+    exit 1
+}
+
+def valid_canonical_method = ['bwa', 'match']
+if (!(params.canonical_method in valid_canonical_method)) {
+    log.error("Invalid canonical method: ${params.canonical_method}. Valid options: ${valid_canonical_method.join(', ')}")
     exit 1
 }
 
@@ -188,32 +195,62 @@ workflow splicing {
     ch_processed_reads = process_reads.out.ch_merge
 
     /* -- step 2: align reads to canonical splicing reference by bwa -- */
-    ch_sample_step2 = ch_sample_barcodes.join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats ->
+    if (params.canonical_method == 'bwa') {
+        ch_sample_step2 = ch_sample_barcodes.join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats ->
+                                                                            tuple(sample_id, extended_frags, not_combined_1, not_combined_2) })
+                                            .join(ch_bwa_ref)
+                                            .join(ch_exon_pos)
+
+        ch_sample_step2_se = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
+                                                    tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos) }
+        ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
+                                                    tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, exon_fasta, exon_pos) }
+
+        detect_canonical_se_bwa(ch_sample_step2_se)
+        ch_se_canonical_fail = detect_canonical_se_bwa.out.ch_se_canonical_fail
+        ch_se_canonical_barcodes = detect_canonical_se_bwa.out.ch_se_canonical_barcodes
+        ch_se_canonical_stats = detect_canonical_se_bwa.out.ch_se_canonical_stats
+
+        if (params.do_pe_reads) {
+            detect_canonical_pe_bwa(ch_sample_step2_pe)
+            ch_pe_canonical_fail = detect_canonical_pe_bwa.out.ch_pe_canonical_fail
+            ch_pe_canonical_barcodes = detect_canonical_pe_bwa.out.ch_pe_canonical_barcodes
+            ch_pe_canonical_stats = detect_canonical_pe_bwa.out.ch_pe_canonical_stats
+        }
+    } else {
+        ch_sample_step2 = ch_sample_barcodes.join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats ->
                                                                         tuple(sample_id, extended_frags, not_combined_1, not_combined_2) })
-                                        .join(ch_bwa_ref)
-                                        .join(ch_exon_pos)
+                                            .join(ch_hisat2_ref)
 
-    ch_sample_step2_se = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
-                                                tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos) }
-    ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
-                                                tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, exon_fasta, exon_pos) }
+        ch_sample_step2_se = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, ch_hisat2_ref -> 
+                                                    tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, ch_hisat2_ref) }
+        ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, ch_hisat2_ref -> 
+                                                    tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, ch_hisat2_ref) }
 
-    detect_canonical_se(ch_sample_step2_se)
-    ch_bwa_se_fail = detect_canonical_se.out.ch_bwa_se_fail
-    ch_bwa_se_filtered_idxstats = detect_canonical_se.out.ch_bwa_se_filtered_idxstats
-    ch_bwa_se_barcodes = detect_canonical_se.out.ch_bwa_se_barcodes
+        detect_canonical_se_match(ch_sample_step2_se)
+        ch_se_canonical_fail = detect_canonical_se_match.out.ch_se_canonical_fail
+        ch_se_canonical_barcodes = detect_canonical_se_match.out.ch_se_canonical_barcodes
+        ch_se_canonical_stats = detect_canonical_se_match.out.ch_se_canonical_stats
 
-    if (params.do_pe_reads) {
-        detect_canonical_pe(ch_sample_step2_pe)
-        ch_fail_reads_pe = detect_canonical_pe.out.ch_bwa_pe_fail
-        ch_bwa_pe_filtered_idxstats = detect_canonical_pe.out.ch_bwa_pe_filtered_idxstats
-        ch_bwa_pe_barcodes = detect_canonical_pe.out.ch_bwa_pe_barcodes
+        if (params.do_pe_reads) {
+            detect_canonical_pe_match(ch_sample_step2_pe)
+            ch_pe_canonical_fail = detect_canonical_pe_match.out.ch_pe_canonical_fail
+            ch_pe_canonical_barcodes = detect_canonical_pe_match.out.ch_pe_canonical_barcodes
+            ch_pe_canonical_stats = detect_canonical_pe_match.out.ch_pe_canonical_stats            
+        }
     }
+
+
+
+
+
+
+
 
     /* -- step 3: align reads to novel splicing reference by hisat2 -- */
     ch_sample_step3_se = ch_sample_step2_se.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos -> 
                                                     tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp) }
-                                           .join(ch_bwa_se_fail)
+                                           .join(ch_se_canonical_fail)
                                            .join(ch_hisat2_ref)
     detect_novel_se(ch_sample_step3_se)
     ch_hisat2_se_summary = detect_novel_se.out.ch_hisat2_se_summary
