@@ -7,29 +7,29 @@ workflow detect_canonical_se {
     ch_align_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos -> 
                                         tuple(sample_id, extended_frags, exon_fasta) }
     BWA_ALIGN_SE_READS(ch_align_input)
-    ch_bwa_se_unmapped = BWA_ALIGN_SE_READS.out.ch_bwa_se_unmapped
-    ch_bwa_se_bam = BWA_ALIGN_SE_READS.out.ch_bwa_se_bam
+    ch_se_unique_bam = BWA_ALIGN_SE_READS.out.ch_se_unique_bam
+    ch_se_unmapped = BWA_ALIGN_SE_READS.out.ch_se_unmapped
 
     /* -- 2. filter reads -- */
     ch_filter_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos -> 
                                         tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, exon_pos) }
-                               .join(ch_bwa_se_bam)
+                               .join(ch_se_unique_bam)
     FILTER_SE_READS(ch_filter_input)
-    ch_bwa_se_wrongmap = FILTER_SE_READS.out.ch_bwa_se_wrongmap
-    ch_bwa_se_filtered = FILTER_SE_READS.out.ch_bwa_se_filtered
-    ch_bwa_se_filtered_idxstats = FILTER_SE_READS.out.ch_bwa_se_filtered_idxstats
-    ch_bwa_se_barcodes = FILTER_SE_READS.out.ch_bwa_se_barcodes
+    ch_se_filtered_bam = FILTER_SE_READS.out.ch_se_filtered_bam
+    ch_se_wrongmap = FILTER_SE_READS.out.ch_se_wrongmap
+    ch_se_canonical_barcodes = FILTER_SE_READS.out.ch_se_canonical_barcodes
+    ch_se_canonical_stats = FILTER_SE_READS.out.ch_se_canonical_stats
 
     /* -- 3. cat reads -- */
-    ch_bwa_se_joined = ch_bwa_se_unmapped.join(ch_bwa_se_wrongmap)
-    MERGE_SE_FASTQS(ch_bwa_se_joined)
-    ch_bwa_se_fail = MERGE_SE_FASTQS.out.ch_bwa_se_fail
+    ch_se_joined = ch_se_unmapped.join(ch_se_wrongmap)
+    MERGE_SE_FASTQS(ch_se_joined)
+    ch_se_canonical_fail = MERGE_SE_FASTQS.out.ch_se_canonical_fail
 
     emit:
-    ch_bwa_se_filtered
-    ch_bwa_se_filtered_idxstats
-    ch_bwa_se_fail
-    ch_bwa_se_barcodes
+    ch_se_filtered_bam
+    ch_se_canonical_fail
+    ch_se_canonical_barcodes
+    ch_se_canonical_stats
 }
 
 process BWA_ALIGN_SE_READS {
@@ -39,8 +39,8 @@ process BWA_ALIGN_SE_READS {
     tuple val(sample_id), path(extended_frags), path(exon_fasta)
 
     output:
-    tuple val(sample_id), path("${sample_id}.filter_se.unmapped.fastq.gz"), emit: ch_bwa_se_unmapped
-    tuple val(sample_id), path("${sample_id}.filter_se.unique.bam"), emit: ch_bwa_se_bam
+    tuple val(sample_id), path("${sample_id}.bwa_se.unique.bam"), emit: ch_se_unique_bam
+    tuple val(sample_id), path("${sample_id}.bwa_se.unmapped.fastq.gz"), emit: ch_se_unmapped
 
     script:
     """
@@ -49,10 +49,10 @@ process BWA_ALIGN_SE_READS {
                   -O ${params.bwa_gap_open} \
                   -E ${params.bwa_gap_ext} \
                   -L ${params.bwa_clip} \
-                  ${exon_fasta} ${extended_frags} > ${sample_id}.filter_se.sam
-    samtools fastq -@ 32 -f 4 -c 9 -0 ${sample_id}.filter_se.unmapped.fastq.gz ${sample_id}.filter_se.sam
-    samtools view -@ 32 -b -F 4 -F 256 -F 2048 ${sample_id}.filter_se.sam > ${sample_id}.filter_se.unique.bam
-    rm ${sample_id}.filter_se.sam
+                  ${exon_fasta} ${extended_frags} > ${sample_id}.bwa_se.sam
+    samtools fastq -@ 32 -f 4 -c 9 -0 ${sample_id}.bwa_se.unmapped.fastq.gz ${sample_id}.bwa_se.sam
+    samtools view -@ 32 -b -F 4 -F 256 -F 2048 ${sample_id}.bwa_se.sam > ${sample_id}.bwa_se.unique.bam
+    rm ${sample_id}.bwa_se.sam
     """
 }
 
@@ -65,10 +65,10 @@ process FILTER_SE_READS {
     tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(exon_pos), path(bam)
 
     output:
-    tuple val(sample_id), path("${sample_id}.filter_se.wrongmap.fastq.gz"), emit: ch_bwa_se_wrongmap
-    tuple val(sample_id), path("${sample_id}.filter_se.filtered.sorted.bam"), path("${sample_id}.filter_se.filtered.sorted.bam.bai"), emit: ch_bwa_se_filtered
-    tuple val(sample_id), path("${sample_id}.filter_se.filtered.idxstats.tsv"), emit: ch_bwa_se_filtered_idxstats
-    tuple val(sample_id), path("${sample_id}.filter_se.barcodes.tsv"), emit: ch_bwa_se_barcodes
+    tuple val(sample_id), path("${sample_id}.bwa_se.filtered.sorted.bam"), path("${sample_id}.bwa_se.filtered.sorted.bam.bai"), emit: ch_se_filtered_bam
+    tuple val(sample_id), path("${sample_id}.bwa_se.wrongmap.fastq.gz"), emit: ch_se_wrongmap
+    tuple val(sample_id), path("${sample_id}.bwa_se.canonical_barcodes.tsv"), emit: ch_se_canonical_barcodes
+    tuple val(sample_id), path("${sample_id}.bwa_se.canonical_stats.tsv"), emit: ch_se_canonical_stats
 
     script:
     """
@@ -81,15 +81,17 @@ process FILTER_SE_READS {
                                                           --barcode_down ${barcode_down} \
                                                           --barcode_check \
                                                           --barcode_temp ${barcode_temp} \
-                                                          --output_prefix ${sample_id}.filter_se \
+                                                          --output_prefix ${sample_id}.bwa_se \
                                                           --chunk_size 100000 \
                                                           --threads 40
-    samtools sort -@ 40 -o ${sample_id}.filter_se.filtered.sorted.bam ${sample_id}.filter_se.filtered.bam
-    samtools index -@ 40 ${sample_id}.filter_se.filtered.sorted.bam
-    rm ${sample_id}.filter_se.filtered.bam
-    samtools idxstats ${sample_id}.filter_se.filtered.sorted.bam > ${sample_id}.filter_se.filtered.idxstats.tsv
+    samtools sort -@ 40 -o ${sample_id}.bwa_se.filtered.sorted.bam ${sample_id}.bwa_se.filtered.bam
+    samtools index -@ 40 ${sample_id}.bwa_se.filtered.sorted.bam
+    samtools idxstats ${sample_id}.bwa_se.filtered.sorted.bam > ${sample_id}.bwa_se.canonical_stats.tsv
 
-    samtools fastq -@ 40 -c 9 -0 ${sample_id}.filter_se.wrongmap.fastq.gz ${sample_id}.filter_se.wrongmap.bam
+    samtools fastq -@ 40 -c 9 -0 ${sample_id}.bwa_se.wrongmap.fastq.gz ${sample_id}.bwa_se.wrongmap.bam
+
+    rm ${sample_id}.bwa_se.filtered.bam
+    rm ${sample_id}.bwa_se.wrongmap.bam
     """
 }
 
@@ -100,10 +102,10 @@ process MERGE_SE_FASTQS {
     tuple val(sample_id), path(unmapped_fastq), path(wrongmap_fastq)
 
     output:
-    tuple val(sample_id), path("${sample_id}.filter_se.fail.fastq.gz"), emit: ch_bwa_se_fail
+    tuple val(sample_id), path("${sample_id}.bwa_se.canonical_fail.fastq.gz"), emit: ch_se_canonical_fail
 
     script:
     """
-    cat ${unmapped_fastq} ${wrongmap_fastq} > ${sample_id}.filter_se.fail.fastq.gz
+    cat ${unmapped_fastq} ${wrongmap_fastq} > ${sample_id}.bwa_se.canonical_fail.fastq.gz
     """
 }
