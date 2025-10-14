@@ -266,7 +266,7 @@ workflow splicing {
     /* -- prepare channels for downstream -- */
     if (params.do_pe_reads) {
         STATS_ADD_VALUES(ch_se_canonical_stats.join(ch_pe_canonical_stats))
-        ch_canonical_stats = IDXSTATS_ADD_VALUES.out.ch_canonical_stats
+        ch_canonical_stats = STATS_ADD_VALUES.out.ch_canonical_stats
 
         CAT_CANONICAL_BARCODES(ch_bwa_se_barcodes.join(ch_bwa_pe_barcodes))
         ch_canonical_barcodes = CAT_CANONICAL_BARCODES.out.ch_canonical_barcodes
@@ -280,8 +280,8 @@ workflow splicing {
         CAT_BEDS(ch_se_junctions.join(ch_pe_junctions))
         ch_junctions = CAT_BEDS.out.ch_bed
     } else {
-        IDXSTATS_GET_VALUES(ch_se_canonical_stats)
-        ch_canonical_stats = IDXSTATS_GET_VALUES.out.ch_idxstats
+        STATS_GET_VALUES(ch_se_canonical_stats)
+        ch_canonical_stats = STATS_GET_VALUES.out.ch_idxstats
 
         RENAME_CANONICAL_BARCODES(ch_bwa_se_barcodes)
         ch_canonical_barcodes = RENAME_CANONICAL_BARCODES.out.ch_canonical_barcodes
