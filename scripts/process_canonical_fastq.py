@@ -61,24 +61,24 @@ def process_se_read(read: tuple) -> list:
     res_bar_var = global_dict_bar_var.get(barcode_seq)    
     if res_bar_var is not None:
         exon_seq = res_bar_var["exon"]
-        ref_canonical_inclusion = global_pre_exon + exon_seq + global_post_exon
-        ref_canonical_skipping = global_pre_exon + global_post_exon
-        ref_found = match_approximate(read_seq, ref_canonical_inclusion, args.max_mismatch, "hamming")
+        ref_exon_inclusion = global_pre_exon + exon_seq + global_post_exon
+        ref_exon_skipping = global_pre_exon + global_post_exon
+        ref_found = match_approximate(read_seq, ref_exon_inclusion, args.max_mismatch, "hamming")
         if ref_found == -1:
-            ref_found = match_approximate(read_seq, ref_canonical_skipping, args.max_mismatch, "hamming")
+            ref_found = match_approximate(read_seq, ref_exon_skipping, args.max_mismatch, "hamming")
             if ref_found == -1:
                 return read, {}
             else:
                 dict_barcode = { 'read_ref' : res_bar_var["var_id"],
                                  'var_id'   : res_bar_var["var_id"],
                                  'barcode'  : barcode_seq,
-                                 'ref_type' : "canonical_skipping" }
+                                 'ref_type' : "exon_skipping" }
                 return (), dict_barcode
         else:
             dict_barcode = { 'read_ref' : res_bar_var["var_id"],
                              'var_id'   : res_bar_var["var_id"],
                              'barcode'  : barcode_seq,
-                             'ref_type' : "canonical_inclusion" }
+                             'ref_type' : "exon_inclusion" }
             return (), dict_barcode
     else:
         return read, {}
@@ -115,27 +115,27 @@ def process_pe_pair(read_pair: tuple) -> list:
     res_bar_var = global_dict_bar_var.get(barcode_seq)    
     if res_bar_var is not None:
         exon_seq = res_bar_var["exon"]
-        ref_canonical_inclusion = global_pre_exon + exon_seq + global_post_exon
-        ref_canonical_skipping = global_pre_exon + global_post_exon
+        ref_exon_inclusion = global_pre_exon + exon_seq + global_post_exon
+        ref_exon_skipping = global_pre_exon + global_post_exon
         # Note: assuming read1_seq + read2_seq is the whole sequence
         # hamming distance requires the same length
         # need levenshtein distance
-        ref_found = match_approximate(read1_seq + read2_seq, ref_canonical_inclusion, 4 * args.max_mismatch, "levenshtein")
+        ref_found = match_approximate(read1_seq + read2_seq, ref_exon_inclusion, 4 * args.max_mismatch, "levenshtein")
         if ref_found == -1:
-            ref_found = match_approximate(read1_seq + read2_seq, ref_canonical_skipping, 4 * args.max_mismatch, "levenshtein")
+            ref_found = match_approximate(read1_seq + read2_seq, ref_exon_skipping, 4 * args.max_mismatch, "levenshtein")
             if ref_found == -1:
                 return read1, read2, {}
             else:
                 dict_barcode = { 'read_ref' : res_bar_var["var_id"],
                                  'var_id'   : res_bar_var["var_id"],
                                  'barcode'  : barcode_seq,
-                                 'ref_type' : "canonical_skipping" }
+                                 'ref_type' : "exon_skipping" }
                 return (), (), dict_barcode
         else:
             dict_barcode = { 'read_ref' : res_bar_var["var_id"],
                              'var_id'   : res_bar_var["var_id"],
                              'barcode'  : barcode_seq,
-                             'ref_type' : "canonical_inclusion" }
+                             'ref_type' : "exon_inclusion" }
             return (), (), dict_barcode
     else:
         return read1, read2, {}
@@ -389,14 +389,14 @@ if __name__ == "__main__":
     os.chdir(args.output_dir)
 
     if args.read_type == 'se':
-        fail_fastq = f"{output_prefix}.filter_se.fail.fastq.gz"
+        fail_fastq = f"{output_prefix}.canonical_fail.fastq.gz"
         if os.path.exists(fail_fastq):
             os.remove(fail_fastq)
     else:
-        fail_fastq_r1 = f"{output_prefix}.filter_se.fail.r1.fastq.gz"
+        fail_fastq_r1 = f"{output_prefix}.canonical_fail.r1.fastq.gz"
         if os.path.exists(fail_fastq_r1):
             os.remove(fail_fastq_r1)
-        fail_fastq_r2 = f"{output_prefix}.filter_se.fail.r2.fastq.gz"
+        fail_fastq_r2 = f"{output_prefix}.canonical_fail.r2.fastq.gz"
         if os.path.exists(fail_fastq_r2):
             os.remove(fail_fastq_r2)
 
