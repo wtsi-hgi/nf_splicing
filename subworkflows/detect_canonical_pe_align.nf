@@ -1,4 +1,4 @@
-workflow detect_canonical_pe {
+workflow detect_canonical_pe_align {
     take:
     ch_sample
 

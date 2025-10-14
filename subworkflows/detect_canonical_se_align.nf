@@ -1,4 +1,4 @@
-workflow detect_canonical_se {
+workflow detect_canonical_se_align {
     take:
     ch_sample
 
