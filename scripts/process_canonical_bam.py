@@ -517,7 +517,7 @@ if __name__ == "__main__":
     if os.path.exists(wrong_bam):
         os.remove(wrong_bam)
 
-    barcode_out = f"{output_prefix}.barcodes.tsv"
+    barcode_out = f"{output_prefix}.canonical_barcodes.tsv"
     if os.path.exists(barcode_out):
         os.remove(barcode_out)
 
