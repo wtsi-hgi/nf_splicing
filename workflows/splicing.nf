@@ -2,8 +2,8 @@
 
 /* -- load modules -- */
 include { check_required }            from '../modules/check_software.nf'
-include { IDXSTATS_GET_VALUES; 
-          IDXSTATS_ADD_VALUES }       from '../modules/format_idxstats.nf'
+include { STATS_GET_VALUES; 
+          STATS_ADD_VALUES }          from '../modules/format_stats.nf'
 include { HISAT2_SUMMARY_GET_VALUES; 
           HISAT2_SUMMARY_ADD_VALUES } from '../modules/format_hisat2_summary.nf'
 include { CAT_CANONICAL_BARCODES; 
@@ -18,8 +18,8 @@ include { PUBLISH_CANONICAL_BARCODES;
 include { check_input_files }         from '../subworkflows/check_input_files.nf'
 include { prepare_files }             from '../subworkflows/prepare_files.nf'
 include { process_reads }             from '../subworkflows/process_reads.nf'
-include { detect_canonical_se_bwa }   from '../subworkflows/detect_canonical_se_bwa.nf'
-include { detect_canonical_pe_bwa }   from '../subworkflows/detect_canonical_pe_bwa.nf'
+include { detect_canonical_se_align } from '../subworkflows/detect_canonical_se_align.nf'
+include { detect_canonical_pe_align } from '../subworkflows/detect_canonical_pe_align.nf'
 include { detect_canonical_se_match } from '../subworkflows/detect_canonical_se_match.nf'
 include { detect_canonical_pe_match } from '../subworkflows/detect_canonical_pe_match.nf'
 include { detect_novel_se }           from '../subworkflows/detect_novel_se.nf'
@@ -41,7 +41,7 @@ Usage:
     Optional arguments:
     Basic:
         --do_pe_reads                 whether to process paired-end reads, default: false
-        --canonical_method            the method of detecting canonical splicing events, bwa or match, default: match
+        --canonical_method            the method of detecting canonical splicing events, align or match, default: match
     
     Fastp:
         --fastp_cut_mean_quality      mean quality for fastp, default: 20
@@ -166,7 +166,7 @@ if (!(params.library in valid_library)) {
     exit 1
 }
 
-def valid_canonical_method = ['bwa', 'match']
+def valid_canonical_method = ['align', 'match']
 if (!(params.canonical_method in valid_canonical_method)) {
     log.error("Invalid canonical method: ${params.canonical_method}. Valid options: ${valid_canonical_method.join(', ')}")
     exit 1
@@ -180,14 +180,14 @@ check_required(required_tools)
 workflow splicing {
     /* -- check input files exist -- */
     check_input_files(ch_input)
-    ch_sample_mapping = check_input_files.out.ch_sample_mapping
+    ch_sample_mapping  = check_input_files.out.ch_sample_mapping
     ch_sample_barcodes = check_input_files.out.ch_sample_barcodes
 
     /* -- prepare the reference files and indexes -- */
     prepare_files(ch_sample_mapping)
-    ch_bwa_ref = prepare_files.out.ch_bwa_ref
+    ch_bwa_ref    = prepare_files.out.ch_bwa_ref
     ch_hisat2_ref = prepare_files.out.ch_hisat2_ref
-    ch_exon_pos = prepare_files.out.ch_exon_pos
+    ch_exon_pos   = prepare_files.out.ch_exon_pos
 
     /* -- step 1: process reads by fastp and flash2 -- */
     ch_sample_step1 = ch_sample_mapping.map { sample_id, read1, read2, reference -> tuple(sample_id, read1, read2) }
@@ -195,29 +195,7 @@ workflow splicing {
     ch_processed_reads = process_reads.out.ch_merge
 
     /* -- step 2: align reads to canonical splicing reference by bwa -- */
-    if (params.canonical_method == 'bwa') {
-        ch_sample_step2 = ch_sample_barcodes.join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats ->
-                                                                            tuple(sample_id, extended_frags, not_combined_1, not_combined_2) })
-                                            .join(ch_bwa_ref)
-                                            .join(ch_exon_pos)
-
-        ch_sample_step2_se = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
-                                                    tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos) }
-        ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
-                                                    tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, exon_fasta, exon_pos) }
-
-        detect_canonical_se_bwa(ch_sample_step2_se)
-        ch_se_canonical_fail = detect_canonical_se_bwa.out.ch_se_canonical_fail
-        ch_se_canonical_barcodes = detect_canonical_se_bwa.out.ch_se_canonical_barcodes
-        ch_se_canonical_stats = detect_canonical_se_bwa.out.ch_se_canonical_stats
-
-        if (params.do_pe_reads) {
-            detect_canonical_pe_bwa(ch_sample_step2_pe)
-            ch_pe_canonical_fail = detect_canonical_pe_bwa.out.ch_pe_canonical_fail
-            ch_pe_canonical_barcodes = detect_canonical_pe_bwa.out.ch_pe_canonical_barcodes
-            ch_pe_canonical_stats = detect_canonical_pe_bwa.out.ch_pe_canonical_stats
-        }
-    } else {
+    if (params.canonical_method == 'match') {
         ch_sample_step2 = ch_sample_barcodes.join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats ->
                                                                         tuple(sample_id, extended_frags, not_combined_1, not_combined_2) })
                                             .join(ch_hisat2_ref)
@@ -228,24 +206,39 @@ workflow splicing {
                                                     tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, ch_hisat2_ref) }
 
         detect_canonical_se_match(ch_sample_step2_se)
-        ch_se_canonical_fail = detect_canonical_se_match.out.ch_se_canonical_fail
+        ch_se_canonical_fail     = detect_canonical_se_match.out.ch_se_canonical_fail
         ch_se_canonical_barcodes = detect_canonical_se_match.out.ch_se_canonical_barcodes
-        ch_se_canonical_stats = detect_canonical_se_match.out.ch_se_canonical_stats
+        ch_se_canonical_stats    = detect_canonical_se_match.out.ch_se_canonical_stats
 
         if (params.do_pe_reads) {
             detect_canonical_pe_match(ch_sample_step2_pe)
-            ch_pe_canonical_fail = detect_canonical_pe_match.out.ch_pe_canonical_fail
+            ch_pe_canonical_fail     = detect_canonical_pe_match.out.ch_pe_canonical_fail
             ch_pe_canonical_barcodes = detect_canonical_pe_match.out.ch_pe_canonical_barcodes
-            ch_pe_canonical_stats = detect_canonical_pe_match.out.ch_pe_canonical_stats            
+            ch_pe_canonical_stats    = detect_canonical_pe_match.out.ch_pe_canonical_stats            
+        }
+    } else {
+        ch_sample_step2 = ch_sample_barcodes.join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats ->
+                                                                            tuple(sample_id, extended_frags, not_combined_1, not_combined_2) })
+                                            .join(ch_bwa_ref)
+                                            .join(ch_exon_pos)
+
+        ch_sample_step2_se = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
+                                                    tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos) }
+        ch_sample_step2_pe = ch_sample_step2.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
+                                                    tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, exon_fasta, exon_pos) }
+
+        detect_canonical_se_align(ch_sample_step2_se)
+        ch_se_canonical_fail     = detect_canonical_se_align.out.ch_se_canonical_fail
+        ch_se_canonical_barcodes = detect_canonical_se_align.out.ch_se_canonical_barcodes
+        ch_se_canonical_stats    = detect_canonical_se_align.out.ch_se_canonical_stats
+
+        if (params.do_pe_reads) {
+            detect_canonical_pe_align(ch_sample_step2_pe)
+            ch_pe_canonical_fail     = detect_canonical_pe_align.out.ch_pe_canonical_fail
+            ch_pe_canonical_barcodes = detect_canonical_pe_align.out.ch_pe_canonical_barcodes
+            ch_pe_canonical_stats    = detect_canonical_pe_align.out.ch_pe_canonical_stats
         }
     }
-
-
-
-
-
-
-
 
     /* -- step 3: align reads to novel splicing reference by hisat2 -- */
     ch_sample_step3_se = ch_sample_step2_se.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, extended_frags, exon_fasta, exon_pos -> 
@@ -253,10 +246,10 @@ workflow splicing {
                                            .join(ch_se_canonical_fail)
                                            .join(ch_hisat2_ref)
     detect_novel_se(ch_sample_step3_se)
-    ch_hisat2_se_summary = detect_novel_se.out.ch_hisat2_se_summary
-    ch_hisat2_se_barcodes = detect_novel_se.out.ch_hisat2_se_barcodes
-    ch_hisat2_se_fixed = detect_novel_se.out.ch_hisat2_se_fixed
-    ch_se_junctions = detect_novel_se.out.ch_se_junctions
+    ch_se_fixed_bam      = detect_novel_se.out.ch_se_fixed_bam
+    ch_se_novel_barcodes = detect_novel_se.out.ch_se_novel_barcodes
+    ch_se_junctions      = detect_novel_se.out.ch_se_junctions
+    ch_se_novel_stats    = detect_novel_se.out.ch_se_novel_stats
 
     if (params.do_pe_reads) {
         ch_sample_step3_pe = ch_sample_step2_pe.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, not_combined_1, not_combined_2, exon_fasta, exon_pos -> 
@@ -264,48 +257,48 @@ workflow splicing {
                                                .join(ch_fail_reads_pe)
                                                .join(ch_hisat2_ref)
         detect_novel_pe(ch_sample_step3_pe)
-        ch_hisat2_pe_summary = detect_novel_pe.out.ch_hisat2_pe_summary
-        ch_hisat2_pe_barcodes = detect_novel_pe.out.ch_hisat2_pe_barcodes
-        ch_hisat2_pe_fixed = detect_novel_pe.out.ch_hisat2_pe_fixed
-        ch_pe_junctions = detect_novel_pe.out.ch_pe_junctions
+        ch_pe_fixed_bam      = detect_novel_pe.out.ch_pe_fixed_bam
+        ch_pe_novel_barcodes = detect_novel_pe.out.ch_pe_novel_barcodes
+        ch_pe_junctions      = detect_novel_pe.out.ch_pe_junctions
+        ch_pe_novel_stats    = detect_novel_pe.out.ch_pe_novel_stats
     }
 
     /* -- prepare channels for downstream -- */
     if (params.do_pe_reads) {
-        IDXSTATS_ADD_VALUES(ch_bwa_se_filtered_idxstats.join(ch_bwa_pe_filtered_idxstats))
-        ch_sample_idxstats = IDXSTATS_ADD_VALUES.out.ch_idxstats
+        STATS_ADD_VALUES(ch_se_canonical_stats.join(ch_pe_canonical_stats))
+        ch_canonical_stats = IDXSTATS_ADD_VALUES.out.ch_canonical_stats
 
         CAT_CANONICAL_BARCODES(ch_bwa_se_barcodes.join(ch_bwa_pe_barcodes))
-        ch_sample_canonical_barcodes = CAT_CANONICAL_BARCODES.out.ch_canonical_barcodes
+        ch_canonical_barcodes = CAT_CANONICAL_BARCODES.out.ch_canonical_barcodes
 
-        CAT_NOVEL_BARCODES(ch_hisat2_se_barcodes.join(ch_hisat2_pe_barcodes))
-        ch_sample_novel_barcodes = CAT_NOVEL_BARCODES.out.ch_novel_barcodes
+        CAT_NOVEL_BARCODES(ch_se_novel_barcodes.join(ch_hisat2_pe_barcodes))
+        ch_novel_barcodes = CAT_NOVEL_BARCODES.out.ch_novel_barcodes
 
-        HISAT2_SUMMARY_ADD_VALUES(ch_hisat2_se_summary.join(ch_hisat2_pe_summary))
-        ch_sample_summary = HISAT2_SUMMARY_ADD_VALUES.out.ch_hisat2_summary
+        HISAT2_SUMMARY_ADD_VALUES(ch_se_novel_stats.join(ch_pe_novel_stats))
+        ch_novel_stats = HISAT2_SUMMARY_ADD_VALUES.out.ch_novel_stats
 
         CAT_BEDS(ch_se_junctions.join(ch_pe_junctions))
-        ch_sample_junctions = CAT_BEDS.out.ch_bed
+        ch_junctions = CAT_BEDS.out.ch_bed
     } else {
-        IDXSTATS_GET_VALUES(ch_bwa_se_filtered_idxstats)
-        ch_sample_idxstats = IDXSTATS_GET_VALUES.out.ch_idxstats
+        IDXSTATS_GET_VALUES(ch_se_canonical_stats)
+        ch_canonical_stats = IDXSTATS_GET_VALUES.out.ch_idxstats
 
         RENAME_CANONICAL_BARCODES(ch_bwa_se_barcodes)
-        ch_sample_canonical_barcodes = RENAME_CANONICAL_BARCODES.out.ch_canonical_barcodes
+        ch_canonical_barcodes = RENAME_CANONICAL_BARCODES.out.ch_canonical_barcodes
 
-        RENAME_NOVEL_BARCODES(ch_hisat2_se_barcodes)
-        ch_sample_novel_barcodes = RENAME_NOVEL_BARCODES.out.ch_novel_barcodes
+        RENAME_NOVEL_BARCODES(ch_se_novel_barcodes)
+        ch_novel_barcodes = RENAME_NOVEL_BARCODES.out.ch_novel_barcodes
 
-        HISAT2_SUMMARY_GET_VALUES(ch_hisat2_se_summary)
-        ch_sample_summary = HISAT2_SUMMARY_GET_VALUES.out.ch_hisat2_summary
+        HISAT2_SUMMARY_GET_VALUES(ch_se_novel_stats)
+        ch_novel_stats = HISAT2_SUMMARY_GET_VALUES.out.ch_novel_stats
 
-        ch_sample_junctions = ch_se_junctions
+        ch_junctions = ch_se_junctions
     }
 
     /* -- step 4: create count matrices -- */
     ch_sample_step4 = ch_sample_barcodes.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp -> tuple(sample_id, barcode)}
-                                        .join(ch_sample_canonical_barcodes)
-                                        .join(ch_sample_junctions)
+                                        .join(ch_canonical_barcodes)
+                                        .join(ch_junctions)
                                         .join(ch_exon_pos)
     create_splicing_counts(ch_sample_step4)
     ch_splicing_counts = create_splicing_counts.out.ch_splicing_counts
@@ -319,10 +312,10 @@ workflow splicing {
                               .join(ch_exon_pos)
                               .join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats -> 
                                                                 tuple(sample_id, merge_stats, trim_stats) })   
-                              .join(ch_sample_idxstats)
-                              .join(ch_sample_summary)
-                              .join(ch_sample_canonical_barcodes)
-                              .join(ch_sample_novel_barcodes)
+                              .join(ch_canonical_stats)
+                              .join(ch_novel_stats)
+                              .join(ch_canonical_barcodes)
+                              .join(ch_novel_barcodes)
                               .join(ch_classified_junctions)
                               .join(ch_splicing_counts)
 
