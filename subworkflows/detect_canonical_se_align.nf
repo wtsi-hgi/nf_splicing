@@ -59,7 +59,7 @@ process BWA_ALIGN_SE_READS {
 process FILTER_SE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.barcodes.tsv", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.canonical_barcodes.tsv", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(exon_pos), path(bam)

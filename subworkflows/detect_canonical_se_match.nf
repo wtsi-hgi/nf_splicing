@@ -8,6 +8,7 @@ workflow detect_canonical_se_match {
     ch_se_canonical_fail = MATCH_SE_READS.out.ch_se_canonical_fail
     ch_se_canonical_barcodes = MATCH_SE_READS.out.ch_se_canonical_barcodes
 
+    /* -- 2. get stats -- */
     GET_STATS(ch_se_canonical_barcodes)
     ch_se_canonical_stats = GET_STATS.out.ch_se_canonical_stats
 
@@ -20,7 +21,7 @@ workflow detect_canonical_se_match {
 process MATCH_SE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.barcodes.tsv", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.canonical_barcodes.tsv", mode: "copy", overwrite: true
 
     input:
     tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(extended_frags), path(ch_hisat2_ref)
@@ -33,7 +34,7 @@ process MATCH_SE_READS {
     """
     python ${projectDir}/scripts/process_canonical_fastq.py --reads ${extended_frags} \
                                                             --read_type se \
-                                                            --ref_file ${ch_hisat2_ref}
+                                                            --ref_file ${ch_hisat2_ref} \
                                                             --barcode_file ${barcode} \
                                                             --barcode_up ${barcode_up} \
                                                             --barcode_down ${barcode_down} \
