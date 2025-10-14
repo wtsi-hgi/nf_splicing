@@ -5,7 +5,7 @@ process HISAT2_SUMMARY_GET_VALUES {
     tuple val(sample_id), path(hisat2_summary_se)
     
     output:
-    tuple val(sample_id), path("${sample_id}.hisat2_summary.tsv"), emit: ch_hisat2_summary
+    tuple val(sample_id), path("${sample_id}.novel_stats.tsv"), emit: ch_novel_stats
     
     script:
     """
@@ -13,7 +13,7 @@ process HISAT2_SUMMARY_GET_VALUES {
         /Total reads:/ {total = \$NF}
         /Aligned 1 time:/ {map = \$4}
         END {print "Total", total
-             print "Mapped", map}' ${hisat2_summary_se} | sort -k1,1 > ${sample_id}.hisat2_summary.tsv
+             print "Mapped", map}' ${hisat2_summary_se} | sort -k1,1 > ${sample_id}.novel_stats.tsv
     """
 }
 
@@ -24,7 +24,7 @@ process HISAT2_SUMMARY_ADD_VALUES {
     tuple val(sample_id), path(hisat2_summary_se), path(hisat2_summary_pe)
     
     output:
-    tuple val(sample_id), path("${sample_id}.hisat2_summary.tsv"), emit: ch_hisat2_summary
+    tuple val(sample_id), path("${sample_id}.novel_stats.tsv"), emit: ch_novel_stats
     
     script:
     """
@@ -40,7 +40,7 @@ process HISAT2_SUMMARY_ADD_VALUES {
              print "Mapped", map}' ${hisat2_summary_pe} | sort -k1,1 > pe.tsv
     awk -F'\\t' -v OFS='\\t' '
         NR==FNR {a[\$1] = \$2; next}
-        {print \$1, a[\$1] + \$2}' se.tsv pe.tsv > ${sample_id}.hisat2_summary.tsv
+        {print \$1, a[\$1] + \$2}' se.tsv pe.tsv > ${sample_id}.novel_stats.tsv
     rm se.tsv pe.tsv
     """
 }
