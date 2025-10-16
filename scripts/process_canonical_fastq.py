@@ -47,14 +47,14 @@ def process_se_read(read: tuple) -> list:
         read_seq_rc = reverse_complement(read_seq)
         barcode_seq = extract_sequence(read_seq_rc, args.barcode_up, args.barcode_down, args.max_mismatch)
         if (barcode_seq in {"upstream not found", "downstream not found"}):
-            return read, {}
+            return read, (), (), {}
         else:
             read_seq = read_seq_rc
 
     if args.barcode_check:
         check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
         if check_res is None:
-            return read, {}
+            return read, (), (), {}
         else:
             barcode_seq = check_res
 
@@ -67,21 +67,25 @@ def process_se_read(read: tuple) -> list:
         if ref_found == -1:
             ref_found = match_approximate(read_seq, ref_exon_skipping, args.max_mismatch, "hamming")
             if ref_found == -1:
-                return read, {}
+                pre_exon_found = match_approximate(read_seq, global_pre_exon, args.max_mismatch, "hamming")
+                if pre_exon_found == -1:
+                    return (), (), read, {}
+                else:
+                    return (), (), (read[0], read[1][pre_exon_found:], read[2][pre_exon_found:]), {}
             else:
                 dict_barcode = { 'read_ref' : res_bar_var["var_id"],
                                  'var_id'   : res_bar_var["var_id"],
                                  'barcode'  : barcode_seq,
                                  'ref_type' : "exon_skipping" }
-                return (), dict_barcode
+                return (), (), (), dict_barcode
         else:
             dict_barcode = { 'read_ref' : res_bar_var["var_id"],
                              'var_id'   : res_bar_var["var_id"],
                              'barcode'  : barcode_seq,
                              'ref_type' : "exon_inclusion" }
-            return (), dict_barcode
+            return (), (), (), dict_barcode
     else:
-        return read, {}
+        return (), read, (), {}
     
 def process_pe_pair(read_pair: tuple) -> list:
     """
@@ -101,14 +105,14 @@ def process_pe_pair(read_pair: tuple) -> list:
         read2_seq_rc = reverse_complement(read2_seq)
         barcode_seq = extract_sequence(read2_seq_rc, args.barcode_up, args.barcode_down, args.max_mismatch)
         if (barcode_seq in {"upstream not found", "downstream not found"}):
-            return read1, read2, {}
+            return read1, read2, (), (), (), (), {}
         else:
             read2_seq = read2_seq_rc
     
     if args.barcode_check:
         check_res = check_barcode(barcode_seq, args.barcode_temp, args.barcode_mismatch)
         if check_res is None:
-            return read1, read2, {}
+            return read1, read2, (), (), (), (), {}
         else:
             barcode_seq = check_res
 
@@ -124,21 +128,25 @@ def process_pe_pair(read_pair: tuple) -> list:
         if ref_found == -1:
             ref_found = match_approximate(read1_seq + read2_seq, ref_exon_skipping, 4 * args.max_mismatch, "levenshtein")
             if ref_found == -1:
-                return read1, read2, {}
+                pre_exon_found = match_approximate(read1_seq, global_pre_exon, args.max_mismatch, "hamming")
+                if pre_exon_found == -1:
+                    return  (), (), (), (), read1, read2, {}
+                else:
+                    return  (), (), (), (), (read1[0], read1[1][pre_exon_found:], read1[2][pre_exon_found:]), read2, {}
             else:
                 dict_barcode = { 'read_ref' : res_bar_var["var_id"],
                                  'var_id'   : res_bar_var["var_id"],
                                  'barcode'  : barcode_seq,
                                  'ref_type' : "exon_skipping" }
-                return (), (), dict_barcode
+                return (), (), (), (), (), (), dict_barcode
         else:
             dict_barcode = { 'read_ref' : res_bar_var["var_id"],
                              'var_id'   : res_bar_var["var_id"],
                              'barcode'  : barcode_seq,
                              'ref_type' : "exon_inclusion" }
-            return (), (), dict_barcode
+            return (), (), (), (), (), (), dict_barcode
     else:
-        return read1, read2, {}
+        return  (), (), read1, read2, (), (), {}
 
 def batch_process_se_reads(batch_reads: list) -> list:
     """
@@ -206,6 +214,8 @@ def process_se_reads_in_chunk(path_read, fh_fastq):
                 for i in range(0, len(read_chunk), batch_size)
             ]
 
+            n_no_barcode = 0
+            n_no_variant = 0
             barcode_counts = Counter()
             # executor.map() --> memeory may grow accumulatively
             # 1. creates all tasks upfront for the entire input list (read_batches)
@@ -218,10 +228,14 @@ def process_se_reads_in_chunk(path_read, fh_fastq):
             futures = [ executor.submit(function_processpool_se, batch) for batch in read_batches ]
             for future in as_completed(futures):
                 batch_result = future.result()
-                for read, dict_barcode in batch_result:
-                    if read:
-                        fh_fastq.write(f"{read[0]}\n{read[1]}\n+\n{read[2]}\n".encode("utf-8"))
-                    elif dict_barcode:
+                for read_no_bar, read_no_var, read_no_canonical, dict_barcode in batch_result:
+                    if read_no_bar:
+                        n_no_barcode += 1
+                    if read_no_var:
+                        n_no_variant += 1
+                    if read_no_canonical:
+                        fh_fastq.write(f"{read_no_canonical[0]}\n{read_no_canonical[1]}\n+\n{read_no_canonical[2]}\n".encode("utf-8"))
+                    if dict_barcode:
                         key = (dict_barcode["read_ref"], 
                                dict_barcode["var_id"],
                                dict_barcode["barcode"], 
@@ -244,7 +258,7 @@ def process_se_reads_in_chunk(path_read, fh_fastq):
             del read_chunk, read_batches, futures, barcode_counts
             gc.collect()
 
-            yield df_yield
+            yield df_yield, n_no_barcode, n_no_variant
     fh_read.close()
 
 def process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2):
@@ -260,6 +274,8 @@ def process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2):
     fh_read2 = io.TextIOWrapper(pigz_open(path_read2).stdout) if path_read2.endswith(".gz") else open(path_read2)
     read_iter = fastq_iter_pe(fh_read1, fh_read2)
 
+    n_no_barcode = 0
+    n_no_variant = 0
     with ProcessPoolExecutor(max_workers = args.threads, initializer = init_worker) as executor:
         while True:
             read_chunk = list(islice(read_iter, args.chunk_size))
@@ -275,6 +291,8 @@ def process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2):
                 for i in range(0, len(read_chunk), batch_size)
             ]
 
+            n_no_barcode = 0
+            n_no_variant = 0
             barcode_counts = Counter()
             # executor.map() --> memeory may grow accumulatively
             # 1. creates all tasks upfront for the entire input list (read_batches)
@@ -287,11 +305,15 @@ def process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2):
             futures = [ executor.submit(function_processpool_pe, batch) for batch in read_batches ]
             for future in as_completed(futures):
                 batch_result = future.result()
-                for read1, read2, dict_barcode in batch_result:
-                    if read1 and read2:
-                        fh_fastq_r1.write(f"{read1[0]}\n{read1[1]}\n+\n{read1[2]}\n".encode("utf-8"))
-                        fh_fastq_r2.write(f"{read2[0]}\n{read2[1]}\n+\n{read2[2]}\n".encode("utf-8"))
-                    elif dict_barcode:
+                for read1_no_bar, read2_no_bar, read1_no_var, read2_no_var, read1_no_canonical, read2_no_canonical, dict_barcode in batch_result:
+                    if read1_no_bar and read2_no_bar:
+                        n_no_barcode += 1
+                    if read1_no_var and read2_no_var:
+                        n_no_variant += 1
+                    if read1_no_canonical and read2_no_canonical:
+                        fh_fastq_r1.write(f"{read1_no_canonical[0]}\n{read1_no_canonical[1]}\n+\n{read1_no_canonical[2]}\n".encode("utf-8"))
+                        fh_fastq_r2.write(f"{read2_no_canonical[0]}\n{read2_no_canonical[1]}\n+\n{read2_no_canonical[2]}\n".encode("utf-8"))
+                    if dict_barcode:
                         key = (dict_barcode["read_ref"], 
                                dict_barcode["var_id"],
                                dict_barcode["barcode"], 
@@ -314,7 +336,7 @@ def process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2):
             del read_chunk, read_batches, futures, barcode_counts
             gc.collect()
 
-            yield df_yield
+            yield df_yield, n_no_barcode, n_no_variant
     fh_read1.close()
     fh_read2.close()
 
@@ -404,7 +426,14 @@ if __name__ == "__main__":
     if os.path.exists(barcode_out):
         os.remove(barcode_out)
     
+    unknown_out = f"{output_prefix}.unknown.tsv"
+    if os.path.exists(unknown_out):
+        os.remove(unknown_out)
+
     # -- parallel processing -- #
+    sum_n_no_barcode = 0
+    sum_n_no_variant = 0
+
     list_results = []
     if args.read_type == 'se':
         pigz_proc = subprocess.Popen( ["pigz", "-c", "-p", str(args.threads)],
@@ -412,10 +441,12 @@ if __name__ == "__main__":
                                       stdout=open(fail_fastq, "wb") )
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing fastq file, please wait...", flush = True)
         with pigz_proc.stdin as fh_fastq:
-            for i, chunk_result in enumerate(process_se_reads_in_chunk(path_read, fh_fastq)):
+            for i, (chunk_result, n_no_barcode, n_no_variant) in enumerate(process_se_reads_in_chunk(path_read, fh_fastq)):
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {args.chunk_size} reads", flush = True)                
                 if not chunk_result.is_empty():
                     list_results.append(chunk_result)
+                sum_n_no_barcode += n_no_barcode
+                sum_n_no_variant += n_no_variant
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Finished.", flush = True)
         pigz_proc.wait()
     else:
@@ -427,13 +458,19 @@ if __name__ == "__main__":
                                        stdout=open(fail_fastq_r2, "wb") )
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing fastq file, please wait...", flush = True)
         with pigz_proc1.stdin as fh_fastq_r1, pigz_proc2.stdin as fh_fastq_r2:
-            for i, chunk_result in enumerate(process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2)):
+            for i, (chunk_result, n_no_barcode, n_no_variant) in enumerate(process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2)):
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {args.chunk_size} reads", flush = True)                
                 if not chunk_result.is_empty():
                     list_results.append(chunk_result)
+                sum_n_no_barcode += n_no_barcode
+                sum_n_no_variant += n_no_variant
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Finished.", flush = True)
         pigz_proc1.wait()
         pigz_proc2.wait()
+
+    with open(unknown_out, "w") as fh:
+        fh.write(f"reads_without_barcodes\t{sum_n_no_barcode}\n")
+        fh.write(f"reads_without_variants\t{sum_n_no_variant}\n")
 
     # -- clean and format the extracted barcodes from reads -- #
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Generating barcode results, please wait...", flush = True)
