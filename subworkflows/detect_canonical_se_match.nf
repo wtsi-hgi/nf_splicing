@@ -31,7 +31,7 @@ process MATCH_SE_READS {
     output:
     tuple val(sample_id), path("${sample_id}.match_se.canonical_fail.fastq.gz"), emit: ch_se_canonical_fail
     tuple val(sample_id), path("${sample_id}.match_se.canonical_barcodes.tsv"), emit: ch_se_canonical_barcodes
-    tupla val(sample_id), path("${sample_id}.match_se.unknown.tsv"), emit: ch_se_unknown
+    tuple val(sample_id), path("${sample_id}.match_se.unknown.tsv"), emit: ch_se_unknown
 
     script:
     """
