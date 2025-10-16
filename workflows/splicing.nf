@@ -195,7 +195,6 @@ workflow splicing {
     ch_processed_reads = process_reads.out.ch_merge
 
     /* -- step 2: align reads to canonical splicing reference -- */
-    // !!! note: match need the exact reference, if E5 is partial, then reference should be partial
     if (params.canonical_method == 'match') {
         ch_sample_step2 = ch_sample_barcodes.join(ch_processed_reads.map { sample_id, extended_frags, not_combined_1, not_combined_2, merge_stats, trim_stats ->
                                                                         tuple(sample_id, extended_frags, not_combined_1, not_combined_2) })
