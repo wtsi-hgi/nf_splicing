@@ -59,9 +59,9 @@ process GET_STATS {
     """
     awk -F'\\t' -v OFS='\\t' 'BEGIN{cin = 0; csk = 0}{
         if(\$5 == "exon_inclusion") {
-            cin = cin + \$5
+            cin = cin + \$4
         } else if(\$5 == "exon_skipping") {
-            csk = csk + \$5
+            csk = csk + \$4
         }
     }END{
         print "exon_inclusion", cin;
