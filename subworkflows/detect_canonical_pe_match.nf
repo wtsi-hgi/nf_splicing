@@ -7,6 +7,7 @@ workflow detect_canonical_pe_match {
     MATCH_PE_READS(ch_sample)
     ch_pe_canonical_fail = MATCH_PE_READS.out.ch_pe_canonical_fail
     ch_pe_canonical_barcodes = MATCH_PE_READS.out.ch_pe_canonical_barcodes
+    ch_se_unknown = MATCH_SE_READS.out.ch_se_unknown
 
     /* -- 2. get stats -- */
     GET_STATS(ch_pe_canonical_barcodes)
@@ -15,6 +16,7 @@ workflow detect_canonical_pe_match {
     emit:
     ch_pe_canonical_fail
     ch_pe_canonical_barcodes
+    ch_se_unknown
     ch_pe_canonical_stats
 }
 
@@ -29,6 +31,7 @@ process MATCH_PE_READS {
     output:
     tuple val(sample_id), path("${sample_id}.match_pe.canonical_fail.r1.fastq.gz"), path("${sample_id}.match_pe.canonical_fail.r2.fastq.gz"), emit: ch_pe_canonical_fail
     tuple val(sample_id), path("${sample_id}.match_pe.canonical_barcodes.tsv"), emit: ch_pe_canonical_barcodes
+    tupla val(sample_id), path("${sample_id}.match_se.unknown.tsv"), emit: ch_se_unknown
 
     script:
     """
