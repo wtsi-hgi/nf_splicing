@@ -61,27 +61,31 @@ This pipeline is designed to quantify splicing events within minigene-based muta
     matplotlib = 3.7.3
     biopython = 1.85
     polars = 1.25.2
+    python-levenshtein = 0.12.0
 </details>
 
 <details>
 <summary><b>R Packages</b></summary>
 
-    data.table = 1.15.4
-    UpSetR = 1.4.0
-    gplots = 3.1.3.1
-    corrplot = 0.92
-    reshape2 = 1.4.4
     optparse = 1.7.4
-    psych = 2.4.3
-    reactable = 0.4.4
     tidyverse = 2.0.0
-    stringr = 1.5.1
-    performanceanalytics = 2.0.4
     parallelly = 1.37.1
+    rsamtools = 2.18.0
+    data.table = 1.15.4
+    reshape2 = 1.4.4
+    psych = 2.4.3
+    stringr = 1.5.1
+    r-biostring = 2.70.3
+    UpSetR = 1.4.0
     dendextend = 1.17.1
-    sparkline = 2.0
+    corrplot = 0.92
+    performanceanalytics = 2.0.4
+    gplots = 3.1.3.1
     ggVennDiagram = 1.5.2
+    ggextra = 0.10.1
     htmltools = 0.5.8
+    reactable = 0.4.4
+    sparkline = 2.0
 </details>
 
 <details>
@@ -118,7 +122,7 @@ This pipeline is designed to quantify splicing events within minigene-based muta
 <br>
 
 ### Reference File
-The reference must be the sequence(s) of the minigene.
+The reference must be the sequence(s) of the minigene. If the library only contains partial exon, then the reference should be also the partial exon sequence.
 
 * **Random Intron Library:** The reference file should contain all variant sequences. For example, if the library includes 100 random intron sequences, the reference fasta file must include all 100 corresponding sequences.
 * **Mutagenesis Library:** The reference file only needs the wild-type sequence.
@@ -178,6 +182,7 @@ export OUTPUTRES=$PWD/outputs
 # pipelines #
 #-----------#
 nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
+                                         --outdir       $OUTPUTRES \
                                          --library      random
 ```
 
@@ -186,15 +191,15 @@ nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
 ### Options
 #### Mandatory arguments
     --sample_sheet                path of the sample sheet
+    --library                     random_intron, random_exon, muta_intron, muta_exon, default: random_intron
     --outdir                      the directory path of output results, default: the current directory
-    --do_pe_reads                 whether to process paired-end reads, default: false
+
 
 #### Optional arguments
     Basic:
-    --library                     random, muta, default: muta
-    --barcode_template            barcode template, default: NNNNATNNNNATNNNNATNNNNATNNNNATNNNNATNN
-    --barcode_marker              barcode marker, default: CTACTGATTCGATGCAAGCTTG
-
+    --do_pe_reads                 whether to process paired-end reads, default: false
+    --canonical_method            the method of detecting canonical splicing events, align or match, default: match
+ 
     Fastp:
     --fastp_cut_mean_quality      mean quality for fastp, default: 20
     
@@ -205,11 +210,10 @@ nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
     --flash2_max_mismatch_density max mismatch density for flash2, default: 0.25
     
     BWA:
+    --bwa_mismatch                mismatch penalty for BWA, default: 4
     --bwa_gap_open                gap open penalty for BWA, default: 10,10
     --bwa_gap_ext                 gap extension penalty for BWA, default: 5,5
     --bwa_clip                    clip penalty for BWA, default: 1,1
-
-    Barcode extraction:
     --filter_softclip_base        softclip base for filtering, default: 5
     
     HISAT2:
@@ -238,35 +242,30 @@ nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
 
 ```bash
 📁 output_directory
-    ├─── 📁 extracted_barcodes
+    ├─── 📁 canonical_splicing_results
     │       ├─── 📁 s1_rep1
-    │       │       ├─── 📄 canonical_barcodes.txt
-    │       │       └─── 📄 novel_barcodes.txt
-    │       ├─── 📁 s1_rep2
-    │       └─── 📁 s1_rep3
-    ├─── 📁 novel_junctions
-    │       ├─── 📁 s1_rep1
-    │       │       ├─── 📄 junctions.bed
-    │       │       ├─── 📄 classified_junctions.txt
-    │       │       ├─── 📄 classified_junctions.reduce.txt
-    │       │       ├─── 📄 classified_junctions.png
-    │       │       └─── 📄 classified_variants.png
+    │       │       ├─── 📄 canonical_barcodes.tsv
     │       ├─── 📁 s1_rep2
     │       └─── 📁 s1_rep3
     ├─── 📁 novel_splicing_results
     │       ├─── 📁 s1_rep1
-    │       │       ├─── 📄 spliced_alignment.bam
-    │       │       └─── 📄 spliced_products.txt
+    │       │       ├─── 📄 classified_junctions.tsv
+    │       │       ├─── 📄 bam
+    │       │       ├─── 📄 bam.bai
+    │       │       ├─── 📄 junctions.bed
+    │       │       ├─── 📄 spliced_products.tsv
+    │       │       └─── 📄 novel_barcodes.tsv
     │       ├─── 📁 s1_rep2
     │       └─── 📁 s1_rep3
     ├─── 📁 splicing_counts
-    │       ├─── 📄 s1_rep1.splicing_matrix.txt
-    │       ├─── 📄 s1_rep2.splicing_matrix.txt
-    │       └─── 📄 s1_rep3.splicing_matrix.txt
+    │       ├─── 📄 s1_rep1.splicing_counts.tsv
+    │       ├─── 📄 s1_rep2.splicing_counts.tsv
+    │       └─── 📄 s1_rep3.splicing_counts.tsv
     └─── 📁 splicing_reports
             └─── 📁 s1
                     ├─── 📄 splicing_report.html
-                    └─── 📄 *.png
+                    ├─── 📄 junctions_category.tsv
+                    └─── 📄 psi_values.tsv
 ```
 
 ### File Description
@@ -276,17 +275,17 @@ These files summarize all the barcodes in the sequencing library, categorized by
 > [!NOTE]
 > 📄 **barcodes of canonical splicing events**
 >  
-> | name | barcode | var_id | count |
-> | - | - | - | - |
-> | E1_E2_E3 | ATTAATAATTATCTCTATAGGCATGACCATGATCATAG | var1 | 23 |
-> | E1_E3 | TTTTATTTCGATATTAATCATGATATAAATGTTCATAC | var2 | 143 |
+> | read_ref | var_id | barcode | count | ref_type |
+> | - | - | - | - | - |
+> | DYSF_e10_del119to124 | DYSF_e10_del119to124 | GTAGATGGCTATTTGTATCTCAATGCATATGCTCATGT | 42 | exon_skipping |
+> | MEN1_e5_del17to37 | MEN1_e5_del17to37 | TGTGATAATTATCTTTATCTATATGTGGATTTTTATGT | 26 | exon_inclusion |
 >
 > 📄 **barcodes of novel splicing events**
 > 
-> | barcode | var_id | count |
-> | - | - | - |
-> | ATTAATAATTATCTCTATAGGCATGACCATGATCATAG | var1 | 23 |
-> | TTTTATTTCGATATTAATCATGATATAAATGTTCATAC | var2 | 143 |
+> | read_ref | var_id | barcode | count |
+> | - | - | - | - |
+> | KCNQ1_e14 | KCNQ1_e14_del26to26 | GCGAATGATGATTTGGATAGGCATTTTTATGAGTATGA | 17 |
+> | NDUFS7_e6 | NDUFS7_e6_del97to102 | GTTCATCCACATCTTAATTCCGATCTATATTGTCATGC | 41 |
 
 <br>
 
@@ -308,18 +307,11 @@ These files summarize all the barcodes in the sequencing library, categorized by
 > 📄 **classified junctions of all the variants**
 > 
 > This is a tsv output file which contains all the classified junctions for all the variants
-> | var_id | start | end | cov | annotation |
-> | - | - | - | - | - | 
-> | var1 | 48 | 139 | 11 | exon_splicing_3p_E1;<br>intron_retension_3p_I1 |
-> | var2 | 77 | 340 | 3578 | exon_skipping_E2;<br>intron_retension_5p_I1;<br>intron_retension_3p_I2 |
+> | chrom | start | end | name | coverage | strand | donor | acceptor | annotation
+> | - | - | - | - | - | - | - | - | - |
+> | ABCB11_e4_A102T | 0 | 463 | JUNC01508929 | 50 | + | 20 | 174 | intron_retention_I2 |
+> | BAP1_e2_A103C | 174 | 441 | JUNC01872436 | 121 | + | 253 | 343 | exon_splicing_5p_E3;<br>intron_retension_5p_I2 |
 > 
-> 📄 **classified junctions (reduced)**
->
-> This is a tsv output file which contains all the classified junctions regardless of variants, only based on the splicing sites.
-> | start | end | cov | annotation |
-> | - | - | - | - | 
-> | 48 | 139 | 11 | exon_splicing_3p_E1;<br>intron_retension_3p_I1 |
-> | 77 | 340 | 3578 | exon_skipping_E2;<br>intron_retension_5p_I1;<br>intron_retension_3p_I2 |
 
 <br>
 
@@ -346,6 +338,22 @@ These files summarize all the barcodes in the sequencing library, categorized by
 > | var1 | 743 | 90 | 47 | 21 | 0 | 0 | 5 | 0 | 5 | 0 | 0 | 0 | 0 | 0 | 10 |
 > | var2 | 235 | 16 | 63 | 18 | 0 | 0 | 6 | 0 | 6 | 0 | 0 | 0 | 0 | 0 | 22 |
 > | var3 | 229 | 20 | 62 | 14 | 0 | 0 | 7 | 0 | 7 | 0 | 0 | 0 | 0 | 0 | 18 |
+
+<br>
+
+> [!NOTE] 
+> 📄 **junctions_category**
+>
+> | var_id | donor | acceptor | annotation | s_rep1 | s_rep2 | s_rep3 | avg_cov |
+> | - | - | - | - | - | - | - | - |
+> | CABP4_e2_A105C | 20 | 106 | intron_retension_3p_I1 | 122 | 84 | 114 | 106.67 |
+> | SPAST_e16_del101to101 | 228 | 360 | exon_splicing_5p_E3;<br>intron_retension_5p_I2 | 68 | 53 | 28 | 49.67 |
+
+<br>
+
+> [!NOTE] 
+> 📄 **psi_values**
+>
 
 <br>
 
