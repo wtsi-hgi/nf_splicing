@@ -14,9 +14,9 @@ workflow detect_canonical_se_match {
     ch_se_canonical_stats = GET_STATS.out.ch_se_canonical_stats
 
     emit:
+    ch_se_unknown
     ch_se_canonical_fail
     ch_se_canonical_barcodes
-    ch_se_unknown
     ch_se_canonical_stats
 }
 
