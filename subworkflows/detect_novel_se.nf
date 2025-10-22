@@ -14,16 +14,20 @@ workflow detect_novel_se {
     ch_fix_input = ch_sample.map { sample_id, barcode, barcode_up, barcode_down, barcode_temp, se_reads, ref_fasta -> 
                                         tuple(sample_id, barcode, barcode_up, barcode_down, barcode_temp, ref_fasta) }
                             .join(ch_se_unique_bam)
+    
     FIX_SE_READS(ch_fix_input)
     ch_se_fixed_bam = FIX_SE_READS.out.ch_se_fixed_bam
     ch_se_novel_barcodes = FIX_SE_READS.out.ch_se_novel_barcodes
 
+    SORT_SE_BAM(ch_se_fixed_bam)
+    ch_se_sorted_bam = SORT_SE_BAM.out.ch_se_sorted_bam
+
     /* -- 3. extract junctions -- */
-    EXTRACT_SE_JUNCTIONS(ch_se_fixed_bam)
+    EXTRACT_SE_JUNCTIONS(ch_se_sorted_bam)
     ch_se_junctions = EXTRACT_SE_JUNCTIONS.out.ch_se_junctions
 
     emit:
-    ch_se_fixed_bam
+    ch_se_sorted_bam
     ch_se_novel_barcodes
     ch_se_junctions
     ch_se_novel_stats
@@ -63,7 +67,6 @@ process HISAT2_ALIGN_SE_READS {
 process FIX_SE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.bam*", mode: "copy", overwrite: true
     publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.novel_barcodes.tsv", mode: "copy", overwrite: true
 
     input:
@@ -90,10 +93,24 @@ process FIX_SE_READS {
                                                       --output_prefix ${sample_id}.hisat2_se \
                                                       --chunk_size 100000 \
                                                       --threads 40
-    samtools sort -@ 64 -o ${sample_id}.hisat2_se.fixed.sorted.bam ${sample_id}.hisat2_se.fixed.bam
-    samtools index -@ 64 ${sample_id}.hisat2_se.fixed.sorted.bam
+    """
+}
+
+process SORT_SE_BAM {
+    label 'process_high_memory'
+
+    input:
+    tuple val(sample_id), path(bam)
+
+    output:
+    tuple val(sample_id), path("${sample_id}.hisat2_se.fixed.sorted.bam"), path("${sample_id}.hisat2_se.fixed.sorted.bam.bai"), emit: ch_se_sorted_bam 
+
+    script:
+    """
+    samtools sort -@ 40 -o ${sample_id}.hisat2_se.fixed.sorted.bam ${bam}
+    samtools index -@ 40 ${sample_id}.hisat2_se.fixed.sorted.bam
     bamtools stats -in ${sample_id}.hisat2_se.fixed.sorted.bam > ${sample_id}.hisat2_se.fixed.tsv
-    rm ${sample_id}.hisat2_se.fixed.bam
+    rm ${bam}
     """
 }
 
