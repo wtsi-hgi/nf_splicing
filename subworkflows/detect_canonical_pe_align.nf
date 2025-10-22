@@ -16,9 +16,15 @@ workflow detect_canonical_pe_align {
                                .join(ch_pe_unique_bam)    
     FILTER_PE_READS(ch_filter_input)
     ch_pe_filtered_bam = FILTER_PE_READS.out.ch_pe_filtered_bam
-    ch_pe_wrongmap = FILTER_PE_READS.out.ch_pe_wrongmap
+    ch_pe_wrongmap_bam = FILTER_PE_READS.out.ch_pe_wrongmap_bam
     ch_pe_canonical_barcodes = FILTER_PE_READS.out.ch_pe_canonical_barcodes
-    ch_pe_canonical_stats = FILTER_PE_READS.out.ch_pe_canonical_stats
+
+    SORT_PE_BAM(ch_pe_filtered_bam)
+    ch_pe_sorted_bam = SORT_PE_BAM.out.ch_pe_sorted_bam
+    ch_pe_canonical_stats = SORT_PE_BAM.out.ch_pe_canonical_stats
+
+    PE_BAM_TO_FASTQ(ch_pe_wrongmap_bam)
+    ch_pe_wrongmap = PE_BAM_TO_FASTQ.out.ch_pe_wrongmap
 
     /* -- 3. cat reads -- */
     ch_pe_joined = ch_pe_unmapped.join(ch_pe_wrongmap)
@@ -26,7 +32,7 @@ workflow detect_canonical_pe_align {
     ch_pe_canonical_fail = MERGE_PE_FASTQS.out.ch_pe_canonical_fail
 
     emit:
-    ch_pe_filtered_bam
+    ch_pe_sorted_bam
     ch_pe_canonical_fail
     ch_pe_canonical_barcodes
     ch_pe_canonical_stats
@@ -84,15 +90,41 @@ process FILTER_PE_READS {
                                                           --output_prefix ${sample_id}.bwa_pe \
                                                           --chunk_size 100000 \
                                                           --threads 40
-    samtools sort -@ 40 -o ${sample_id}.bwa_pe.filtered.sorted.bam ${sample_id}.bwa_pe.filtered.bam
+    """
+}
+
+process SORT_PE_BAM {
+    label 'process_high_memory'
+
+    input:
+    tuple val(sample_id), path(bam)
+
+    output:
+    tuple val(sample_id), path("${sample_id}.bwa_pe.filtered.sorted.bam"), path("${sample_id}.bwa_pe.filtered.sorted.bam.bai"), emit: ch_pe_sorted_bam
+    tuple val(sample_id), path("${sample_id}.bwa_pe.canonical_stats.tsv"), emit: ch_pe_canonical_stats
+
+    script:
+    """
+    samtools sort -@ 40 -o ${sample_id}.bwa_pe.filtered.sorted.bam ${bam}
     samtools index -@ 40 ${sample_id}.bwa_pe.filtered.sorted.bam
-    rm ${sample_id}.bwa_pe.filtered.bam
     samtools idxstats ${sample_id}.bwa_pe.filtered.sorted.bam > ${sample_id}.bwa_pe.canonical_stats.tsv
+    rm ${bam}
+    """
+}
 
-    samtools fastq -@ 40 -c 9 -1 ${sample_id}.bwa_pe.wrongmap.r1.fastq.gz -2 ${sample_id}.bwa_pe.wrongmap.r2.fastq.gz -n ${sample_id}.bwa_pe.wrongmap.bam
+process PE_BAM_TO_FASTQ {
+    label 'process_medium'
 
-    rm ${sample_id}.bwa_pe.filtered.bam
-    rm ${sample_id}.bwa_pe.wrongmap.bam
+    input:
+    tuple val(sample_id), path(bam)
+
+    output:
+    tuple val(sample_id), path("${sample_id}.bwa_pe.wrongmap.r1.fastq.gz"), path("${sample_id}.bwa_pe.wrongmap.r2.fastq.gz"), emit: ch_pe_wrongmap
+
+    script:
+    """
+    samtools fastq -@ 32 -c 9 -1 ${sample_id}.bwa_pe.wrongmap.r1.fastq.gz -2 ${sample_id}.bwa_pe.wrongmap.r2.fastq.gz -n ${bam}
+    rm ${bam}
     """
 }
 
