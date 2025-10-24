@@ -27,9 +27,10 @@ def init_worker():
     """
     Initilize worker
     """
-    global global_dict_bar_var, global_pre_exon, global_post_exon
+    global global_dict_bar_var, global_pre_exon, global_mid_exon, global_post_exon
     global_dict_bar_var = dict_bar_var
     global_pre_exon = pre_exon
+    global_mid_exon = mid_exon
     global_post_exon = post_exon
 
 def process_se_read(read: tuple) -> list:
@@ -60,7 +61,10 @@ def process_se_read(read: tuple) -> list:
 
     res_bar_var = global_dict_bar_var.get(barcode_seq)    
     if res_bar_var is not None:
-        exon_seq = res_bar_var["exon"]
+        if args.lib_type in {"random_intron", "muta_intron"}:
+            exon_seq = global_mid_exon
+        else:
+            exon_seq = res_bar_var["exon"]
         ref_exon_inclusion = global_pre_exon + exon_seq + global_post_exon
         ref_exon_skipping = global_pre_exon + global_post_exon
         ref_found = match_approximate(read_seq, ref_exon_inclusion, args.max_mismatch, "hamming")
@@ -118,7 +122,10 @@ def process_pe_pair(read_pair: tuple) -> list:
 
     res_bar_var = global_dict_bar_var.get(barcode_seq)    
     if res_bar_var is not None:
-        exon_seq = res_bar_var["exon"]
+        if args.lib_type in {"random_intron", "muta_intron"}:
+            exon_seq = global_mid_exon
+        else:
+            exon_seq = res_bar_var["exon"]
         ref_exon_inclusion = global_pre_exon + exon_seq + global_post_exon
         ref_exon_skipping = global_pre_exon + global_post_exon
         # Note: assuming read1_seq + read2_seq is the whole sequence
@@ -343,6 +350,7 @@ def process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2):
 #-- main execution --#
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Process a bwa bam file for canonical splicing events.", allow_abbrev = False)
+    parser.add_argument("--lib_type",            type = str, required = True,       help = "library type", choices = ['random_intron', 'random_exon', 'muta_intron', 'muta_exon'])
     parser.add_argument("--reads",               type = str, required = True,       help = "fastq file(s), eg: se_reads.fq.gz or pe_r1.fq.gz,pe_r2.fq.gz")
     parser.add_argument("--read_type",           type = str, default = 'se',        help = "sequence read type (se or pe)", choices = ['se', 'pe'])
     parser.add_argument("--ref_file",            type = str, required = True,       help = "reference fasta file (reads must cover the whole reference sequence, end to end)")
@@ -404,6 +412,7 @@ if __name__ == "__main__":
     exons_in_first_fasta_seq = re.findall(r"[A-Z]+", first_fasta_seq)
     exons_in_first_fasta_seq = [e.split("N", 1)[0] for e in exons_in_first_fasta_seq]
     pre_exon = exons_in_first_fasta_seq[0]
+    mid_exon = exons_in_first_fasta_seq[1]
     post_exon = exons_in_first_fasta_seq[2]
 
     # -- prepare output files -- #

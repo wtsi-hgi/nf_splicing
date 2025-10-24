@@ -35,7 +35,8 @@ process MATCH_SE_READS {
 
     script:
     """
-    python ${projectDir}/scripts/process_canonical_fastq.py --reads ${extended_frags} \
+    python ${projectDir}/scripts/process_canonical_fastq.py --lib_type ${params.library} \
+                                                            --reads ${extended_frags} \
                                                             --read_type se \
                                                             --ref_file ${ch_hisat2_ref} \
                                                             --barcode_file ${barcode} \
