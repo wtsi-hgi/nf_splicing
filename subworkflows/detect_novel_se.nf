@@ -73,7 +73,7 @@ process FIX_SE_READS {
     tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(ref_fasta), path(bam)
 
     output:
-    tuple val(sample_id), path("${sample_id}.hisat2_se.fixed.sorted.bam"), path("${sample_id}.hisat2_se.fixed.sorted.bam.bai"), emit: ch_se_fixed_bam 
+    tuple val(sample_id), path("${sample_id}.hisat2_se.fixed.bam"), emit: ch_se_fixed_bam 
     tuple val(sample_id), path("${sample_id}.hisat2_se.novel_barcodes.tsv"), emit: ch_se_novel_barcodes
 
     script:

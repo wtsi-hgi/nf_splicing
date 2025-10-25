@@ -74,7 +74,7 @@ process FIX_PE_READS {
     tuple val(sample_id), path(barcode), val(barcode_up), val(barcode_down), val(barcode_temp), path(ref_fasta), path(bam)
 
     output:
-    tuple val(sample_id), path("${sample_id}.hisat2_pe.fixed.sorted.bam"), path("${sample_id}.hisat2_pe.fixed.sorted.bam.bai"), emit: ch_pe_fixed_bam 
+    tuple val(sample_id), path("${sample_id}.hisat2_pe.fixed.bam"), emit: ch_pe_fixed_bam 
     tuple val(sample_id), path("${sample_id}.hisat2_pe.novel_barcodes.tsv"), emit: ch_pe_novel_barcodes
 
     script:
