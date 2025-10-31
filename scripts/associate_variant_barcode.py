@@ -81,7 +81,7 @@ def process_pe_pairs_in_chunk(path_read1, path_read2):
             # Divide chunk into batches
             # if process_long_read is very fast, we can use a larger batch size to make better use of CPU resources
             # if process_long_read is very slow, we can use a smaller batch size to make better use of CPU resources
-            batch_size = min(args.chunk_size, 5000)
+            batch_size = min(args.chunk_size, 40000)
             read_batches = [
                 read_chunk[i:i+batch_size]
                 for i in range(0, len(read_chunk), batch_size)
@@ -91,15 +91,15 @@ def process_pe_pairs_in_chunk(path_read1, path_read2):
             futures = [ executor.submit(function_processpool_pe, batch) for batch in read_batches ]
             for future in as_completed(futures):
                 batch_result = future.result()
-                list_barcodes.append(pl.DataFrame(batch_result, schema=["variant_seq", "barcode_seq"]))
+                list_barcodes.append(pl.DataFrame(batch_result, schema = ["variant_seq", "barcode_seq"], orient = "row"))
 
                 # -- free memory -- #
                 del batch_result
                 gc.collect()
 
-            df_yield = ( pl.concat(list_barcodes, how="vertical")
+            df_yield = ( pl.concat(list_barcodes, how = "vertical")
                            .group_by(["variant_seq", "barcode_seq"])
-                           .agg(pl.count()) )
+                           .agg(pl.len().alias("count")) )
 
             # -- free memory -- #
             del read_chunk, read_batches, futures, list_barcodes
@@ -209,13 +209,14 @@ if __name__ == "__main__":
     if args.barcode_check:
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against barcode template match, please wait ...", flush=True)
         rows = []
+        count_barcode_template = 0
         for variant_seq, barcode_seq, count in df_barcode_counts.iter_rows():
             barcode_corrected = check_barcode(barcode_seq, args.barcode_temp.upper(), args.barcode_mismatch)
             if barcode_corrected is None:
                 count_barcode_template += count
             else:
                 rows.append((variant_seq, barcode_seq, count))
-        df_barcode_counts = pl.DataFrame(rows, schema=["variant_seq", "barcode_seq", "count"])
+        df_barcode_counts = pl.DataFrame(rows, schema=["variant_seq", "barcode_seq", "count"], orient = "row")
 
     # --- (7) count <= args.min_barcov
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against barcode minimal coverage, please wait ...", flush=True)
@@ -230,7 +231,7 @@ if __name__ == "__main__":
     df_barcode_counts.write_csv(barcode_out, separator = "\t")
 
     with open(stats_out, "w") as f:
-        f.write(f"Total reads processed: {len(count_processed_reads)}\n")
+        f.write(f"Total reads processed: {count_processed_reads}\n")
         f.write(f"Total reads with variant upstream not found: {count_varup_notfound}\n")
         f.write(f"Total reads with variant downstream not found: {count_vardown_notfound}\n")
         f.write(f"Total reads with barcode upstream not found: {count_barup_notfound}\n")
