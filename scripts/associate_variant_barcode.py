@@ -208,16 +208,16 @@ if __name__ == "__main__":
     # --- (6) barcode pattern check
     if args.barcode_check:
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against barcode template match, please wait ...", flush=True)
-        rows = []
-        count_barcode_template = 0
-        for variant_seq, barcode_seq, count in df_barcode_counts.iter_rows():
-            barcode_corrected = check_barcode(barcode_seq, args.barcode_temp.upper(), args.barcode_mismatch)
-            if barcode_corrected is None:
-                count_barcode_template += count
-            else:
-                rows.append((variant_seq, barcode_seq, count))
-        df_barcode_counts = pl.DataFrame(rows, schema=["variant_seq", "barcode_seq", "count"], orient = "row")
-
+        df_barcode_counts = df_barcode_counts.with_columns(
+            pl.col("barcode_seq").map_elements(
+                lambda b: check_barcode(b, args.barcode_temp.upper(), args.barcode_mismatch),
+                return_dtype=pl.Utf8
+            ).alias("barcode_corrected")
+        )
+        count_barcode_template = int(df_barcode_counts.filter(pl.col("barcode_corrected").is_null())["count"].sum())
+        df_barcode_counts = df_barcode_counts.filter(pl.col("barcode_corrected").is_not_null())
+        df_barcode_counts = df_barcode_counts.drop("barcode_corrected")
+    
     # --- (7) count <= args.min_barcov
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against barcode minimal coverage, please wait ...", flush=True)
     mask = df_barcode_counts["count"] <= args.min_barcov
