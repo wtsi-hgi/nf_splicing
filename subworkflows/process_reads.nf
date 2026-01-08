@@ -39,7 +39,7 @@ process TRIMMING_READS {
 }
 
 process MERGING_READS {
-    label 'process_low'
+    label 'process_medium'
 
     input:
     tuple val(sample_id), path(read1), path(read2), path(trim_stats)
@@ -56,7 +56,6 @@ process MERGING_READS {
            --output-prefix         ${sample_id} \
            --output-directory      . \
            --threads               32 \
-           --allow-outies \
            --compress \
            ${read1} ${read2} 2>&1 | tee ${sample_id}.merge.tsv
     """
