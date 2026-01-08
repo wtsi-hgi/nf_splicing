@@ -174,38 +174,38 @@ if __name__ == "__main__":
     count_processed_reads = df_barcode_counts["count"].sum()
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Filtering barcode results, please wait ...", flush = True)
 
-    # --- (1) variant_seq == "upstream not found"
+    # -- (1) variant_seq == "upstream not found" -- #
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against variant upstream match, please wait ...", flush=True)
     mask = df_barcode_counts["variant_seq"] == "upstream not found"
     count_varup_notfound = df_barcode_counts.filter(mask)["count"].sum()
     df_barcode_counts = df_barcode_counts.filter(~mask)
 
-    # --- (2) variant_seq == "downstream not found"
+    # -- (2) variant_seq == "downstream not found" -- #
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against variant downstream match, please wait ...", flush=True)
     mask = df_barcode_counts["variant_seq"] == "downstream not found"
     count_vardown_notfound = df_barcode_counts.filter(mask)["count"].sum()
     df_barcode_counts = df_barcode_counts.filter(~mask)
 
-    # --- (3) barcode_seq == "upstream not found"
+    # -- (3) barcode_seq == "upstream not found" -- #
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against barcode upstream match, please wait ...", flush=True)
     mask = df_barcode_counts["barcode_seq"] == "upstream not found"
     count_barup_notfound = df_barcode_counts.filter(mask)["count"].sum()
     df_barcode_counts = df_barcode_counts.filter(~mask)
 
-    # --- (4) barcode_seq == "downstream not found"
+    # -- (4) barcode_seq == "downstream not found" -- #
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against barcode downstream match, please wait ...", flush=True)
     mask = df_barcode_counts["barcode_seq"] == "downstream not found"
     count_bardown_notfound = df_barcode_counts.filter(mask)["count"].sum()
     df_barcode_counts = df_barcode_counts.filter(~mask)
 
-    # --- (5) len(variant_seq) < args.variant_len
+    # -- (5) len(variant_seq) < args.variant_len -- #
     if args.variant_check:
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against variant length match, please wait ...", flush=True)
         mask = df_barcode_counts["variant_seq"].str.len_chars() < args.variant_len
         count_variant_length = df_barcode_counts.filter(mask)["count"].sum()
         df_barcode_counts = df_barcode_counts.filter(~mask)
 
-    # --- (6) barcode pattern check
+    # -- (6) barcode pattern check -- #
     if args.barcode_check:
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against barcode template match, please wait ...", flush=True)
         df_barcode_counts = df_barcode_counts.with_columns(
@@ -218,13 +218,21 @@ if __name__ == "__main__":
         df_barcode_counts = df_barcode_counts.filter(pl.col("barcode_corrected").is_not_null())
         df_barcode_counts = df_barcode_counts.drop("barcode_corrected")
     
-    # --- (7) count <= args.min_barcov
+    # -- (7) count <= args.min_barcov -- #
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against barcode minimal coverage, please wait ...", flush=True)
-    mask = df_barcode_counts["count"] <= args.min_barcov
+    mask = df_barcode_counts["count"] < args.min_barcov
     count_low_barcov = df_barcode_counts.filter(mask)["count"].sum()
     df_barcode_counts = df_barcode_counts.filter(~mask)
 
-    # --- (8) remaining records
+    # -- (8) some barcodes match multiple variants, only keep the one with the highest count -- #
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against barcode multiple variant matches, please wait ...", flush=True)
+    count_before_filter = df_barcode_counts["count"].sum()
+    df_barcode_counts = ( df_barcode_counts.sort("count", descending = True)
+                                           .group_by("barcode_seq")
+                                           .agg([pl.first("variant_seq").alias("variant_seq"), pl.first("count").alias("count")]) )
+
+    # -- (9) remaining records
+    df_barcode_counts = df_barcode_counts.sort("variant_seq")
     count_effective_reads = df_barcode_counts["count"].sum()
 
     print(f"Creating output files, please wait...", flush=True)
@@ -240,6 +248,8 @@ if __name__ == "__main__":
             f.write(f"Total reads with variant length inconsistent: {count_variant_length}\n")
         if args.barcode_check:
             f.write(f"Total reads with barcode pattern mismatch: {count_barcode_template}\n")
+        f.write(f"Total reads with barcode coverage < {args.min_barcov}: {count_low_barcov}\n")
+        f.write(f"Total reads with barcodes matching multiple variants: {count_before_filter - count_effective_reads}\n")
         f.write(f"Total effective reads: {count_effective_reads}\n")
     
 
