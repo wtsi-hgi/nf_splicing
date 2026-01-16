@@ -3,7 +3,16 @@ quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, 
 packages <- c("optparse", "glue", "tidyverse", "data.table", "vroom", "gtools")
 invisible(lapply(packages, quiet_library))
 
-# -- description -- #
+# -- Model description: PSI error model -- #
+# -------------------------
+# - PSI = Percent Spliced In
+# - Observed counts: Inclusion, Skipping
+# - Add small prior eps = 0.5 (Beta(0.5, 0.5), Jeffreys prior)
+#   -> stabilizes low-count variants, avoids logit(0/1)
+# - Variance model: multiplicative (Poisson/binomial) + additive (replicate noise)
+# - Inverse variance weighting used to combine replicates
+# - Empirical Bayes shrinkage reduces noise in low-confidence variants
+# -------------------------
 model_help_description <- glue(r"(
 Calculate PSI with error model from splicing counts.
 
@@ -97,13 +106,57 @@ Overall, this model accounts for technical noise from finite read counts and rep
 providing robust PSI estimates across a range of coverage levels.
 )")
 
+model_workflow <- glue(r"(
+Raw counts per variant
+ ├─ Inclusion counts
+ └─ Skipping counts
+        │
+        ▼
+Add Bayesian prior (eps = 0.5)
+ └─ Adjusted PSI:
+      PSI_adj = (Inclusion + eps) / (Inclusion + Skipping + 2*eps)
+        │
+        ▼
+Logit transformation
+ └─ logit(PSI) = log(PSI_adj / (1 - PSI_adj))
+        │
+        ▼
+Compute multiplicative variance (sampling noise)
+ └─ var_mult = 1 / (n_total * PSI_adj * (1 - PSI_adj))
+        │
+        ▼
+Replicate subsets (DiMSum approach)
+ └─ Build all combinations of replicates
+        │
+        ▼
+Estimate additive replicate variance (σ²_rep)
+ └─ Optimize Negative Log-Likelihood across subsets
+        │
+        ▼
+Error-corrected PSI (MLE across replicates)
+ └─ Inverse variance weighting:
+      logit(PSI_v) = Σ(logit_psi / var_tot) / Σ(1 / var_tot)
+      var_theta = 1 / Σ(1 / var_tot)
+        │
+        ▼
+Empirical Bayes shrinkage
+ └─ Shrink low-confidence variants toward global mean:
+      theta_shrunk = λ * theta_hat + (1 - λ) * mu_global
+      λ = tau² / (tau² + var_theta)
+        │
+        ▼
+Final PSI estimate:
+ └─ psi_shrunk = plogis(theta_shrunk)
+)")
+
 # -- options -- #
 option_list <- list(make_option(c("-r", "--rscript_dir"),     type = "character",    help = "directory path of R scripts", default = NULL),
                     make_option(c("-s", "--sample_id"),       type = "character",    help = "list of sample IDs",          default = NULL),
                     make_option(c("-d", "--splicing_counts"), type = "character",    help = "list of splicing counts",     default = NULL),
                     make_option(c("-o", "--output_dir"),      type = "character",    help = "output directory",            default = getwd()),
                     make_option(c("-p", "--prefix"),          type = "character",    help = "output prefix",               default = "sample"),
-                    make_option(c("-m", "--model_help"),      action = "store_true", help = "print model description"))
+                    make_option(c("-m", "--model_help"),      action = "store_true", help = "print model description",     default=FALSE),
+                    make_option(c("-w", "--model_workflow"),  action = "store_true", help = "print model workflow",        default=FALSE))
 
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
@@ -120,6 +173,12 @@ if(opt$model_help)
     quit(status = 0)
 }
 
+if(opt$model_workflow)
+{
+    print(model_workflow)
+    quit(status = 0)
+}
+
 # -- check options -- #
 if(is.null(opt$rscript_dir))          stop("-r, directory path of R scripts is required!", call. = FALSE)
 if(is.null(opt$sample_id))            stop("-s, list of sample IDs is required!", call. = FALSE)
@@ -129,11 +188,11 @@ if(is.null(opt$splicing_counts))      stop("-d, list of splicing counts is requi
 source(file.path(opt$rscript_dir, "report_utils.R"))
 
 # -- inputs -- #
-sample_reps                <- unlist(strsplit(opt$sample_id, ","))
-files_splicing_counts      <- unlist(strsplit(opt$splicing_counts, ","))
+sample_reps           <- unlist(strsplit(opt$sample_id, ","))
+files_splicing_counts <- unlist(strsplit(opt$splicing_counts, ","))
 
-sample_reps                <- mixedsort(sample_reps)
-files_splicing_counts      <- sort_paths_by_filename(files_splicing_counts)
+sample_reps           <- mixedsort(sample_reps)
+files_splicing_counts <- sort_paths_by_filename(files_splicing_counts)
 
 # -- outputs -- #
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
@@ -149,10 +208,11 @@ reformat_counts <- function(dt, inclusion_cols, skipping_cols)
     if (length(missing) > 0) stop("Missing columns: ", paste(missing, collapse = ", "))
 
     return(dt[, .( var_id    = var_id,
-                   inclusion = rowSums(.SD[, ..inclusion_cols]),
-                   skipping  = rowSums(.SD[, ..skipping_cols]))])
+                   inclusion = rowSums(.SD[, inclusion_cols, with = FALSE]),
+                   skipping  = rowSums(.SD[, skipping_cols, with = FALSE]))])
 }
 
+splicing_counts <- list()
 for(i in seq_along(sample_reps))
 {    
     splicing_counts[[sample_reps[i]]] <- as.data.table(vroom(files_splicing_counts[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
@@ -161,15 +221,16 @@ for(i in seq_along(sample_reps))
 dt_splicing <- rbindlist(splicing_counts, idcol = "reps")
 
 # -- 2. calculate PSI with eps -- #
+# Note: For low-count variants, PSI is pulled toward 0.5. This is intentional Bayesian shrinkage.
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "2. calculate PSI with eps ...")
 eps <- 0.5
 dt_splicing[, n_total := inclusion + skipping]
+dt_splicing <- dt_splicing[n_total > 0]
 dt_splicing[, psi := (inclusion + eps) / (n_total + 2*eps)]
 
 # -- 3. calculate logit(psi) and variance multiplicative -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "3. calculate logit(psi) and variance multiplicative ...")
-# qlogis(psi) = log(psi / (1 - psi))
-dt_splicing[, logit_psi := qlogis(psi)]
+dt_splicing[, logit_psi := qlogis(psi)] # qlogis(psi) = log(psi / (1 - psi))
 dt_splicing[, var_mult := 1 /(n_total * psi * (1 - psi))]
 
 # -- 4. build replicate subsets -- #
@@ -179,17 +240,72 @@ rep_subsets <- unlist(lapply(2:length(sample_reps), function(k) combn(sample_rep
 # Negative log-likelihood (NLL)
 # We usually minimize functions in optimization routines like optim() in R.
 # So instead of maximizing L(θ), we minimize: NLL(θ) = -log(L(θ))
-subset_variance <- function(a_log, dt_sub)
+subset_nll <- function(a_log, dt_sub)
 {
     # convert to actual additive variances
     a2 <- exp(a_log)
-    names(a2) <- unique(dt_sub$reps)
-    
     dt_sub[, var_tot := var_mult + a2[reps]]
 
     # theta_i estimate
     theta_dt <- dt_sub[, .(theta = sum(logit_psi / var_tot) / sum(1 / var_tot)), by = var_id]
-    
     dt_sub <- merge(dt_sub, theta_dt, by = "var_id")
-    sum(0.5 * (log(var_tot) + (logit_psi - theta)^2 / var_tot))
+
+    return(sum(0.5 * (log(dt_sub$var_tot) + (dt_sub$logit_psi - dt_sub$theta)^2 / dt_sub$var_tot)))
 }
+
+joint_nll <- function(a_log, dt, rep_subsets)
+{
+    total_nll <- 0
+    
+    for(repset in rep_subsets) 
+    {
+        dt_sub <- dt[reps %in% repset]
+        a_log_sub <- a_log[repset]
+        total_nll <- total_nll + subset_nll(a_log_sub, dt_sub)
+    }
+
+    return(total_nll)
+}
+
+# -- 5. estimate error variances -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "5. estimate error variances ...")
+
+# initial values for log(a_r^2)
+init <- rep(log(0.01), length(sample_reps))
+names(init) <- sample_reps
+
+# estimates
+fit <- optim(par = init, fn = joint_nll, dt = dt_splicing, rep_subsets = rep_subsets, method = "BFGS")
+a2_hat <- exp(fit$par)
+a_hat  <- sqrt(a2_hat)
+
+
+# -- 6. calculate error-corrected PSI -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "5. calculate error-corrected PSI ...")
+dt_splicing[, a2 := a2_hat[reps]]
+dt_splicing[, var_tot := var_mult + a2]
+
+# inverse variance weighting
+# PSI_v0 = logit(PSI_v)
+# PSI_v0 = sum_r (Y(v|r) / var_total(v|r)) / sum_r (1 / var_total(v|r))
+# Var(PSI_v0) = 1 / sum_r (1 / var_total(v|r))
+dt_splicing_corrected <- dt_splicing[, .(theta_hat = sum(logit_psi / var_tot) / sum(1 / var_tot),
+                                         var_theta = 1 / sum(1 / var_tot)), 
+                                         by = var_id]
+dt_splicing_corrected[, psi_hat := plogis(theta_hat)]
+
+# -- 7. shrinkage (empirical Bayes) -- #
+# We now shrink variant estimates toward a global mean, exactly as DiMSum does for fitness.
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "6. shrinkage (empirical Bayes) ...")
+
+mu_global <- mean(dt_splicing_corrected$theta_hat)
+tau2 <- var(dt_splicing_corrected$theta_hat)
+
+# shrinkage factor
+# for each variant v: λ(v) = tau2 / (tau2 + var_theta(v))
+dt_splicing_corrected[, shrinkage := tau2 / (tau2 + var_theta)]
+
+# shrunk estimates
+# θ(shrunk)​ = λ(v)​θ(v)​ + (1−λ(v)​) * mu_global
+dt_splicing_corrected[, theta_shrunk := shrinkage * theta_hat + (1 - shrinkage) * mu_global]
+dt_splicing_corrected[, psi_shrunk := plogis(theta_shrunk)]
