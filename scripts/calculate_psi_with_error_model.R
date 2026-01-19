@@ -309,3 +309,8 @@ dt_splicing_corrected[, shrinkage := tau2 / (tau2 + var_theta)]
 # θ(shrunk)​ = λ(v)​θ(v)​ + (1−λ(v)​) * mu_global
 dt_splicing_corrected[, theta_shrunk := shrinkage * theta_hat + (1 - shrinkage) * mu_global]
 dt_splicing_corrected[, psi_shrunk := plogis(theta_shrunk)]
+
+# -- 8. output -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "7. output ...")
+output_file <- file.path(opt$output_dir, paste0(sample_prefix, ".corrected_psi.tsv"))
+fwrite(dt_splicing_corrected, file = output_file, sep = "\t", quote = FALSE, na = "NA", row.names = FALSE)
