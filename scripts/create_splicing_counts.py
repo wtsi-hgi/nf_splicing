@@ -69,6 +69,8 @@ if __name__ == "__main__":
         if col not in df_canonical_pivot.columns:
             df_canonical_pivot = df_canonical_pivot.with_columns(pl.lit(0).alias(col))
     df_canonical_pivot = df_canonical_pivot.rename({"exon_inclusion": "canonical_inclusion", "exon_skipping": "canonical_skipping"})
+    cols_order = ["var_id", "canonical_inclusion", "canonical_skipping"]
+    df_canonical_pivot = df_canonical_pivot.select(cols_order)
 
     df_novel_format = (df_novel.select(["chrom", "coverage", "annotation"])
                                .with_columns(pl.col("annotation").str.split(";").alias("annotation_split"))
