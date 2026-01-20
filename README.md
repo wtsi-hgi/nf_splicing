@@ -124,8 +124,7 @@ This pipeline is designed to quantify splicing events within minigene-based muta
 ### Reference File
 The reference must be the sequence(s) of the minigene. If the library only contains partial exon, then the reference should be also the partial exon sequence.
 
-* **Random Intron Library:** The reference file should contain all variant sequences. For example, if the library includes 100 random intron sequences, the reference fasta file must include all 100 corresponding sequences.
-* **Mutagenesis Library:** The reference file only needs the wild-type sequence.
+* **Note:** The reference file should contain all variant sequences. For example, if the library includes 100 random intron sequences, the reference fasta file must include all 100 corresponding sequences.
 
 > [!IMPORTANT]
 > 1. File must be a fasta file
