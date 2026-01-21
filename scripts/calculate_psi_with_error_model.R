@@ -141,7 +141,7 @@ Error-corrected PSI (MLE across replicates)
         ▼
 Empirical Bayes shrinkage
  └─ Shrink low-confidence variants toward global mean:
-      theta_shrunk = λ * theta_hat + (1 - λ) * mu_global
+      theta_shrunk = λ * theta + (1 - λ) * mu_global
       λ = tau² / (tau² + var_theta)
         │
         ▼
@@ -268,7 +268,7 @@ joint_nll <- function(a_log, dt, rep_subsets)
 }
 
 # -- 5. estimate error variances -- #
-message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "5. estimate error variances ...")
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "5. estimate error variances (long running) ...")
 
 # initial values for log(a_r^2)
 init <- rep(log(0.01), length(sample_reps))
@@ -281,7 +281,7 @@ a_hat  <- sqrt(a2_hat)
 
 
 # -- 6. calculate error-corrected PSI -- #
-message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "5. calculate error-corrected PSI ...")
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "6. calculate error-corrected PSI ...")
 dt_splicing[, a2 := a2_hat[reps]]
 dt_splicing[, var_tot := var_mult + a2]
 
@@ -289,17 +289,17 @@ dt_splicing[, var_tot := var_mult + a2]
 # PSI_v0 = logit(PSI_v)
 # PSI_v0 = sum_r (Y(v|r) / var_total(v|r)) / sum_r (1 / var_total(v|r))
 # Var(PSI_v0) = 1 / sum_r (1 / var_total(v|r))
-dt_splicing_corrected <- dt_splicing[, .(theta_hat = sum(logit_psi / var_tot) / sum(1 / var_tot),
+dt_splicing_corrected <- dt_splicing[, .(theta = sum(logit_psi / var_tot) / sum(1 / var_tot),
                                          var_theta = 1 / sum(1 / var_tot)), 
                                          by = var_id]
-dt_splicing_corrected[, psi_hat := plogis(theta_hat)]
+dt_splicing_corrected[, psi_est := plogis(theta)]
 
 # -- 7. shrinkage (empirical Bayes) -- #
 # We now shrink variant estimates toward a global mean, exactly as DiMSum does for fitness.
-message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "6. shrinkage (empirical Bayes) ...")
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "7. shrinkage (empirical Bayes) ...")
 
-mu_global <- mean(dt_splicing_corrected$theta_hat)
-tau2 <- var(dt_splicing_corrected$theta_hat)
+mu_global <- mean(dt_splicing_corrected$theta)
+tau2 <- var(dt_splicing_corrected$theta)
 
 # shrinkage factor
 # for each variant v: λ(v) = tau2 / (tau2 + var_theta(v))
@@ -307,10 +307,23 @@ dt_splicing_corrected[, shrinkage := tau2 / (tau2 + var_theta)]
 
 # shrunk estimates
 # θ(shrunk)​ = λ(v)​θ(v)​ + (1−λ(v)​) * mu_global
-dt_splicing_corrected[, theta_shrunk := shrinkage * theta_hat + (1 - shrinkage) * mu_global]
+dt_splicing_corrected[, theta_shrunk := shrinkage * theta + (1 - shrinkage) * mu_global]
+dt_splicing_corrected[, var_theta_shrunk := shrinkage^2 * var_theta]
 dt_splicing_corrected[, psi_shrunk := plogis(theta_shrunk)]
 
-# -- 8. output -- #
-message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "7. output ...")
+# -- 8. confidence intervals -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "8. calculate confidence intervals ...")
+
+# θ(hat​) = logit(PSI) ∼ N(θ,Var(θ(hat)​))
+# a standard normal variable Z ~ N(0,1), so P(|Z| <= 1.96) = 0.95
+# then 95% CI = mean ± 1.96 × SD
+z <- 1.96
+dt_splicing_corrected[, psi_shrunk_lwr   := plogis(theta_shrunk - z * sqrt(var_theta_shrunk))]
+dt_splicing_corrected[, psi_shrunk_upr   := plogis(theta_shrunk + z * sqrt(var_theta_shrunk))]
+
+# -- 9. output -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "9. output ...")
+num_cols <- names(dt_splicing_corrected)[sapply(dt_splicing_corrected, is.numeric)]
+dt_splicing_corrected[, (num_cols) := lapply(.SD, round, 4), .SDcols = num_cols]
 output_file <- file.path(opt$output_dir, paste0(sample_prefix, ".corrected_psi.tsv"))
 fwrite(dt_splicing_corrected, file = output_file, sep = "\t", quote = FALSE, na = "NA", row.names = FALSE)
