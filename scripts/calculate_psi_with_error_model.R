@@ -207,18 +207,33 @@ reformat_counts <- function(dt, inclusion_cols, skipping_cols)
     missing <- setdiff(c("var_id", inclusion_cols, skipping_cols), names(dt))
     if (length(missing) > 0) stop("Missing columns: ", paste(missing, collapse = ", "))
 
-    return(dt[, .( var_id    = var_id,
-                   inclusion = rowSums(.SD[, inclusion_cols, with = FALSE]),
-                   skipping  = rowSums(.SD[, skipping_cols, with = FALSE]))])
+    other_cols <- setdiff(names(dt), c("var_id", inclusion_cols, skipping_cols))
+
+    dt <- dt[, .( var_id    = var_id,
+                  inclusion = rowSums(.SD[, inclusion_cols, with = FALSE]),
+                  skipping  = rowSums(.SD[, skipping_cols,  with = FALSE]),
+                  others    = rowSums(.SD[, other_cols,     with = FALSE]))]
+
+    dt[, ratio_inclusion := inclusion / (inclusion + skipping + others)]
+    dt[, ratio_skipping  := skipping  / (inclusion + skipping + others)]
+    dt[, ratio_others    := others    / (inclusion + skipping + others)]
+    dt[, ratio_splicing := { incl <- as.integer(ratio_inclusion * 100)
+                             skip <- as.integer(ratio_skipping * 100)
+                             other <- 100 - incl - skip
+                             paste0(incl, ":", skip, ":", other) }]
+    return(dt)
 }
 
+cols_canonical_inclusion <- c("canonical_inclusion")
+cols_canonical_skipping  <- c("canonical_skipping")
 splicing_counts <- list()
 for(i in seq_along(sample_reps))
 {    
     splicing_counts[[sample_reps[i]]] <- as.data.table(vroom(files_splicing_counts[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
-    splicing_counts[[sample_reps[i]]] <- reformat_counts(splicing_counts[[sample_reps[i]]], "canonical_inclusion", "canonical_skipping")
+    splicing_counts[[sample_reps[i]]] <- reformat_counts(splicing_counts[[sample_reps[i]]], cols_canonical_inclusion, cols_canonical_skipping)
 }
 dt_splicing <- rbindlist(splicing_counts, idcol = "reps")
+
 
 # -- 2. calculate PSI with eps -- #
 # Note: For low-count variants, PSI is pulled toward 0.5. This is intentional Bayesian shrinkage.
@@ -279,7 +294,6 @@ fit <- optim(par = init, fn = joint_nll, dt = dt_splicing, rep_subsets = rep_sub
 a2_hat <- exp(fit$par)
 a_hat  <- sqrt(a2_hat)
 
-
 # -- 6. calculate error-corrected PSI -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "6. calculate error-corrected PSI ...")
 dt_splicing[, a2 := a2_hat[reps]]
@@ -289,10 +303,15 @@ dt_splicing[, var_tot := var_mult + a2]
 # PSI_v0 = logit(PSI_v)
 # PSI_v0 = sum_r (Y(v|r) / var_total(v|r)) / sum_r (1 / var_total(v|r))
 # Var(PSI_v0) = 1 / sum_r (1 / var_total(v|r))
+ratio_wide <- dcast(dt_splicing, var_id ~ reps, value.var = "ratio_splicing")
+setnames(ratio_wide, old = names(ratio_wide)[-1], new = paste0("ratio", seq_along(names(ratio_wide)[-1])))
+
 dt_splicing_corrected <- dt_splicing[, .(theta = sum(logit_psi / var_tot) / sum(1 / var_tot),
                                          var_theta = 1 / sum(1 / var_tot)), 
                                          by = var_id]
 dt_splicing_corrected[, psi_est := plogis(theta)]
+
+dt_splicing_corrected <- merge(ratio_wide, dt_splicing_corrected, by = "var_id", all.x = TRUE)
 
 # -- 7. shrinkage (empirical Bayes) -- #
 # We now shrink variant estimates toward a global mean, exactly as DiMSum does for fitness.
