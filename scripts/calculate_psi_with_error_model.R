@@ -234,7 +234,6 @@ for(i in seq_along(sample_reps))
 }
 dt_splicing <- rbindlist(splicing_counts, idcol = "reps")
 
-
 # -- 2. calculate PSI with eps -- #
 # Note: For low-count variants, PSI is pulled toward 0.5. This is intentional Bayesian shrinkage.
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "2. calculate PSI with eps ...")
@@ -303,8 +302,11 @@ dt_splicing[, var_tot := var_mult + a2]
 # PSI_v0 = logit(PSI_v)
 # PSI_v0 = sum_r (Y(v|r) / var_total(v|r)) / sum_r (1 / var_total(v|r))
 # Var(PSI_v0) = 1 / sum_r (1 / var_total(v|r))
-ratio_wide <- dcast(dt_splicing, var_id ~ reps, value.var = "ratio_splicing")
-setnames(ratio_wide, old = names(ratio_wide)[-1], new = paste0("ratio", seq_along(names(ratio_wide)[-1])))
+ratio_wide <- dcast(dt_splicing, var_id ~ reps, value.var = c("ratio_splicing", "n_total"))
+ratio_cols <- grep("^ratio_splicing_", names(ratio_wide), value = TRUE)
+n_total_cols <- grep("^n_total_", names(ratio_wide), value = TRUE)
+setnames(ratio_wide, ratio_cols, paste0("ratio", seq_along(ratio_cols)))
+setnames(ratio_wide, n_total_cols, paste0("n_total", seq_along(n_total_cols)))
 
 dt_splicing_corrected <- dt_splicing[, .(theta = sum(logit_psi / var_tot) / sum(1 / var_tot),
                                          var_theta = 1 / sum(1 / var_tot)), 
