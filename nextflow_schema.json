@@ -1,0 +1,24 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"title": "nf_splicing",
+	"description": "A nextflow pipeline of identifying and quantifying splicing events for mutagenesis analysis",
+	"type": "object",
+	"properties": {
+		"sample_sheet": {
+			"type": "string",
+			"format": "file-path",
+			"description": "A sample sheet specifying sample meta information (csv or tsv)"
+		},
+        "library": {
+            "type": "string",
+            "description": "Library type: 'random_intron', 'random_exon', 'muta_intron', 'muta_exon'", 
+            "default": "random_intron"
+        },
+		"outdir": {
+			"type": "string",
+			"description": "Output directory",
+			"default": "current working directory"
+		}
+	},
+	"required": ["sample_sheet", "library", "outdir"]
+}
