@@ -88,6 +88,7 @@ $$
 **Variance of logit(PSI) via delta method:**
 
 Let:
+
 $$
 \theta = \mathrm{logit(PSI)} = \log\frac{\mathrm{PSI}}{1-\mathrm{PSI}}\
 $$ 
@@ -98,15 +99,15 @@ $$
 \mathrm{Var}(\theta)
 \approx
 \left(\frac{d\theta}{d\mathrm{PSI}}\right)^2 \mathrm{Var}(\hat{\mathrm{PSI}})
+$$
 
-\\[0.8em]
-
+$$
 \mathrm{Var}(\theta)
 \approx
 (\frac{1}{\mathrm{PSI} \cdot \mathrm{(1-PSI)}})^2 \cdot \frac{\mathrm{PSI} \cdot \mathrm{(1-PSI)}}{\mathrm{N}}
+$$
 
-\\[0.8em]
-
+$$
 \mathrm{Var}(\theta)
 \approx
 \frac{1}{\mathrm{N} \cdot \mathrm{PSI} \cdot (1 - \mathrm{PSI})}
@@ -121,7 +122,7 @@ This term represents sampling uncertainty due to finite read depth. It captures 
 For variant $v$ in replicate $r$, the observed logit-PSI is modeled as:
 
 $$
-\theta_{vr} = \theta_{v0} + \varepsilon^{(M)}_{vr} + \varepsilon^{(A)}_{r},
+\theta_{vr} = \theta_{v0} + \varepsilon^{(M)}_{vr} + \varepsilon^{(A)}_{r}
 $$
 
 where:
@@ -138,21 +139,20 @@ $$
 \mathcal{N}\left(
 0,\;
 \frac{1}{\mathrm{N}_{vr} \cdot \mathrm{PSI}_{vr} \cdot (1-\mathrm{PSI}_{vr})}
-\right),
+\right)
 $$
 
 **Additive error (replicate variability):**
 
 $$
-\varepsilon^{(A)}_{r} \sim \mathcal{N}(0,\; \sigma_r^2).
+\varepsilon^{(A)}_{r} \sim \mathcal{N}(0,\; \sigma_r^2)
 $$
 
 **The total variance of $\theta_{vr}$ is therefore:**
 
 $$
 \mathrm{Var}(\theta_{vr}) =
-\frac{1}{\mathrm{N}_{vr} \cdot \mathrm{PSI}_{vr} \cdot (1-\mathrm{PSI}_{vr})}
-+ \sigma_r^2.
+\frac{1}{\mathrm{N}_{vr} \cdot \mathrm{PSI}_{vr} \cdot (1-\mathrm{PSI}_{vr})} + \sigma_r^2
 $$
 
 ---
@@ -183,11 +183,17 @@ For three replicates, likelihoods are evaluated on:
 
 $$
 (1,2,3): \sigma_{1}^2 + \sigma_{2}^2 + \sigma_{3}^2
-\\[0.8em]
+$$
+
+$$
 (1,2): \sigma_{1}^2 + \sigma_{2}^2
-\\[0.8em]
+$$
+
+$$
 (2,3): \sigma_{2}^2 + \sigma_{3}^2
-\\[0.8em]
+$$
+
+$$
 (1,3): \sigma_{1}^2 + \sigma_{3}^2
 $$
 
@@ -213,9 +219,9 @@ $$
 \hat{\theta}_v =
 \frac{\sum_r \theta_{vr} / \mathrm{Var}(\theta_{vr})}
      {\sum_r 1 / \mathrm{Var}(\theta_{vr})}
+$$
 
-\\[0.8em]
-
+$$
 \mathrm{Var}(\hat{\theta}_v) =
 \frac{1}{\sum_r 1 / \mathrm{Var}(\theta_{vr})}
 $$
