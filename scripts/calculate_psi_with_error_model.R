@@ -31,8 +31,8 @@ model_help_description <- glue(r"(
     ▼
 7. Error-corrected PSI (MLE across replicates)
     └─ Inverse variance weighting:
-        logit(PSI{v}) = Σ(logit(PSI{v|r}) / var(PSI{v|r}})) / Σ(1 / var(PSI{v|r}}))
-        var_theta = 1 / Σ(1 / var(PSI{v|r}}))
+        logit(PSI[v]) = Σ(logit(PSI[v|r]) / var(PSI[v|r])) / Σ(1 / var(PSI[v|r]))
+        var_theta = 1 / Σ(1 / var(PSI[v|r]))
     │
     ▼
 8. Empirical Bayes shrinkage
