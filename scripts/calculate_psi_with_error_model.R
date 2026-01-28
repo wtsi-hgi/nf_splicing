@@ -4,46 +4,45 @@ packages <- c("optparse", "glue", "tidyverse", "data.table", "vroom", "gtools")
 invisible(lapply(packages, quiet_library))
 
 model_help_description <- glue(r"(
-Raw counts per variant
- ├─ Inclusion counts
- └─ Skipping counts
-        │
-        ▼
-Add Bayesian prior (eps = 0.5)
- └─ Adjusted PSI:
-      PSI_adj = (Inclusion + eps) / (Inclusion + Skipping + 2 * eps)
-        │
-        ▼
-Logit transformation
- └─ logit(PSI) = log(PSI_adj / (1 - PSI_adj))
-        │
-        ▼
-Compute multiplicative variance (sampling noise)
- └─ var_mult = 1 / (n_total * PSI_adj * (1 - PSI_adj))
-        │
-        ▼
-Replicate subsets (DiMSum approach)
- └─ Build all combinations of replicates
-        │
-        ▼
-Estimate additive replicate variance (σ²_rep)
- └─ Optimize joint negative log-likelihood across subsets
-        │
-        ▼
-Error-corrected PSI (MLE across replicates)
- └─ Inverse variance weighting:
-      logit(PSI_v) = Σ(logit_psi / var_tot) / Σ(1 / var_tot)
-      var_theta = 1 / Σ(1 / var_tot)
-        │
-        ▼
-Empirical Bayes shrinkage
- └─ Shrink low-confidence variants toward global mean:
-      theta_shrunk = λ * theta + (1 - λ) * mu_global
-      λ = tau² / (tau² + var_theta)
-        │
-        ▼
-Final PSI estimate:
- └─ psi_shrunk = plogis(theta_shrunk)
+1. Raw read count per event per variant per replicate
+    ├─ exon inclusion counts
+    └─ exon skipping counts
+    │
+    ▼
+2. Calculate PSI with Bayesian prior (eps = 0.5)
+    └─ PSI_adj = (Inclusion + eps) / (Inclusion + Skipping + 2 * eps)
+    │
+    ▼
+3. Logit transformation
+    └─ logit(PSI) = log(PSI_adj / (1 - PSI_adj))
+    │
+    ▼
+4. Compute multiplicative variance (sampling noise)
+    └─ var_mult = 1 / (n_total * PSI_adj * (1 - PSI_adj))
+    │
+    ▼
+5. Replicate subsets
+    └─ Build all combinations of replicates
+    │
+    ▼
+6. Estimate additive replicate variance (σ²_rep)
+    └─ Optimize joint negative log-likelihood across subsets
+    │
+    ▼
+7. Error-corrected PSI (MLE across replicates)
+    └─ Inverse variance weighting:
+        logit(PSI{v}) = Σ(logit(PSI{v|r}) / var(PSI{v|r}})) / Σ(1 / var(PSI{v|r}}))
+        var_theta = 1 / Σ(1 / var(PSI{v|r}}))
+    │
+    ▼
+8. Empirical Bayes shrinkage
+    └─ Shrink low-confidence variants toward global mean:
+        theta_shrunk = λ * theta + (1 - λ) * mu_global
+        λ = tau² / (tau² + var_theta)
+    │
+    ▼
+9. Final PSI estimate:
+    └─ psi_shrunk = plogis(theta_shrunk)
 )")
 
 # -- options -- #
@@ -130,7 +129,7 @@ message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "2. calculate PSI with eps .
 eps <- 0.5
 dt_splicing[, n_total := inclusion + skipping]
 dt_splicing <- dt_splicing[n_total > 0]
-dt_splicing[, psi := (inclusion + eps) / (n_total + 2*eps)]
+dt_splicing[, psi := (inclusion + eps) / (n_total + 2 * eps)]
 
 # -- 3. calculate logit(psi) and variance multiplicative -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "3. calculate logit(psi) and variance multiplicative ...")
@@ -147,14 +146,14 @@ rep_subsets <- unlist(lapply(2:length(sample_reps), function(k) combn(sample_rep
 subset_nll <- function(a_log, dt_sub)
 {
     # convert to actual additive variances
-    a2 <- exp(a_log)
-    dt_sub[, var_tot := var_mult + a2[reps]]
+    var_addi <- exp(a_log)
+    dt_sub[, var_total := var_mult + var_addi[reps]]
 
     # theta_i estimate
-    theta_dt <- dt_sub[, .(theta = sum(logit_psi / var_tot) / sum(1 / var_tot)), by = var_id]
-    dt_sub <- merge(dt_sub, theta_dt, by = "var_id")
+    dt_theta <- dt_sub[, .(theta = sum(logit_psi / var_total) / sum(1 / var_total)), by = var_id]
+    dt_sub <- merge(dt_sub, dt_theta, by = "var_id")
 
-    return(sum(0.5 * (log(dt_sub$var_tot) + (dt_sub$logit_psi - dt_sub$theta)^2 / dt_sub$var_tot)))
+    return(sum(0.5 * (log(dt_sub$var_total) + (dt_sub$logit_psi - dt_sub$theta)^2 / dt_sub$var_total)))
 }
 
 joint_nll <- function(a_log, dt, rep_subsets)
@@ -174,32 +173,28 @@ joint_nll <- function(a_log, dt, rep_subsets)
 # -- 5. estimate error variances -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "5. estimate error variances (long running) ...")
 
-# initial values for log(a_r^2)
+# initial values for log(a{rep}^2)
 init <- rep(log(0.01), length(sample_reps))
 names(init) <- sample_reps
 
-# estimates
+# estimates of additive variances for each replicate
 fit <- optim(par = init, fn = joint_nll, dt = dt_splicing, rep_subsets = rep_subsets, method = "BFGS")
-a2_hat <- exp(fit$par)
-a_hat  <- sqrt(a2_hat)
+var_addi_est <- exp(fit$par)
 
 # -- 6. calculate error-corrected PSI -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "6. calculate error-corrected PSI ...")
-dt_splicing[, a2 := a2_hat[reps]]
-dt_splicing[, var_tot := var_mult + a2]
+dt_splicing[, var_addi := var_addi_est[reps]]
+dt_splicing[, var_total := var_mult + var_addi]
 
-# inverse variance weighting
-# PSI_v0 = logit(PSI_v)
-# PSI_v0 = sum_r (Y(v|r) / var_total(v|r)) / sum_r (1 / var_total(v|r))
-# Var(PSI_v0) = 1 / sum_r (1 / var_total(v|r))
 ratio_wide <- dcast(dt_splicing, var_id ~ reps, value.var = c("ratio_splicing", "n_total"))
 ratio_cols <- grep("^ratio_splicing_", names(ratio_wide), value = TRUE)
 n_total_cols <- grep("^n_total_", names(ratio_wide), value = TRUE)
 setnames(ratio_wide, ratio_cols, paste0("ratio", seq_along(ratio_cols)))
 setnames(ratio_wide, n_total_cols, paste0("n_total", seq_along(n_total_cols)))
 
-dt_splicing_corrected <- dt_splicing[, .(theta = sum(logit_psi / var_tot) / sum(1 / var_tot),
-                                         var_theta = 1 / sum(1 / var_tot)), 
+# inverse variance weighting
+dt_splicing_corrected <- dt_splicing[, .(theta = sum(logit_psi / var_total) / sum(1 / var_total),
+                                         var_theta = 1 / sum(1 / var_total)), 
                                          by = var_id]
 dt_splicing_corrected[, psi_est := plogis(theta)]
 
@@ -225,7 +220,7 @@ dt_splicing_corrected[, psi_shrunk := plogis(theta_shrunk)]
 # -- 8. confidence intervals -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "8. calculate confidence intervals ...")
 
-# θ(hat​) = logit(PSI) ∼ N(θ,Var(θ(hat)​))
+# θ(hat​) = logit(PSI) ∼ N(θ,Var(θ(est)​))
 # a standard normal variable Z ~ N(0,1), so P(|Z| <= 1.96) = 0.95
 # then 95% CI = mean ± 1.96 × SD
 z <- 1.96
