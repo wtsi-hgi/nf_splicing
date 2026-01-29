@@ -46,12 +46,13 @@ model_help_description <- glue(r"(
 )")
 
 # -- options -- #
-option_list <- list(make_option(c("-r", "--rscript_dir"),     type = "character",    help = "directory path of R scripts", default = NULL),
-                    make_option(c("-s", "--sample_id"),       type = "character",    help = "list of sample IDs",          default = NULL),
-                    make_option(c("-d", "--splicing_counts"), type = "character",    help = "list of splicing counts",     default = NULL),
-                    make_option(c("-o", "--output_dir"),      type = "character",    help = "output directory",            default = getwd()),
-                    make_option(c("-p", "--prefix"),          type = "character",    help = "output prefix",               default = "sample"),
-                    make_option(c("-m", "--model_help"),      action = "store_true", help = "print model description",     default=FALSE))
+option_list <- list(make_option(c("-r", "--rscript_dir"),     type = "character",    help = "directory path of R scripts",      default = NULL),
+                    make_option(c("-s", "--sample_id"),       type = "character",    help = "list of sample IDs",               default = NULL),
+                    make_option(c("-d", "--splicing_counts"), type = "character",    help = "list of splicing counts",          default = NULL),
+                    make_option(c("-c", "--calc_psi"),        type = "character",    help = "how to calculate PSI(can or all)", default = "can"),
+                    make_option(c("-o", "--output_dir"),      type = "character",    help = "output directory",                 default = getwd()),
+                    make_option(c("-p", "--prefix"),          type = "character",    help = "output prefix",                    default = "sample"),
+                    make_option(c("-m", "--model_help"),      action = "store_true", help = "print model description",          default=FALSE))
 
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
@@ -73,6 +74,12 @@ if(is.null(opt$rscript_dir))          stop("-r, directory path of R scripts is r
 if(is.null(opt$sample_id))            stop("-s, list of sample IDs is required!", call. = FALSE)
 if(is.null(opt$splicing_counts))      stop("-d, list of splicing counts is required!", call. = FALSE)
 
+valid_psi_types <- c("can", "all")
+if(!(opt$calc_psi %in% valid_psi_types))
+{
+    stop(paste0("-c, calc_psi must be one of: ", paste(valid_psi_types, collapse = ", ")), call. = FALSE)
+}
+
 # -- modules -- #
 source(file.path(opt$rscript_dir, "report_utils.R"))
 
@@ -87,7 +94,7 @@ files_splicing_counts <- sort_paths_by_filename(files_splicing_counts)
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
 setwd(opt$output_dir)
 
-sample_prefix <- opt$prefix
+sample_prefix <- ifelse(opt$calc_psi == "can", paste0(opt$prefix, ".canon_only"), paste0(opt$prefix, ".all_events"))
 
 # -- 1. reading files and formating -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "1. reading input files ...")
@@ -129,7 +136,12 @@ dt_splicing <- rbindlist(splicing_counts, idcol = "reps")
 # Note: For low-count variants, PSI is pulled toward 0.5. This is intentional Bayesian shrinkage.
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "2. calculate PSI with eps ...")
 eps <- 0.5
-dt_splicing[, n_total := inclusion + skipping]
+if(opt$calc_psi == "can")
+{
+    dt_splicing[, n_total := inclusion + skipping]
+} else {
+    dt_splicing[, n_total := inclusion + skipping + others]
+}
 dt_splicing <- dt_splicing[n_total > 0]
 dt_splicing[, psi := (inclusion + eps) / (n_total + 2 * eps)]
 
@@ -188,13 +200,24 @@ message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "6. calculate error-correcte
 dt_splicing[, var_addi := var_addi_est[reps]]
 dt_splicing[, var_total := var_mult + var_addi]
 
-dt_wide <- dcast(dt_splicing, var_id ~ reps, value.var = c("psi_raw_can", "ratio_splicing", "n_total"))
-psi_can_cols <- grep("^psi_raw_can_", names(dt_wide), value = TRUE)
-ratio_cols <- grep("^ratio_splicing_", names(dt_wide), value = TRUE)
-n_total_cols <- grep("^n_total_", names(dt_wide), value = TRUE)
-setnames(dt_wide, psi_can_cols, paste0("psi_", seq_along(psi_can_cols)))
-setnames(dt_wide, ratio_cols, paste0("ratio", seq_along(ratio_cols)))
-setnames(dt_wide, n_total_cols, paste0("n_total", seq_along(n_total_cols)))
+if(opt$calc_psi == "can")
+{
+    dt_wide <- dcast(dt_splicing, var_id ~ reps, value.var = c("psi_raw_can", "ratio_splicing", "n_total"))
+    psi_can_cols <- grep("^psi_raw_can_", names(dt_wide), value = TRUE)
+    ratio_cols <- grep("^ratio_splicing_", names(dt_wide), value = TRUE)
+    n_total_cols <- grep("^n_total_", names(dt_wide), value = TRUE)
+    setnames(dt_wide, psi_can_cols, paste0("psi", seq_along(psi_can_cols)))
+    setnames(dt_wide, ratio_cols, paste0("ratio", seq_along(ratio_cols)))
+    setnames(dt_wide, n_total_cols, paste0("n_total", seq_along(n_total_cols)))
+} else {
+    dt_wide <- dcast(dt_splicing, var_id ~ reps, value.var = c("psi_raw_all", "ratio_splicing", "n_total"))
+    psi_can_cols <- grep("^psi_raw_all_", names(dt_wide), value = TRUE)
+    ratio_cols <- grep("^ratio_splicing_", names(dt_wide), value = TRUE)
+    n_total_cols <- grep("^n_total_", names(dt_wide), value = TRUE)
+    setnames(dt_wide, psi_can_cols, paste0("psi", seq_along(psi_can_cols)))
+    setnames(dt_wide, ratio_cols, paste0("ratio", seq_along(ratio_cols)))
+    setnames(dt_wide, n_total_cols, paste0("n_total", seq_along(n_total_cols)))    
+}
 
 # inverse variance weighting
 dt_splicing_corrected <- dt_splicing[, .(theta = sum(logit_psi / var_total) / sum(1 / var_total),
