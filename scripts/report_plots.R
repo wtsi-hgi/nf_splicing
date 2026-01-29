@@ -197,8 +197,8 @@ create_junction_distribution <- function(junctions, exons, introns)
                 theme(axis.text.x = element_text(angle = 45, hjust = 1)) + theme(legend.position = "left") +
                 geom_rect(data = exons, inherit.aes = FALSE, fill = "darkgreen", alpha = 0.6, aes(xmin = exon_start, xmax = exon_end, ymin = -10, ymax = 0)) + 
                 geom_rect(data = exons, inherit.aes = FALSE, fill = "darkgreen", alpha = 0.6, aes(ymin = exon_start, ymax = exon_end, xmin = -10, xmax = 0)) +
-                geom_segment(data = introns, inherit.aes = FALSE, fill = "grey", alpha = 0.6, aes(x = intron_start, xend = intron_end, y = -5, yend = -5)) +
-                geom_segment(data = introns, inherit.aes = FALSE, fill = "grey", alpha = 0.6, aes(y = intron_start, yend = intron_end, x = -5, xend = -5))
+                geom_segment(data = introns, inherit.aes = FALSE, color = "grey", alpha = 0.6, aes(x = intron_start, xend = intron_end, y = -5, yend = -5)) +
+                geom_segment(data = introns, inherit.aes = FALSE, color = "grey", alpha = 0.6, aes(y = intron_start, yend = intron_end, x = -5, xend = -5))
 
         p3 <- ggMarginal(p2, type = "density", margins = "both", color = "brown1", fill = "pink", size = 8)
 
