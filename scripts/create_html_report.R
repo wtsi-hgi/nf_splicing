@@ -4,21 +4,21 @@ packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", 
 invisible(lapply(packages, quiet_library))
 
 # -- options -- #
-option_list <- list(make_option(c("-r", "--rscript_dir"),          type = "character", help = "directory path of R scripts",               default = NULL),
-                    make_option(c("-l", "--lib_type"),             type = "character", help = "library type",                              default = NULL),
-                    make_option(c("-e", "--exon_pos"),             type = "character", help = "exon position file",                        default = NULL),
-                    make_option(c("-b", "--barcode_association"),  type = "character", help = "barcode association file",                  default = NULL),
-                    make_option(c("-s", "--sample_id"),            type = "character", help = "list of sample IDs",                        default = NULL),
-                    make_option(c("-t", "--trim_stats"),           type = "character", help = "list of trim stats files",                  default = NULL),
-                    make_option(c("-m", "--merge_stats"),          type = "character", help = "list of merge stats files",                 default = NULL),
-                    make_option(c("-f", "--bwa_idxstats"),         type = "character", help = "list of bwa map idxstats files",            default = NULL),
-                    make_option(c("-a", "--hisat2_stats"),         type = "character", help = "list of hisat2 map summary files",          default = NULL),
-                    make_option(c("-c", "--canonical_barcodes"),   type = "character", help = "list of extracted canonical barcode files", default = NULL),
-                    make_option(c("-n", "--novel_barcodes"),       type = "character", help = "list of extracted novel barcode files",     default = NULL),
-                    make_option(c("-j", "--classified_junctions"), type = "character", help = "list of classified junction files",         default = NULL),
-                    make_option(c("-d", "--splicing_counts"),      type = "character", help = "list of splicing counts",                   default = NULL),
-                    make_option(c("-o", "--output_dir"),           type = "character", help = "output directory",                          default = getwd()),
-                    make_option(c("-p", "--prefix"),               type = "character", help = "output prefix",                             default = "sample"))
+option_list <- list(make_option(c("-r", "--rscript_dir"),          type = "character", help = "directory path of R scripts",                   default = NULL),
+                    make_option(c("-l", "--lib_type"),             type = "character", help = "library type",                                  default = NULL),
+                    make_option(c("-e", "--exon_pos"),             type = "character", help = "exon position file",                            default = NULL),
+                    make_option(c("-b", "--barcode_association"),  type = "character", help = "barcode association file",                      default = NULL),
+                    make_option(c("-s", "--sample_id"),            type = "character", help = "list of sample IDs",                            default = NULL),
+                    make_option(c("-t", "--trim_stats"),           type = "character", help = "list of trim stats files",                      default = NULL),
+                    make_option(c("-m", "--merge_stats"),          type = "character", help = "list of merge stats files",                     default = NULL),
+                    make_option(c("-f", "--bwa_idxstats"),         type = "character", help = "list of bwa map idxstats files",                default = NULL),
+                    make_option(c("-a", "--hisat2_stats"),         type = "character", help = "list of hisat2 map summary files",              default = NULL),
+                    make_option(c("-c", "--canonical_barcodes"),   type = "character", help = "list of extracted canonical barcode files",     default = NULL),
+                    make_option(c("-n", "--novel_barcodes"),       type = "character", help = "list of extracted novel barcode files",         default = NULL),
+                    make_option(c("-j", "--classified_junctions"), type = "character", help = "list of classified junction files",             default = NULL),
+                    make_option(c("-d", "--psi_results"),          type = "character", help = "list of psi files (canon_only and all_events)", default = NULL),
+                    make_option(c("-o", "--output_dir"),           type = "character", help = "output directory",                              default = getwd()),
+                    make_option(c("-p", "--prefix"),               type = "character", help = "output prefix",                                 default = "sample"))
 
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
@@ -42,7 +42,7 @@ if(is.null(opt$hisat2_stats))         stop("-a, list of hisat2 map summary files
 if(is.null(opt$canonical_barcodes))   stop("-c, list of extracted canonical barcode files is required!", call. = FALSE)
 if(is.null(opt$novel_barcodes))       stop("-n, list of extracted novel barcode files is required!", call. = FALSE)
 if(is.null(opt$classified_junctions)) stop("-j, list of classified junction file is required!", call. = FALSE)
-if(is.null(opt$splicing_counts))      stop("-d, list of splicing counts is required!", call. = FALSE)
+if(is.null(opt$psi_results))          stop("-d, list of psi files (canon_only and all_events)!", call. = FALSE)
 
 valid_lib_types <- c("random_intron", "random_exon", "muta_intron", "muta_exon")
 if(!(opt$lib_type %in% valid_lib_types))
@@ -64,7 +64,6 @@ files_hisat2_stats         <- unlist(strsplit(opt$hisat2_stats, ","))
 files_canonical_barcodes   <- unlist(strsplit(opt$canonical_barcodes, ","))
 files_novel_barcodes       <- unlist(strsplit(opt$novel_barcodes, ","))
 files_classified_junctions <- unlist(strsplit(opt$classified_junctions, ","))
-files_splicing_counts      <- unlist(strsplit(opt$splicing_counts, ","))
 
 sample_reps                <- mixedsort(sample_reps)
 files_trim_stats           <- sort_paths_by_filename(files_trim_stats)
@@ -74,7 +73,8 @@ files_hisat2_stats         <- sort_paths_by_filename(files_hisat2_stats)
 files_canonical_barcodes   <- sort_paths_by_filename(files_canonical_barcodes)
 files_novel_barcodes       <- sort_paths_by_filename(files_novel_barcodes)
 files_classified_junctions <- sort_paths_by_filename(files_classified_junctions)
-files_splicing_counts      <- sort_paths_by_filename(files_splicing_counts)
+
+files_psi_results          <- unlist(strsplit(opt$psi_results, ","))
 
 # -- outputs -- #
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
@@ -85,10 +85,12 @@ sample_prefix <- opt$prefix
 # -- reading files -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Reading input files ...")
 
-barcode_association <- as.data.table(vroom(opt$barcode_association, delim = "\t", comment = "#", show_col_types = FALSE, 
-                                     col_names = TRUE, col_select = c("barcode", "var_id")))
+barcode_association <- as.data.table(vroom(opt$barcode_association, delim = "\t", comment = "#", show_col_types = FALSE, col_names = TRUE, col_select = c("barcode", "var_id")))
 exon_pos <- as.data.table(vroom(opt$exon_pos, delim = "\t", comment = "#", col_names = FALSE, show_col_types = FALSE))
 setnames(exon_pos, c("var_id", "exon_id", "exon_start", "exon_end"))
+
+dt_psi_can <- as.data.table(vroom(files_psi_results[1], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+dt_psi_all <- as.data.table(vroom(files_psi_results[2], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 
 total_reads <- numeric(length(sample_reps))
 
@@ -105,7 +107,6 @@ canonical_barcodes <- list()
 novel_barcodes <- list()
 
 classified_junctions <- list()
-splicing_counts <- list()
 
 for(i in seq_along(sample_reps))
 {
@@ -127,7 +128,6 @@ for(i in seq_along(sample_reps))
     novel_barcodes[[sample_reps[i]]] <- as.data.table(vroom(files_novel_barcodes[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 
     classified_junctions[[sample_reps[i]]] <- as.data.table(vroom(files_classified_junctions[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
-    splicing_counts[[sample_reps[i]]] <- as.data.table(vroom(files_splicing_counts[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 }
 
 # -- processing -- #
@@ -287,33 +287,44 @@ invisible(gc(verbose = FALSE))
 # 5. psi correlation of splicing events
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating PSI plot ...")
 
-for(i in 1:length(sample_reps))
-{
-    splicing_counts[[sample_reps[i]]] <- splicing_counts[[sample_reps[i]]] %>%
-                                            rowwise() %>%
-                                            mutate(
-                                                PSI = canonical_inclusion / sum(c_across(-var_id)),
-                                                PSI = ifelse(is.nan(PSI), 0, PSI)) %>%
-                                            ungroup()
-}
+# canonical splicing events
+plot_psi <- dt_psi_can[, .(psi1, psi2, psi3, psi_shrunk)]
+plot_psi <- plot_psi[complete.cases(plot_psi)]
+setnames(plot_psi, colnames(plot_psi), c(sample_reps, "corrected_psi"))
 
-psi_list <- lapply(names(splicing_counts), function(rep_id) { splicing_counts[[rep_id]] %>%
-                                                                select(var_id, PSI) %>%
-                                                                rename(!!rep_id := PSI) })
-psi_wide <- reduce(psi_list, full_join, by = "var_id")
-fwrite(psi_wide, file = paste0(sample_prefix, ".psi_values.tsv"), sep = "\t", row.names = FALSE)
-
-png(paste0(sample_prefix, ".psi_correlation.png"), width = 1200, height = 1200, units = "px", res = 100)
-pairs(psi_wide[, -1],
+png(paste0(sample_prefix, ".psi_canon_only.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
+pairs(plot_psi,
       upper.panel = panel.cor,
       diag.panel = panel.hist,
       lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
       use = "complete.obs")
 invisible(dev.off())
 
+plot_psi <- dt_psi_can[, .(var_id, psi1, psi2, psi3, ratio1, ratio2, ratio3, n_total1, n_total2, n_total3, psi_shrunk)]
+setnames(plot_psi, "psi_shrunk", "corrected_psi")
+fwrite(plot_psi, file = paste0(sample_prefix, ".psi_canon_only.tsv"), sep = "\t", row.names = FALSE)
+
+# all splicing events
+plot_psi <- dt_psi_all[, .(psi1, psi2, psi3, psi_shrunk)]
+plot_psi <- plot_psi[complete.cases(plot_psi)]
+setnames(plot_psi, colnames(plot_psi), c(sample_reps, "corrected_psi"))
+
+png(paste0(sample_prefix, ".psi_all_events.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
+pairs(plot_psi,
+      upper.panel = panel.cor,
+      diag.panel = panel.hist,
+      lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
+      use = "complete.obs")
+invisible(dev.off())
+
+plot_psi <- dt_psi_all[, .(var_id, psi1, psi2, psi3, ratio1, ratio2, ratio3, n_total1, n_total2, n_total3, psi_shrunk)]
+setnames(plot_psi, "psi_shrunk", "corrected_psi")
+fwrite(plot_psi, file = paste0(sample_prefix, ".psi_all_events.tsv"), sep = "\t", row.names = FALSE)
+
 # ---- free memory ----
-rm(splicing_counts)
-rm(psi_list)
+rm(dt_psi_can)
+rm(dt_psi_all)
+rm(plot_psi)
 invisible(gc(verbose = FALSE))
 
 # 6. junction distribution plots
@@ -372,8 +383,10 @@ list_files_junctions_diagram <- list.files(pattern = paste0(sample_prefix, ".jun
 names(list_files_junctions_diagram) <- names(junctions_range)
 list_files_junctions_scatter <- list.files(pattern = paste0(sample_prefix, ".junctions_scatter_range_.*.png$"))
 names(list_files_junctions_scatter) <- names(junctions_range)
-plot_psi_corr <- paste0(sample_prefix, ".psi_correlation.png")
-file_psi <- paste0(sample_prefix, ".psi_values.tsv")
+plot_psi_can <- paste0(sample_prefix, ".psi_canon_only.corr.png")
+plot_psi_all <- paste0(sample_prefix, ".psi_all_events.corr.png")
+file_psi_can <- paste0(sample_prefix, ".psi_canon_only.tsv")
+file_psi_all <- paste0(sample_prefix, ".psi_all_events.tsv")
 
 file_render_context <- paste0(sample_prefix, ".splicing_report.Rmd")
 create_html_render(file_summary_reads, 
@@ -387,8 +400,10 @@ create_html_render(file_summary_reads,
                    file_junctions_category,
                    list_files_junctions_diagram,
                    list_files_junctions_scatter,
-                   plot_psi_corr,
-                   file_psi,
+                   plot_psi_can,
+                   plot_psi_all,
+                   file_psi_can,
+                   file_psi_all,
                    file_render_context)
 
 rmarkdown::render(file_render_context, clean = TRUE, quiet = TRUE)

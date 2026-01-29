@@ -9,8 +9,10 @@ create_html_render <- function(file_summary_reads,
                                file_junctions_category,
                                list_files_junctions_diagram,
                                list_files_junctions_scatter,
-                               plot_psi_corr,
-                               file_psi,
+                               plot_psi_can,
+                               plot_psi_all,
+                               file_psi_can,
+                               file_psi_all,
                                out_render_context)
 {
     rmd_render_context <- glue(r"(
@@ -265,16 +267,30 @@ knitr::include_graphics("{plot_junctions_category}", rel_path = FALSE)
 
 ## 5. PSI Correlation
 This section summarises the correlation of PSI values between replicates.
+
+### 5.1. Canonical PSI values
 ```{{r, echo = FALSE, fig.show = "hold", fig.align = "center", out.height = "80%", out.width = "80%"}}
-dt_psi <- as.data.table(vroom("{file_psi}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
-cols_to_scale <- names(dt_psi)[-1]
+dt_psi <- as.data.table(vroom("{file_psi_can}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
+cols_to_scale <- c("psi1", "psi2", "psi3", "corrected_psi")
 dt_psi[, (cols_to_scale) := lapply(.SD, function(x) round(x * 100, 2)), .SDcols = cols_to_scale]
-dt_psi[, avg_psi := round(rowMeans(.SD, na.rm = TRUE), 2), .SDcols = cols_to_scale]
 reactable(dt_psi, highlight = TRUE, bordered = TRUE, striped = TRUE, compact = TRUE, wrap = TRUE,
           filterable = TRUE, minRows = 20, defaultPageSize = 20, defaultColDef = colDef(minWidth = 100, align = "left"),
-          columns = list(avg_psi = colDef(filterMethod = JS("filterMinValue"), filterInput = JS("rangeMore"))))
+          columns = list(corrected_psi = colDef(filterMethod = JS("filterMinValue"), filterInput = JS("rangeMore"))))
 
-knitr::include_graphics("{plot_psi_corr}", rel_path = FALSE)
+knitr::include_graphics("{plot_psi_can}", rel_path = FALSE)
+```
+<br>
+
+### 5.2. All Events PSI values
+```{{r, echo = FALSE, fig.show = "hold", fig.align = "center", out.height = "80%", out.width = "80%"}}
+dt_psi <- as.data.table(vroom("{file_psi_all}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
+cols_to_scale <- c("psi1", "psi2", "psi3", "corrected_psi")
+dt_psi[, (cols_to_scale) := lapply(.SD, function(x) round(x * 100, 2)), .SDcols = cols_to_scale]
+reactable(dt_psi, highlight = TRUE, bordered = TRUE, striped = TRUE, compact = TRUE, wrap = TRUE,
+          filterable = TRUE, minRows = 20, defaultPageSize = 20, defaultColDef = colDef(minWidth = 100, align = "left"),
+          columns = list(corrected_psi = colDef(filterMethod = JS("filterMinValue"), filterInput = JS("rangeMore"))))
+
+knitr::include_graphics("{plot_psi_all}", rel_path = FALSE)
 ```
 <br>
     )"))
