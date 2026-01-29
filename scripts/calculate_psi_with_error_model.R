@@ -103,6 +103,8 @@ reformat_counts <- function(dt, inclusion_cols, skipping_cols)
                   skipping  = rowSums(.SD[, skipping_cols,  with = FALSE]),
                   others    = rowSums(.SD[, other_cols,     with = FALSE]))]
 
+    dt[, psi_raw_can     := inclusion / (inclusion + skipping)]
+    dt[, psi_raw_all     := inclusion / (inclusion + skipping + others)]
     dt[, ratio_inclusion := inclusion / (inclusion + skipping + others)]
     dt[, ratio_skipping  := skipping  / (inclusion + skipping + others)]
     dt[, ratio_others    := others    / (inclusion + skipping + others)]
@@ -186,11 +188,13 @@ message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "6. calculate error-correcte
 dt_splicing[, var_addi := var_addi_est[reps]]
 dt_splicing[, var_total := var_mult + var_addi]
 
-ratio_wide <- dcast(dt_splicing, var_id ~ reps, value.var = c("ratio_splicing", "n_total"))
-ratio_cols <- grep("^ratio_splicing_", names(ratio_wide), value = TRUE)
-n_total_cols <- grep("^n_total_", names(ratio_wide), value = TRUE)
-setnames(ratio_wide, ratio_cols, paste0("ratio", seq_along(ratio_cols)))
-setnames(ratio_wide, n_total_cols, paste0("n_total", seq_along(n_total_cols)))
+dt_wide <- dcast(dt_splicing, var_id ~ reps, value.var = c("psi_raw_can", "ratio_splicing", "n_total"))
+psi_can_cols <- grep("^psi_raw_can_", names(dt_wide), value = TRUE)
+ratio_cols <- grep("^ratio_splicing_", names(dt_wide), value = TRUE)
+n_total_cols <- grep("^n_total_", names(dt_wide), value = TRUE)
+setnames(dt_wide, psi_can_cols, paste0("psi_", seq_along(psi_can_cols)))
+setnames(dt_wide, ratio_cols, paste0("ratio", seq_along(ratio_cols)))
+setnames(dt_wide, n_total_cols, paste0("n_total", seq_along(n_total_cols)))
 
 # inverse variance weighting
 dt_splicing_corrected <- dt_splicing[, .(theta = sum(logit_psi / var_total) / sum(1 / var_total),
@@ -198,7 +202,7 @@ dt_splicing_corrected <- dt_splicing[, .(theta = sum(logit_psi / var_total) / su
                                          by = var_id]
 dt_splicing_corrected[, psi_est := plogis(theta)]
 
-dt_splicing_corrected <- merge(ratio_wide, dt_splicing_corrected, by = "var_id", all.x = TRUE)
+dt_splicing_corrected <- merge(dt_wide, dt_splicing_corrected, by = "var_id", all.x = TRUE)
 
 # -- 7. shrinkage (empirical Bayes) -- #
 # We now shrink variant estimates toward a global mean, exactly as DiMSum does for fitness.
