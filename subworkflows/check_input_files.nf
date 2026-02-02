@@ -48,7 +48,7 @@ process CHECK_FILES {
 
     if (file_read2.exists()) {
         if (!valid_read_ext.any { read2.endsWith(it) }) {
-            log.error("Error: File format for ${read1} is incorrect. Expected one of: ${valid_read_ext.join(', ')}")
+            log.error("Error: File format for ${read2} is incorrect. Expected one of: ${valid_read_ext.join(', ')}")
             exit 1
         }
     } else {
