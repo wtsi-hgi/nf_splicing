@@ -87,6 +87,9 @@ process CREATE_HTML_REPORT {
 
     publishDir "${params.outdir}/splicing_reports/${sample}", mode: "copy", overwrite: true
 
+    env PIPELINE_NAME    = workflow.manifest.name
+    env PIPELINE_VERSION = workflow.manifest.version
+
     input:
     tuple val(sample), val(sample_id), val(barcode), val(exon_pos), 
           val(merge_stats), val(trim_stats), val(idxstats), val(summary), 
