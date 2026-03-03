@@ -83,6 +83,8 @@ Usage:
 /* -- initialising parameters -- */
 params.help                        = false
 params.version                     = false
+params.pipeline_name               = workflow.manifest.name
+params.pipeline_version            = workflow.manifest.version
 
 params.sample_sheet                = null
 params.library                     = params.library                     ?: "random_intron"
@@ -124,7 +126,7 @@ if (params.help) {
 }
 
 if (params.version) {
-    println "${workflow.manifest.name} ${workflow.manifest.version}"
+    println "${workflow.manifest.version}"
     exit 0
 }
 
