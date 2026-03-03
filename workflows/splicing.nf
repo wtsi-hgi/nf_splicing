@@ -186,7 +186,7 @@ check_required(required_tools)
 
 /* -- workflow -- */
 workflow splicing {
-    println """
+    log.info """
     =====================================
     ${workflow.manifest.name}
     Version: ${workflow.manifest.version}
