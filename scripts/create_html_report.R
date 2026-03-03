@@ -18,7 +18,9 @@ option_list <- list(make_option(c("-r", "--rscript_dir"),          type = "chara
                     make_option(c("-j", "--classified_junctions"), type = "character", help = "list of classified junction files",             default = NULL),
                     make_option(c("-d", "--psi_results"),          type = "character", help = "list of psi files (canon_only and all_events)", default = NULL),
                     make_option(c("-o", "--output_dir"),           type = "character", help = "output directory",                              default = getwd()),
-                    make_option(c("-p", "--prefix"),               type = "character", help = "output prefix",                                 default = "sample"))
+                    make_option(c("-p", "--prefix"),               type = "character", help = "output prefix",                                 default = "sample"),
+                    make_option(c("-w", "--name"),                 type = "character", help = "pipeline name",                                 default = "nf_splicing"),
+                    make_option(c("-v", "--version"),              type = "character", help = "pipeline version",                              default = "dev"))
 
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
@@ -389,7 +391,9 @@ file_psi_can <- paste0(sample_prefix, ".psi_canon_only.tsv")
 file_psi_all <- paste0(sample_prefix, ".psi_all_events.tsv")
 
 file_render_context <- paste0(sample_prefix, ".splicing_report.Rmd")
-create_html_render(file_summary_reads, 
+create_html_render(pipeline_name,
+                   pipeline_version,
+                   file_summary_reads, 
                    file_summary_pct,
                    plot_reads_pct,
                    plot_barcodes_venn,

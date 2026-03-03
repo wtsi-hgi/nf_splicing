@@ -1,4 +1,6 @@
-create_html_render <- function(file_summary_reads, 
+create_html_render <- function(pipeline_name,
+                               pipeline_version,
+                               file_summary_reads, 
                                file_summary_pct,
                                plot_reads_pct,
                                plot_barcodes_venn,
@@ -15,13 +17,14 @@ create_html_render <- function(file_summary_reads,
                                file_psi_all,
                                out_render_context)
 {
-    pipeline_name    <- Sys.getenv("PIPELINE_NAME")
-    pipeline_version <- Sys.getenv("PIPELINE_VERSION")
-
     rmd_render_context <- glue(r"(
 ---
 title: "Splicing Report"
-subtitle: "{pipeline_name} — v{pipeline_version}"
+    )")
+
+    pipeline_info <- paste0(pipeline_name, " v", pipeline_version)
+    rmd_render_context <- paste0(rmd_render_context, glue(r"(
+subtitle: "{pipeline_info}"
 date: "`r format(Sys.time(), '%d %B %Y -- %A -- %X')`"
 output:
     html_document:
@@ -224,7 +227,7 @@ reactable(jucntion_category, highlight = TRUE, bordered = TRUE, striped = TRUE, 
 <br>
 
 ```{{r, echo = FALSE, results = "asis", fig.align = "center", out.height = "80%", out.width = "80%"}}
-    )")
+    )"))
 
     for(i in seq_along(list_files_junctions_diagram)) {
         rmd_render_context <- paste0(rmd_render_context, glue(r"(
