@@ -15,9 +15,13 @@ create_html_render <- function(file_summary_reads,
                                file_psi_all,
                                out_render_context)
 {
+    pipeline_name    <- Sys.getenv("PIPELINE_NAME")
+    pipeline_version <- Sys.getenv("PIPELINE_VERSION")
+
     rmd_render_context <- glue(r"(
 ---
 title: "Splicing Report"
+subtitle: "{pipeline_name} — v{pipeline_version}"
 date: "`r format(Sys.time(), '%d %B %Y -- %A -- %X')`"
 output:
     html_document:
