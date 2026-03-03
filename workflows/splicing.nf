@@ -81,7 +81,8 @@ Usage:
 }
 
 /* -- initialising parameters -- */
-params.help                        = null
+params.help                        = false
+params.version                     = false
 
 params.sample_sheet                = null
 params.library                     = params.library                     ?: "random_intron"
@@ -119,6 +120,11 @@ params.classify_min_cov            = params.classify_min_cov            ?: 2
 /* -- check parameters -- */
 if (params.help) {
     helpMessage()
+    exit 0
+}
+
+if (params.version) {
+    println "${workflow.manifest.name} ${workflow.manifest.version}"
     exit 0
 }
 
@@ -177,6 +183,15 @@ def required_tools = ['bwa', 'hisat2', 'samtools', 'bamtools', 'flash2', 'fastp'
 check_required(required_tools)
 
 /* -- workflow -- */
+workflow.onStart {
+    println """
+    =====================================
+    ${workflow.manifest.name}
+    Version: ${workflow.manifest.version}
+    =====================================
+    """
+}
+
 workflow splicing {
     /* -- check input files exist -- */
     check_input_files(ch_input)
