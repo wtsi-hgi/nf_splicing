@@ -185,19 +185,13 @@ def required_tools = ['bwa', 'hisat2', 'samtools', 'bamtools', 'flash2', 'fastp'
 check_required(required_tools)
 
 /* -- workflow -- */
-workflow.onStart {
+workflow splicing {
     println """
     =====================================
     ${workflow.manifest.name}
     Version: ${workflow.manifest.version}
     =====================================
     """
-
-    if (!params.sample_sheet) {
-        helpMessage()
-        log.info("Error: Please specify the full path of the sample sheet!\n")
-        exit 1
-    }
 
     def sheet_file = file(params.sample_sheet)
 
@@ -208,9 +202,7 @@ workflow.onStart {
     ${sheet_file.text}
     =====================================
     """
-}
 
-workflow splicing {
     /* -- check input files exist -- */
     check_input_files(ch_input)
     ch_sample_mapping  = check_input_files.out.ch_sample_mapping
