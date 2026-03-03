@@ -87,9 +87,6 @@ process CREATE_HTML_REPORT {
 
     publishDir "${params.outdir}/splicing_reports/${sample}", mode: "copy", overwrite: true
 
-    env PIPELINE_NAME    = workflow.manifest.name
-    env PIPELINE_VERSION = workflow.manifest.version
-
     input:
     tuple val(sample), val(sample_id), val(barcode), val(exon_pos), 
           val(merge_stats), val(trim_stats), val(idxstats), val(summary), 
@@ -128,6 +125,8 @@ process CREATE_HTML_REPORT {
                                                -n ${list_novel_barcodes} \
                                                -j ${list_junctions} \
                                                -d ${file_psi_can_results},${file_psi_all_results} \
-                                               -p ${sample}
+                                               -p ${sample} \
+                                               -w ${params.pipeline_name} \
+                                               -v ${params.pipeline_version}
     """
 }
