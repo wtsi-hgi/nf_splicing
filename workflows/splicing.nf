@@ -190,6 +190,22 @@ workflow.onStart {
     Version: ${workflow.manifest.version}
     =====================================
     """
+
+    if (!params.sample_sheet) {
+        helpMessage()
+        log.info("Error: Please specify the full path of the sample sheet!\n")
+        exit 1
+    }
+
+    def sheet_file = file(params.sample_sheet)
+
+    log.info """
+    =====================================
+    Sample sheet content:
+    -------------------------------------
+    ${sheet_file.text}
+    =====================================
+    """
 }
 
 workflow splicing {
