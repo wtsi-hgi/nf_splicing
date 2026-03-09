@@ -21,7 +21,16 @@ workflow detect_canonical_pe_match {
 }
 
 process MATCH_PE_READS {
-    label 'process_high_memory'
+    label 'process_high_dynamic_memory'
+    
+    memory {
+        def file_size = extended_frags.size()
+        def mem = file_size <= 5_000_000_000 ? 40 :
+                  file_size <= 10_000_000_000 ? 80 :
+                  file_size <= 20_000_000_000 ? 160 :
+                  file_size <= 40_000_000_000 ? 320 : 640
+        "${mem * task.attempt} GB"
+    }
 
     publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.canonical_barcodes.tsv", mode: "copy", overwrite: true
 
