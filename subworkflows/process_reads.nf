@@ -39,7 +39,18 @@ process TRIMMING_READS {
 }
 
 process MERGING_READS {
-    label 'process_medium'
+    label 'process_medium_dynamic_memory'
+    
+    memory {
+        def file_size_1 = read1.size()
+        def file_size_2 = read2.size()
+        def file_size_total = file_size_1 + file_size_2
+        def mem = file_size_total <= 40_000_000_000 ? 20 :
+                  file_size_total <= 80_000_000_000 ? 40 :
+                  file_size_total <= 160_000_000_000 ? 80 :
+                  file_size_total <= 320_000_000_000 ? 160 : 320
+        "${mem * task.attempt} GB"
+    }
 
     input:
     tuple val(sample_id), path(read1), path(read2), path(trim_stats)
