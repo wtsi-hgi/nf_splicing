@@ -119,6 +119,14 @@ params.classify_cluster_tol        = params.classify_cluster_tol        ?: 2
 params.classify_min_overlap        = params.classify_min_overlap        ?: 2
 params.classify_min_cov            = params.classify_min_cov            ?: 2
 
+/* -- pipeline info -- */
+log.info """
+=====================================
+${workflow.manifest.name}
+Version: ${workflow.manifest.version}
+=====================================
+"""
+
 /* -- check parameters -- */
 if (params.help) {
     helpMessage()
@@ -146,6 +154,13 @@ if (params.sample_sheet) {
         log.error "Sample sheet is missing required columns: ${missing.join(', ')}"
         exit 1
     } else {
+        def sheet_file = file(params.sample_sheet)
+        log.info("=====================================")
+        log.info("Sample sheet content:")
+        log.info("-------------------------------------")
+        log.info(sheet_file.text)
+        log.info("=====================================")
+
         // reformat channel
         ch_input = ch_input.map { row -> 
             def sample_id = "${row.sample}_${row.replicate}"
@@ -186,23 +201,6 @@ check_required(required_tools)
 
 /* -- workflow -- */
 workflow splicing {
-    log.info """
-    =====================================
-    ${workflow.manifest.name}
-    Version: ${workflow.manifest.version}
-    =====================================
-    """
-
-    def sheet_file = file(params.sample_sheet)
-
-    log.info """
-    =====================================
-    Sample sheet content:
-    -------------------------------------
-    ${sheet_file.text}
-    =====================================
-    """
-
     /* -- check input files exist -- */
     check_input_files(ch_input)
     ch_sample_mapping  = check_input_files.out.ch_sample_mapping
