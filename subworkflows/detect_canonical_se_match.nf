@@ -24,11 +24,11 @@ process MATCH_SE_READS {
     label 'process_high_dynamic_memory'
     
     memory {
-        def file_size = extended_frags.size()
-        def mem = file_size <= 5_000_000_000 ? 40 :
-                  file_size <= 10_000_000_000 ? 80 :
-                  file_size <= 20_000_000_000 ? 160 :
-                  file_size <= 40_000_000_000 ? 320 : 640
+        def file_size = barcode.size()
+        def mem = file_size <= 50_000_000 ? 40 :
+                  file_size <= 100_000_000 ? 80 :
+                  file_size <= 200_000_000 ? 160 :
+                  file_size <= 400_000_000 ? 320 : 640
         "${mem * task.attempt} GB"
     }
 
