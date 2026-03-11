@@ -112,6 +112,10 @@ process CREATE_HTML_REPORT {
     def file_psi_all_results = psi_all_results
 
     """
+    ln -s ${projectDir}/assets/src/jquery-3.6.0.min.js jquery-3.6.0.min.js
+    ln -s ${projectDir}/assets/src/select2.min.js select2.min.js
+    ln -s ${projectDir}/assets/src/select2.min.css select2.min.css
+
     ${projectDir}/scripts/create_html_report.R -r ${projectDir}/scripts \
                                                -l ${params.library} \
                                                -b ${file_barcode} \
