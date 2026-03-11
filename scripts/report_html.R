@@ -229,24 +229,60 @@ reactable(jucntion_category, highlight = TRUE, bordered = TRUE, striped = TRUE, 
 ```
 <br>
 
-```{{r, echo = FALSE, results = "asis", fig.align = "center", out.height = "80%", out.width = "80%"}}
+<link href="select2.min.css" rel="stylesheet" />
+<script src="jquery-3.6.0.min.js"></script>
+<script src="select2.min.js"></script>
+<script>
+$(document).ready(function() {{
+    $("#geneSelect").select2({{ placeholder: "Search gene" }});
+    $("#geneSelect").on("change", function() {{
+        var selected = $(this).val();
+        $(".fig").hide();
+        $("#" + selected).show();
+    }});
+}});
+</script>
+
+Please select the range to show figure:
+
+<select id="geneSelect" style="width:300px">
+
     )")
 
     for(i in seq_along(list_files_junctions_diagram)) {
         rmd_render_context <- paste0(rmd_render_context, glue(r"(
-
-cat("<details>\n")
-cat("<summary>{names(list_files_junctions_diagram)[i]}</summary>\n")
-cat("<br>\n")
-knitr::include_graphics("{list_files_junctions_diagram[i]}", rel_path = FALSE)
-knitr::include_graphics("{list_files_junctions_scatter[i]}", rel_path = FALSE)
-cat("</details>\n\n")
+    <option value="{paste0('F', i)}">{names(list_files_junctions_diagram)[i]}</option>
 
         )"))
     }
 
     rmd_render_context <- paste0(rmd_render_context, glue(r"(
-```
+</select>
+
+
+    )"))
+
+    for(i in seq_along(list_files_junctions_diagram)) {
+        if(i == 1) {
+            rmd_render_context <- paste0(rmd_render_context, glue(r"(
+<div id="{paste0('F', i)}" class="fig">
+  <img src="{list_files_junctions_diagram[i]}">
+  <img src="{list_files_junctions_scatter[i]}">
+</div>
+
+            )"))
+        } else {
+            rmd_render_context <- paste0(rmd_render_context, glue(r"(
+<div id="{paste0('F', i)}" class="fig" style="display:none">
+  <img src="{list_files_junctions_diagram[i]}">
+  <img src="{list_files_junctions_scatter[i]}">
+</div>
+
+            )"))
+        }
+    }
+
+    rmd_render_context <- paste0(rmd_render_context, glue(r"(
 <br>
 
 ### 4.3. Splicing events  (appearing in 2 replicates at least) by variants

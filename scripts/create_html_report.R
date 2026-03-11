@@ -3,7 +3,7 @@ quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, 
 packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", "reactable", "optparse", "sparkline", "UpSetR", "patchwork", "glue", "scales", "ggExtra", "gtools")
 invisible(lapply(packages, quiet_library))
 
-# -- options -- #
+# ---- options ---- #
 option_list <- list(make_option(c("-r", "--rscript_dir"),          type = "character", help = "directory path of R scripts",                   default = NULL),
                     make_option(c("-l", "--lib_type"),             type = "character", help = "library type",                                  default = NULL),
                     make_option(c("-e", "--exon_pos"),             type = "character", help = "exon position file",                            default = NULL),
@@ -31,7 +31,7 @@ if(length(commandArgs(trailingOnly = TRUE)) == 0)
     quit(status = 1)
 }
 
-# -- check options -- #
+# ---- check options ---- #
 if(is.null(opt$rscript_dir))          stop("-r, directory path of R scripts is required!", call. = FALSE)
 if(is.null(opt$lib_type))             stop("-l, library type is required!", call. = FALSE)
 if(is.null(opt$barcode_association))  stop("-b, barcode association file is required!", call. = FALSE)
@@ -52,12 +52,12 @@ if(!(opt$lib_type %in% valid_lib_types))
     stop(paste0("-l, library type must be one of: ", paste(valid_lib_types, collapse = ", ")), call. = FALSE)
 }
 
-# -- modules -- #
+# ---- modules ---- #
 source(file.path(opt$rscript_dir, "report_utils.R"))
 source(file.path(opt$rscript_dir, "report_plots.R"))
 source(file.path(opt$rscript_dir, "report_html.R"))
 
-# -- inputs -- #
+# ---- inputs ---- #
 sample_reps                <- unlist(strsplit(opt$sample_id, ","))
 files_trim_stats           <- unlist(strsplit(opt$trim_stats, ","))
 files_merge_stats          <- unlist(strsplit(opt$merge_stats, ","))
@@ -78,13 +78,13 @@ files_classified_junctions <- sort_paths_by_filename(files_classified_junctions)
 
 files_psi_results          <- unlist(strsplit(opt$psi_results, ","))
 
-# -- outputs -- #
+# ---- outputs ---- #
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
 setwd(opt$output_dir)
 
 sample_prefix <- opt$prefix
 
-# -- reading files -- #
+# ---- reading files ---- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Reading input files ...")
 
 barcode_association <- as.data.table(vroom(opt$barcode_association, delim = "\t", comment = "#", show_col_types = FALSE, col_names = TRUE, col_select = c("barcode", "var_id")))
@@ -132,10 +132,10 @@ for(i in seq_along(sample_reps))
     classified_junctions[[sample_reps[i]]] <- as.data.table(vroom(files_classified_junctions[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 }
 
-# -- processing -- #
+# ---- processing ---- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Preparing tables and figures ...")
 
-# 1. bar plots for statistics of sequencing reads
+# -- 1. bar plots for statistics of sequencing reads
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating read summaries and plots ...")
 
 data_barplots <- create_barplots(barcode_association, sample_reps, total_reads, merged_reads, unmerged_reads, inclusion_reads, skipping_reads, map_reads, unexplain_reads)
@@ -150,7 +150,7 @@ png(paste0(sample_prefix, ".reads_pct.png"), width = 800, height = 800, units = 
 barplots_combined
 invisible(dev.off())
 
-# 2. venn diagrams for detected barcodes and talbes of detected barcodes and variants
+# -- 2. venn diagrams for detected barcodes and talbes of detected barcodes and variants
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating barcode summaries and plots ...")
 
 venn_diagrams <- create_venn_diagrams(canonical_barcodes, novel_barcodes, barcode_association)
@@ -192,7 +192,7 @@ for(i in seq_along(sample_reps))
 
     mean_pct_recovered_barcodes[i] <- mean(library_barcodes_num[[i]]$pct_lib_vs_asso)
 
-    # ---- free memory ----
+    # << free memory >>
     canonical_barcodes[[i]] <- data.table()
     novel_barcodes[[i]] <- data.table()
     rm(library_barcodes)
@@ -212,7 +212,7 @@ summary_barvars[, `:=`( pct_detected_barcodes = round(100 * num_detected_barcode
 
 fwrite(summary_barvars, file = paste0(sample_prefix, ".summary_barvars.tsv"), sep = "\t", row.names = FALSE)
 
-# ---- free memory ----
+# << free memory >>
 rm(barcode_association)
 invisible(gc(verbose = FALSE))
 
@@ -221,7 +221,7 @@ message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction 
 
 junction_plots <- create_junction_plots(classified_junctions)
 
-# ---- free memory ----
+# << free memory >>
 rm(classified_junctions)
 invisible(gc(verbose = FALSE))
 
@@ -232,7 +232,7 @@ invisible(dev.off())
 junctions_category <- junction_plots[[2]]
 fwrite(junctions_category, file = paste0(sample_prefix, ".junctions_category.tsv"), sep = "\t", row.names = FALSE)
 
-# ---- free memory ----
+# << free memory >>
 rm(junction_plots)
 invisible(gc(verbose = FALSE))
 
@@ -248,7 +248,7 @@ pairs(cor_data_norm,
       use = "complete.obs")
 invisible(dev.off())
 
-# ---- free memory ----
+# << free memory >>
 rm(cor_data)
 rm(cor_data_norm)
 invisible(gc(verbose = FALSE))
@@ -280,7 +280,7 @@ upset(as.data.frame(upset_join),
       boxplot.summary = c("log_avg_cov"))
 invisible(dev.off())
 
-# ---- free memory ----
+# << free memory >>
 rm(junctions_category_reshape)
 rm(upset_input)
 rm(upset_join)
@@ -323,7 +323,7 @@ plot_psi <- dt_psi_all[, .(var_id, psi1, psi2, psi3, ratio1, ratio2, ratio3, n_t
 setnames(plot_psi, "psi_shrunk", "corrected_psi")
 fwrite(plot_psi, file = paste0(sample_prefix, ".psi_all_events.tsv"), sep = "\t", row.names = FALSE)
 
-# ---- free memory ----
+# << free memory >>
 rm(dt_psi_can)
 rm(dt_psi_all)
 rm(plot_psi)
@@ -337,7 +337,7 @@ junctions_rescale <- data_rescale[[1]]
 exons_template <- data_rescale[[2]]
 introns_template <- data_rescale[[3]]
 
-# ---- free memory ----
+# << free memory >>
 rm(data_rescale)
 invisible(gc(verbose = FALSE))
 
@@ -346,7 +346,7 @@ junctions_range <- junctions_distri[[1]]
 junctions_diagramplot <- junctions_distri[[2]]
 junctions_scatterplot <- junctions_distri[[3]]
 
-# ---- free memory ----
+# << free memory >>
 rm(junctions_distri)
 rm(junctions_rescale)
 rm(exons_template)
@@ -364,12 +364,18 @@ for(i in seq_along(junctions_range))
     invisible(dev.off())
 }
 
-# ---- free memory ----
+# << free memory >>
 rm(junctions_diagramplot)
 rm(junctions_scatterplot)
 invisible(gc(verbose = FALSE))
 
-# -- reporting -- #
+if(opt$lib_type == "muta_exon")
+{
+    # 7. junction distribution plots per exon
+    message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction distribution plot per exon ...")
+}
+
+# ---- reporting ---- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Creating final html report...")
 
 file_summary_reads <- paste0(sample_prefix, ".summary_reads.tsv")
@@ -411,4 +417,4 @@ create_html_render(opt$pl_name,
                    file_render_context)
 
 rmarkdown::render(file_render_context, clean = TRUE, quiet = TRUE)
-invisible(file.remove(file_render_context))
+# invisible(file.remove(file_render_context))
