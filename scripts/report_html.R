@@ -20,7 +20,7 @@ create_html_render <- function(pipeline_name,
     pipeline_info <- paste0(pipeline_name, " v", pipeline_version)
     rmd_render_context <- glue(r"(
 ---
-title: "Splicing Report"
+title: "Splicing data QC Report"
 subtitle: "{pipeline_info}"
 date: "`r format(Sys.time(), '%d %B %Y -- %A -- %X')`"
 output:
@@ -142,6 +142,12 @@ Minigene systems are widely used to study the regulatory mechanisms of RNA splic
 particularly in the context of variant interpretation and functional genomics. 
 By introducing specific mutations into synthetic constructs (minigenes), 
 researchers can assess how sequence changes affect splicing outcomes in a controlled cellular environment.
+
+**Pipeline:** {pipeline_name}
+
+**Version:** {pipeline_version}
+
+**Homepage:** https://github.com/wtsi-hgi/nf_splicing
 
 ---
 
