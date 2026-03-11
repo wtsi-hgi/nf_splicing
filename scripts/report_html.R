@@ -273,6 +273,12 @@ knitr::include_graphics("{plot_junctions_category}", rel_path = FALSE)
 This section summarises the correlation of PSI values between replicates.
 
 ### 5.1. Canonical PSI values
+The Percent Spliced In (PSI) is calculated as:
+
+$$
+\text{PSI} = \frac{\text{canonical inclusion}}{\text{canonical inclusion} + \text{canonical skipping}}
+$$
+
 ```{{r, echo = FALSE, fig.show = "hold", fig.align = "center", out.height = "80%", out.width = "80%"}}
 dt_psi <- as.data.table(vroom("{file_psi_can}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
 cols_to_scale <- c("psi1", "psi2", "psi3", "corrected_psi")
@@ -286,6 +292,12 @@ knitr::include_graphics("{plot_psi_can}", rel_path = FALSE)
 <br>
 
 ### 5.2. All Events PSI values
+The Percent Spliced In (PSI) is calculated as:
+
+$$
+\text{PSI} = \frac{\text{canonical inclusion}}{\text{canonical inclusion} + \text{canonical skipping} + \text{other events}}
+$$
+
 ```{{r, echo = FALSE, fig.show = "hold", fig.align = "center", out.height = "80%", out.width = "80%"}}
 dt_psi <- as.data.table(vroom("{file_psi_all}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
 cols_to_scale <- c("psi1", "psi2", "psi3", "corrected_psi")
