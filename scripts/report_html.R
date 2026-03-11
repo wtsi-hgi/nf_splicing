@@ -137,17 +137,17 @@ function filterMaxValue(rows, columnId, filterValue) {{
 ---
 
 ## 1. Introduction
-This pipeline is designed to quantify splicing events within minigene-based mutagenesis libraries. 
-Minigene systems are widely used to study the regulatory mechanisms of RNA splicing, 
-particularly in the context of variant interpretation and functional genomics. 
-By introducing specific mutations into synthetic constructs (minigenes), 
-researchers can assess how sequence changes affect splicing outcomes in a controlled cellular environment.
-
 **Pipeline:** {pipeline_name}
 
 **Version:** {pipeline_version}
 
 **Homepage:** https://github.com/wtsi-hgi/nf_splicing
+
+This pipeline is designed to quantify splicing events within minigene-based mutagenesis libraries. 
+Minigene systems are widely used to study the regulatory mechanisms of RNA splicing, 
+particularly in the context of variant interpretation and functional genomics. 
+By introducing specific mutations into synthetic constructs (minigenes), 
+researchers can assess how sequence changes affect splicing outcomes in a controlled cellular environment.
 
 ---
 
@@ -281,9 +281,13 @@ This section summarises the correlation of PSI values between replicates.
 ### 5.1. Canonical PSI values
 The Percent Spliced In (PSI) is calculated as:
 
-$$
-\text{PSI} = \frac{\text{canonical inclusion}}{\text{canonical inclusion} + \text{canonical skipping}}
-$$
+```{{r echo=FALSE, fig.width = 6, fig.height = 1.5}}
+par(mar=c(0,0,0,0))
+plot.new()
+text(0.5, 0.5, expression(PSI == frac("Canonical Inclusion",  "Canonical Inclusion + Canonical Skipping")))
+```
+
+<br>
 
 ```{{r, echo = FALSE, fig.show = "hold", fig.align = "center", out.height = "80%", out.width = "80%"}}
 dt_psi <- as.data.table(vroom("{file_psi_can}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
@@ -300,9 +304,13 @@ knitr::include_graphics("{plot_psi_can}", rel_path = FALSE)
 ### 5.2. All Events PSI values
 The Percent Spliced In (PSI) is calculated as:
 
-$$
-\text{PSI} = \frac{\text{canonical inclusion}}{\text{canonical inclusion} + \text{canonical skipping} + \text{other events}}
-$$
+```{{r echo=FALSE, fig.width = 6, fig.height = 1.5}}
+par(mar=c(0,0,0,0))
+plot.new()
+text(0.5, 0.5, expression(PSI == frac("Canonical Inclusion",  "Canonical Inclusion + Canonical Skipping + Other Events")))
+```
+
+<br>
 
 ```{{r, echo = FALSE, fig.show = "hold", fig.align = "center", out.height = "80%", out.width = "80%"}}
 dt_psi <- as.data.table(vroom("{file_psi_all}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
