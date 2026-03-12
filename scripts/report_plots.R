@@ -155,7 +155,7 @@ rescale_junctions <- function(sample_reps, junctions, exons, lib_type)
     return(list(junctions, exon_template, introns_template))
 }
 
-create_junction_distribution <- function(junctions, exons, introns)
+create_junction_distribution_by_cov <- function(junctions, exons, introns)
 {
     junctions_a1b10 <- junctions %>% filter(avg_cov >= 1 & avg_cov < 10)
     junctions_a10b100 <- junctions %>% filter(avg_cov >= 10 & avg_cov < 100)
@@ -207,4 +207,37 @@ create_junction_distribution <- function(junctions, exons, introns)
     }
 
     return(list(list_junctions, list_diagramplots, list_scatterplots))
+}
+
+create_junction_distribution_by_exon <- function(junctions, exons, introns)
+{
+    p1 <- ggplot() +
+            geom_rect(data = exons, fill = t_col("darkgreen", 0.6), color = t_col("darkgreen", 0.6), aes(xmin = exon_start, xmax = exon_end, ymin = 0.8, ymax = 1)) +
+            geom_rect(data = introns, fill = "grey", color = "grey", aes(xmin = intron_start, xmax = intron_end, ymin = 0.87, ymax = 0.93)) +
+            geom_curve(data = junctions, aes(x = donor, xend = acceptor, y = 1, yend = 1, color = avg_cov, alpha = avg_cov), curvature = -0.5, linewidth = 0.2, lineend = "round") +
+            scale_color_gradient(trans = "log10", low = "blue", high = "brown1", labels = label_number(accuracy = 1)) +
+            scale_alpha(trans = "log10", range = c(0.01, 1)) + guides(alpha = "none") +
+            coord_cartesian(xlim = c(0, max(exons$exon_end)), ylim = c(0, 3)) +
+            theme_void() + theme(legend.position = "left")
+
+    p2 <- ggplot(junctions, aes(x = donor, y = acceptor, color = avg_cov)) +
+            theme_minimal() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+            geom_vline(data = exons, aes(xintercept = exon_start), color = "lightgrey", linetype = "dashed") +
+            geom_vline(data = exons, aes(xintercept = exon_end), color = "lightgrey", linetype = "dashed") +
+            geom_hline(data = exons, aes(yintercept = exon_start), color = "lightgrey", linetype = "dashed") +
+            geom_hline(data = exons, aes(yintercept = exon_end), color = "lightgrey", linetype = "dashed") +
+            labs(x = "Start", y = "End", size = "Average") +
+            geom_point(shape = 19, alpha = 1, size = 0.5) +
+            scale_color_continuous(trans = "log10", low = "blue", high = "brown1", labels = label_number(accuracy = 1)) +
+            scale_x_continuous(limits = c(-10, max(exons$exon_end)), breaks = seq(0, max(exons$exon_end), by = 100)) +  
+            scale_y_continuous(limits = c(-10, max(exons$exon_end)), breaks = seq(0, max(exons$exon_end), by = 100)) + 
+            theme(axis.text.x = element_text(angle = 45, hjust = 1)) + theme(legend.position = "left") +
+            geom_rect(data = exons, inherit.aes = FALSE, fill = "darkgreen", alpha = 0.6, aes(xmin = exon_start, xmax = exon_end, ymin = -10, ymax = 0)) + 
+            geom_rect(data = exons, inherit.aes = FALSE, fill = "darkgreen", alpha = 0.6, aes(ymin = exon_start, ymax = exon_end, xmin = -10, xmax = 0)) +
+            geom_segment(data = introns, inherit.aes = FALSE, color = "grey", alpha = 0.6, aes(x = intron_start, xend = intron_end, y = -5, yend = -5)) +
+            geom_segment(data = introns, inherit.aes = FALSE, color = "grey", alpha = 0.6, aes(y = intron_start, yend = intron_end, x = -5, xend = -5))
+
+    p3 <- ggMarginal(p2, type = "density", margins = "both", color = "brown1", fill = "pink", size = 8)
+
+    return(list(p1, p3))
 }
