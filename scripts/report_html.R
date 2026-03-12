@@ -11,6 +11,8 @@ create_html_render <- function(pipeline_name,
                                file_junctions_category,
                                list_files_junctions_diagram,
                                list_files_junctions_scatter,
+                               list_files_exons_diagram,
+                               list_files_exons_scatter,
                                plot_psi_can,
                                plot_psi_all,
                                file_psi_can,
@@ -214,6 +216,7 @@ knitr::include_graphics(c("{plot_junctions_venn}", "{plot_junctions_corr}"), rel
 ---
 
 ### 4.2. Distribution of splicing junctions (appearing in 2 replicates at least)
+#### 4.2.1. Table of junction categories
 ```{{r, echo = FALSE}}
 jucntion_category <- as_tibble(vroom("{file_junctions_category}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
 min_row <- ifelse(nrow(jucntion_category) > 20, 20, nrow(jucntion_category))
@@ -229,15 +232,18 @@ reactable(jucntion_category, highlight = TRUE, bordered = TRUE, striped = TRUE, 
 ```
 <br>
 
+#### 4.2.2. Figures of junction distribution by coverage
+
 <link href="select2.min.css" rel="stylesheet" />
 <script src="jquery-3.6.0.min.js"></script>
 <script src="select2.min.js"></script>
+
 <script>
 $(document).ready(function() {{
-    $("#geneSelect").select2({{ placeholder: "Search gene" }});
-    $("#geneSelect").on("change", function() {{
+    $("#rangeSelect").select2({{ placeholder: "Search range" }});
+    $("#rangeSelect").on("change", function() {{
         var selected = $(this).val();
-        $(".fig").hide();
+        $(".range_fig").hide();
         $("#" + selected).show();
     }});
 }});
@@ -245,7 +251,7 @@ $(document).ready(function() {{
 
 Please select the range to show figure:
 
-<select id="geneSelect" style="width:300px">
+<select id="rangeSelect" style="width:300px">
 
     )")
 
@@ -265,7 +271,7 @@ Please select the range to show figure:
     for(i in seq_along(list_files_junctions_diagram)) {
         if(i == 1) {
             rmd_render_context <- paste0(rmd_render_context, glue(r"(
-<div id="{paste0('F', i)}" class="fig">
+<div id="{paste0('F', i)}" class="range_fig">
   <img src="{list_files_junctions_diagram[i]}">
   <img src="{list_files_junctions_scatter[i]}">
 </div>
@@ -273,7 +279,7 @@ Please select the range to show figure:
             )"))
         } else {
             rmd_render_context <- paste0(rmd_render_context, glue(r"(
-<div id="{paste0('F', i)}" class="fig" style="display:none">
+<div id="{paste0('F', i)}" class="range_fig" style="display:none">
   <img src="{list_files_junctions_diagram[i]}">
   <img src="{list_files_junctions_scatter[i]}">
 </div>
@@ -282,8 +288,69 @@ Please select the range to show figure:
         }
     }
 
+    if(length(list_files_exons_diagram) != 0) {
+        rmd_render_context <- paste0(rmd_render_context, glue(r"(
+<br>
+
+---
+
+#### 4.2.3. Figures of junction distribution by exon
+
+<script>
+$(document).ready(function() {{
+    $("#exonSelect").select2({{ placeholder: "Search exon" }});
+    $("#exonSelect").on("change", function() {{
+        var selected = $(this).val();
+        $(".exon_fig").hide();
+        $("#" + selected).show();
+    }});
+}});
+</script>
+
+Please select the exon to show figure:
+
+<select id="exonSelect" style="width:300px">
+
+        )"))
+
+        for(i in seq_along(list_files_exons_diagram)) {
+            rmd_render_context <- paste0(rmd_render_context, glue(r"(
+    <option value="{paste0('E', i)}">{names(list_files_exons_diagram)[i]}</option>
+
+            )"))
+        }
+
+        rmd_render_context <- paste0(rmd_render_context, glue(r"(
+</select>
+
+
+        )"))
+
+        for(i in seq_along(list_files_exons_diagram)) {
+            if(i == 1) {
+                rmd_render_context <- paste0(rmd_render_context, glue(r"(
+<div id="{paste0('E', i)}" class="exon_fig">
+  <img src="{list_files_exons_diagram[i]}">
+  <img src="{list_files_exons_scatter[i]}">
+</div>
+
+                )"))
+            } else {
+                rmd_render_context <- paste0(rmd_render_context, glue(r"(
+<div id="{paste0('E', i)}" class="exon_fig" style="display:none">
+  <img src="{list_files_exons_diagram[i]}">
+  <img src="{list_files_exons_scatter[i]}">
+</div>
+
+                )"))
+            }
+        }
+    }
+
     rmd_render_context <- paste0(rmd_render_context, glue(r"(
 <br>
+
+---
 
 ### 4.3. Splicing events  (appearing in 2 replicates at least) by variants
 ```{{r, echo = FALSE}}
@@ -311,6 +378,8 @@ knitr::include_graphics("{plot_junctions_category}", rel_path = FALSE)
 ```
 <br>
 
+---
+
 ## 5. PSI Correlation
 This section summarises the correlation of PSI values between replicates.
 
@@ -336,6 +405,8 @@ reactable(dt_psi, highlight = TRUE, bordered = TRUE, striped = TRUE, compact = T
 knitr::include_graphics("{plot_psi_can}", rel_path = FALSE)
 ```
 <br>
+
+---
 
 ### 5.2. All Events PSI values
 The Percent Spliced In (PSI) is calculated as:
