@@ -341,7 +341,7 @@ introns_template <- data_rescale[[3]]
 rm(data_rescale)
 invisible(gc(verbose = FALSE))
 
-junctions_distri <- create_junction_distribution(junctions_rescale, exons_template, introns_template)
+junctions_distri <- create_junction_distribution_by_cov(junctions_rescale, exons_template, introns_template)
 junctions_range <- junctions_distri[[1]]
 junctions_diagramplot <- junctions_distri[[2]]
 junctions_scatterplot <- junctions_distri[[3]]
@@ -373,6 +373,52 @@ if(opt$lib_type == "muta_exon")
 {
     # 7. junction distribution plots per exon
     message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction distribution plot per exon ...")
+
+    parts <- tstrsplit(unique(exon_pos[var_id != "elib"]$var_id), "_", keep = 1:2)
+    exon_ids <- unique(paste(parts[[1]], parts[[2]], sep = "_"))
+    exon_ids <- exon_ids[order(exon_ids)]
+
+    exon_ids_valid <- vector()
+    valid_idx <- 0
+    for(i in seq_along(exon_ids))
+    {
+        message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "        |--> Exon: ", exon_ids[i])
+        subset_junctions <- junctions_category[startsWith(var_id, exon_ids[i])]
+        if(nrow(subset_junctions) == 0) next
+
+        exon_ids_valid <- c(exon_ids_valid, exon_ids[i])
+        valid_idx <- valid_idx + 1
+
+        subset_exon_pos <- exon_pos[startsWith(var_id, exon_ids[i])]
+
+        subset_data_rescale <- rescale_junctions(sample_reps, subset_junctions, subset_exon_pos, opt$lib_type)
+        subset_junctions_rescale <- subset_data_rescale[[1]]
+        subset_exons_template <- subset_data_rescale[[2]]
+        subset_introns_template <- subset_data_rescale[[3]]
+
+        # << free memory >>
+        rm(subset_data_rescale)
+        invisible(gc(verbose = FALSE))
+
+        subset_junctions_distri <- create_junction_distribution_by_exon(subset_junctions_rescale, subset_exons_template, subset_introns_template)
+        subset_junctions_diagramplot <- subset_junctions_distri[[1]]
+        subset_junctions_scatterplot <- subset_junctions_distri[[2]]
+
+        # << free memory >>
+        rm(subset_junctions_distri)
+        rm(subset_junctions_rescale)
+        rm(subset_exons_template)
+        rm(subset_introns_template)
+        invisible(gc(verbose = FALSE))
+
+        png(paste0(sample_prefix, ".junctions_diagram_exons_", valid_idx, ".png"), width = 1600, height = 600, units = "px", res = 200)
+        print(subset_junctions_diagramplot)
+        invisible(dev.off())
+
+        png(paste0(sample_prefix, ".junctions_scatter_exons_", valid_idx, ".png"), width = 1600, height = 1400, units = "px", res = 200)
+        print(subset_junctions_scatterplot)
+        invisible(dev.off())
+    }
 }
 
 # ---- reporting ---- #
@@ -391,6 +437,19 @@ list_files_junctions_diagram <- list.files(pattern = paste0(sample_prefix, ".jun
 names(list_files_junctions_diagram) <- names(junctions_range)
 list_files_junctions_scatter <- list.files(pattern = paste0(sample_prefix, ".junctions_scatter_range_.*.png$"))
 names(list_files_junctions_scatter) <- names(junctions_range)
+if(opt$lib_type == "muta_exon")
+{
+    list_files_exons_diagram <- list.files(pattern = paste0(sample_prefix, ".junctions_diagram_exons_.*.png$"))
+    list_files_exons_diagram <- mixedsort(list_files_exons_diagram)
+    names(list_files_exons_diagram) <- exon_ids_valid
+
+    list_files_exons_scatter <- list.files(pattern = paste0(sample_prefix, ".junctions_scatter_exons_.*.png$"))
+    list_files_exons_scatter <- mixedsort(list_files_exons_scatter)
+    names(list_files_exons_scatter) <- exon_ids_valid
+} else {
+    list_files_exons_diagram <- list()
+    list_files_exons_scatter <- list()
+}
 plot_psi_can <- paste0(sample_prefix, ".psi_canon_only.corr.png")
 plot_psi_all <- paste0(sample_prefix, ".psi_all_events.corr.png")
 file_psi_can <- paste0(sample_prefix, ".psi_canon_only.tsv")
@@ -410,6 +469,8 @@ create_html_render(opt$pl_name,
                    file_junctions_category,
                    list_files_junctions_diagram,
                    list_files_junctions_scatter,
+                   list_files_exons_diagram,
+                   list_files_exons_scatter,
                    plot_psi_can,
                    plot_psi_all,
                    file_psi_can,
