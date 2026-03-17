@@ -130,12 +130,12 @@ Version: ${workflow.manifest.version}
 /* -- check parameters -- */
 if (params.help) {
     helpMessage()
-    exit 0
+    System.exit(0)
 }
 
 if (params.version) {
     println "${workflow.manifest.version}"
-    exit 0
+    System.exit(0)
 }
 
 if (params.sample_sheet) {
@@ -151,8 +151,7 @@ if (params.sample_sheet) {
     def missing = required_cols.findAll { !(it in header) }
 
     if (missing) {
-        log.error "Sample sheet is missing required columns: ${missing.join(', ')}"
-        exit 1
+        error "Error: Sample sheet is missing required columns - ${missing.join(', ')}"
     } else {
         def sheet_file = file(params.sample_sheet)
         log.info("=====================================")
@@ -167,9 +166,7 @@ if (params.sample_sheet) {
             tuple(sample_id, row.sample, row.replicate, row.directory, row.read1, row.read2, row.reference, row.barcode, row.barcode_up, row.barcode_down, row.barcode_temp) }
     }
 } else {
-    helpMessage()
-    log.info("Error: Please specify the full path of the sample sheet!\n")
-    exit 1
+    error("Error: Please specify the full path of the sample sheet!\n")
 }
 
 def outdir = file(params.outdir)
@@ -179,20 +176,17 @@ if (!outdir.exists()) {
 }
 
 if (!file(params.outdir).isDirectory()) {
-    log.error("Invalid output directory: ${params.outdir}. Please specify a valid directory.")
-    exit 1
+    error("Invalid output directory: ${params.outdir}. Please specify a valid directory.")
 }
 
 def valid_library = ['random_intron', 'random_exon', 'muta_intron', 'muta_exon']
 if (!(params.library in valid_library)) {
-    log.error("Invalid library: ${params.library}. Valid options: ${valid_library.join(', ')}")
-    exit 1
+    error("Invalid library: ${params.library}. Valid options: ${valid_library.join(', ')}")
 }
 
 def valid_canonical_method = ['align', 'match']
 if (!(params.canonical_method in valid_canonical_method)) {
-    log.error("Invalid canonical method: ${params.canonical_method}. Valid options: ${valid_canonical_method.join(', ')}")
-    exit 1
+    error("Invalid canonical method: ${params.canonical_method}. Valid options: ${valid_canonical_method.join(', ')}")
 }
 
 /* -- check software exist -- */
