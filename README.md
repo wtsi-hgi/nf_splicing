@@ -332,10 +332,7 @@ These files summarize all the barcodes in the sequencing library, categorized by
 > | var1 | 743 | 90 | 47 | 21 | 0 | 0 | 5 | 0 | 5 | 0 | 0 | 0 | 0 | 0 | 10 |
 > | var2 | 235 | 16 | 63 | 18 | 0 | 0 | 6 | 0 | 6 | 0 | 0 | 0 | 0 | 0 | 22 |
 > | var3 | 229 | 20 | 62 | 14 | 0 | 0 | 7 | 0 | 7 | 0 | 0 | 0 | 0 | 0 | 18 |
-
-<br>
-
-> [!NOTE] 
+>
 > 📄 **junctions_category**
 >
 > | var_id | donor | acceptor | annotation | s_rep1 | s_rep2 | s_rep3 | avg_cov |
@@ -345,11 +342,7 @@ These files summarize all the barcodes in the sequencing library, categorized by
 >
 > * **donor**: the position of donor site
 > * **acceptor**: the position of acceptor site
-
-
-<br>
-
-> [!NOTE] 
+>
 > 📄 **corrected_psi**
 >
 > | var_id | psi1 | psi2 | psi3 | ratio1 | ratio2 | ratio3 | n_total1 | n_total2 | n_total3 | theta | var_theta | psi_est | shrinkage | theta_shrunk | var_theta_shrunk | psi_shrunk | psi_shrunk_lwr | psi_shrunk_upr |
