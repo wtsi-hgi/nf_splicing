@@ -32,5 +32,12 @@ process CREATE_EXON_REFERENCE {
     script:
     """
     python ${projectDir}/scripts/create_exon_ref.py -r ${reference} -l ${params.library} -p ${sample_id}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: \$(python --version | sed 's/Python //g')
+        py_argparse: \$(python -c "import argparse; print(argparse.__version__)")
+        py_Bio: \$(python -c "import Bio; print(Bio.__version__)")
+    END_VERSIONS
     """
 }
