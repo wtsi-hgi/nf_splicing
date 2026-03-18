@@ -1,6 +1,8 @@
 process HISAT2_SUMMARY_GET_VALUES {
     label 'process_single'
     
+    tag "$sample_id"
+
     input:
     tuple val(sample_id), path(hisat2_summary_se)
     
@@ -20,6 +22,8 @@ process HISAT2_SUMMARY_GET_VALUES {
 process HISAT2_SUMMARY_ADD_VALUES {
     label 'process_single'
     
+    tag "$sample_id"
+
     input:
     tuple val(sample_id), path(hisat2_summary_se), path(hisat2_summary_pe)
     

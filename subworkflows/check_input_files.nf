@@ -19,6 +19,8 @@ workflow check_input_files {
 process CHECK_FILES {
     label 'process_single'
 
+    tag "$sample_id"
+
     input:
     tuple val(sample_id), val(sample), val(replicate), val(directory), val(read1), val(read2), val(reference), val(barcode), val(barcode_up), val(barcode_down), val(barcode_temp)
 

@@ -20,6 +20,8 @@ workflow prepare_files {
 process CREATE_EXON_REFERENCE {
     label 'process_single'
 
+    tag "$sample_id"
+
     input:
     tuple val(sample_id), path(reference)
 

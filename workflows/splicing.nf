@@ -1,31 +1,28 @@
 /* ---- splicing analysis pipeline ---- */
 
 /* -- load modules -- */
-include { check_required }            from '../modules/check_software.nf'
 include { STATS_GET_VALUES; 
-          STATS_ADD_VALUES }          from '../modules/format_stats.nf'
+          STATS_ADD_VALUES }          from "$projectDir/modules/local/format_stats/main"
 include { HISAT2_SUMMARY_GET_VALUES; 
-          HISAT2_SUMMARY_ADD_VALUES } from '../modules/format_hisat2_summary.nf'
+          HISAT2_SUMMARY_ADD_VALUES } from "$projectDir/modules/local/format_hisat2_stats/main"
 include { CAT_CANONICAL_BARCODES; 
           CAT_NOVEL_BARCODES;
-          CAT_BEDS }                  from '../modules/cat_files.nf'
+          CAT_BEDS }                  from "$projectDir/modules/local/cat_files/main"
 include { RENAME_CANONICAL_BARCODES;
-          RENAME_NOVEL_BARCODES }     from '../modules/rename_files.nf'
-include { PUBLISH_CANONICAL_BARCODES;
-          PUBLISH_NOVEL_BARCODES}     from '../modules/publish_files.nf'
+          RENAME_NOVEL_BARCODES }     from "$projectDir/modules/local/rename_files/main"
 
 /* -- load subworkflows -- */
-include { check_input_files }         from '../subworkflows/check_input_files.nf'
-include { prepare_files }             from '../subworkflows/prepare_files.nf'
-include { process_reads }             from '../subworkflows/process_reads.nf'
-include { detect_canonical_se_align } from '../subworkflows/detect_canonical_se_align.nf'
-include { detect_canonical_pe_align } from '../subworkflows/detect_canonical_pe_align.nf'
-include { detect_canonical_se_match } from '../subworkflows/detect_canonical_se_match.nf'
-include { detect_canonical_pe_match } from '../subworkflows/detect_canonical_pe_match.nf'
-include { detect_novel_se }           from '../subworkflows/detect_novel_se.nf'
-include { detect_novel_pe }           from '../subworkflows/detect_novel_pe.nf'
-include { create_splicing_counts }    from '../subworkflows/create_splicing_counts.nf'
-include { generate_summary_report }   from '../subworkflows/generate_summary_report.nf'
+include { check_input_files }         from "$projectDir/subworkflows/check_input_files.nf"
+include { prepare_files }             from "$projectDir/subworkflows/prepare_files.nf"
+include { process_reads }             from "$projectDir/subworkflows/process_reads.nf"
+include { detect_canonical_se_align } from "$projectDir/subworkflows/detect_canonical_se_align.nf"
+include { detect_canonical_pe_align } from "$projectDir/subworkflows/detect_canonical_pe_align.nf"
+include { detect_canonical_se_match } from "$projectDir/subworkflows/detect_canonical_se_match.nf"
+include { detect_canonical_pe_match } from "$projectDir/subworkflows/detect_canonical_pe_match.nf"
+include { detect_novel_se }           from "$projectDir/subworkflows/detect_novel_se.nf"
+include { detect_novel_pe }           from "$projectDir/subworkflows/detect_novel_pe.nf"
+include { create_splicing_counts }    from "$projectDir/subworkflows/create_splicing_counts.nf"
+include { generate_summary_report }   from "$projectDir/subworkflows/generate_summary_report.nf"
 
 /* -- define functions -- */
 def helpMessage() {
@@ -78,6 +75,37 @@ Usage:
         --classify_min_overlap        min anchor to consider partial splicing, default: 2
         --classify_min_cov            min junction coverage to keep, default: 2
     """
+}
+
+def check_software_exists(tool) {
+    try {
+        def process = ["which", tool].execute()
+        process.waitFor()
+        return process.exitValue() == 0
+    } catch (Exception e) {
+        return false
+    }
+}
+
+def check_required(required_tools) {
+    def missing_tools = required_tools.findAll { !check_software_exists(it) }
+
+    log.info "====================================="
+    log.info "Checking software:"
+    required_tools.each { tool ->
+        if (check_software_exists(tool)) {
+            log.info "    |----> ${tool} is available"
+        } else {
+            log.info "    |----> ${tool} is not found"
+        }
+    }
+
+    if (missing_tools) {
+        error "Error: the following tools are missing: ${missing_tools.join(', ')}"
+    }
+
+    log.info "Done: all required tools are available. Proceeding with the pipeline."
+    log.info "====================================="
 }
 
 /* -- initialising parameters -- */

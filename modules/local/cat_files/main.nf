@@ -1,6 +1,8 @@
 process CAT_CANONICAL_BARCODES {
     label 'process_single'
     
+    tag "$sample_id"
+
     input:
     tuple val(sample_id), path(filter_se), path(filter_pe)
     
@@ -20,6 +22,8 @@ process CAT_CANONICAL_BARCODES {
 process CAT_NOVEL_BARCODES {
     label 'process_single'
     
+    tag "$sample_id"
+
     input:
     tuple val(sample_id), path(map_se), path(map_pe)
     
@@ -39,6 +43,8 @@ process CAT_NOVEL_BARCODES {
 process CAT_BEDS {
     label 'process_single'
     
+    tag "$sample_id"
+
     input:
     tuple val(sample_id), path(bed_se), path(bed_pe)
     

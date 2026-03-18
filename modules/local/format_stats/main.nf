@@ -1,6 +1,8 @@
 process STATS_GET_VALUES {
     label 'process_single'
     
+    tag "$sample_id"
+
     input:
     tuple val(sample_id), path(se_stats)
     
@@ -26,6 +28,8 @@ process STATS_GET_VALUES {
 process STATS_ADD_VALUES {
     label 'process_single'
     
+    tag "$sample_id"
+
     input:
     tuple val(sample_id), path(se_stats), path(pe_stats)
     

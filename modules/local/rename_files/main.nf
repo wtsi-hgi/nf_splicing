@@ -1,6 +1,8 @@
 process RENAME_CANONICAL_BARCODES {
     label 'process_single'
     
+    tag "$sample_id"
+
     input:
     tuple val(sample_id), path(filter_se)
     
@@ -16,6 +18,8 @@ process RENAME_CANONICAL_BARCODES {
 process RENAME_NOVEL_BARCODES {
     label 'process_single'
     
+    tag "$sample_id"
+
     input:
     tuple val(sample_id), path(map_se)
     
