@@ -94,5 +94,24 @@ process CREATE_HTML_REPORT {
                                                -p ${sample} \
                                                -w ${params.pipeline_name} \
                                                -v ${params.pipeline_version}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        r_base: \$(R --version | grep -i "version" | sed -n '1p' | awk '{print \$3}')
+        r_optparse: \$(Rscript -e "cat(as.character(packageVersion('optparse')))" | tail -n 1)
+        r_data.table: \$(Rscript -e "cat(as.character(packageVersion('data.table')))" | tail -n 1)
+        r_glue: \$(Rscript -e "cat(as.character(packageVersion('glue')))" | tail -n 1)
+        r_tidyverse: \$(Rscript -e "cat(as.character(packageVersion('tidyverse')))" | tail -n 1)
+        r_vroom: \$(Rscript -e "cat(as.character(packageVersion('vroom')))" | tail -n 1)
+        r_gtools: \$(Rscript -e "cat(as.character(packageVersion('gtools')))" | tail -n 1)
+        r_ggVennDiagram: \$(Rscript -e "cat(as.character(packageVersion('ggVennDiagram')))" | tail -n 1)
+        r_htmltools: \$(Rscript -e "cat(as.character(packageVersion('htmltools')))" | tail -n 1)
+        r_reactable: \$(Rscript -e "cat(as.character(packageVersion('reactable')))" | tail -n 1)
+        r_sparkline: \$(Rscript -e "cat(as.character(packageVersion('sparkline')))" | tail -n 1)
+        r_UpSetR: \$(Rscript -e "cat(as.character(packageVersion('UpSetR')))" | tail -n 1)
+        r_patchwork: \$(Rscript -e "cat(as.character(packageVersion('patchwork')))" | tail -n 1)
+        r_scales: \$(Rscript -e "cat(as.character(packageVersion('scales')))" | tail -n 1)
+        r_ggExtra: \$(Rscript -e "cat(as.character(packageVersion('ggExtra')))" | tail -n 1)
+    END_VERSIONS
     """
 }

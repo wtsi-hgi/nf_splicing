@@ -40,13 +40,13 @@ process CALCULATE_PSI {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        r_base: \$(R --version | sed -n '1p' | sed 's/R version //; s/ (.*//')
-        r_optparse: \$(Rscript -e "cat(as.character(packageVersion('optparse')))")
-        r_data.table: \$(Rscript -e "cat(as.character(packageVersion('data.table')))")
-        r_glue: \$(Rscript -e "cat(as.character(packageVersion('glue')))")
-        r_tidyverse: \$(Rscript -e "cat(as.character(packageVersion('tidyverse')))")
-        r_vroom: \$(Rscript -e "cat(as.character(packageVersion('vroom')))")
-        r_gtools: \$(Rscript -e "cat(as.character(packageVersion('gtools')))")
+        r_base: \$(R --version | grep -i "version" | sed -n '1p' | awk '{print \$3}')
+        r_optparse: \$(Rscript -e "cat(as.character(packageVersion('optparse')))" | tail -n 1)
+        r_data.table: \$(Rscript -e "cat(as.character(packageVersion('data.table')))" | tail -n 1)
+        r_glue: \$(Rscript -e "cat(as.character(packageVersion('glue')))" | tail -n 1)
+        r_tidyverse: \$(Rscript -e "cat(as.character(packageVersion('tidyverse')))" | tail -n 1)
+        r_vroom: \$(Rscript -e "cat(as.character(packageVersion('vroom')))" | tail -n 1)
+        r_gtools: \$(Rscript -e "cat(as.character(packageVersion('gtools')))" | tail -n 1)
     END_VERSIONS
     """
 }
