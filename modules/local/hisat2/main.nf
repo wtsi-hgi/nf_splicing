@@ -28,6 +28,12 @@ process HISAT2_ALIGN_SE_READS {
     samtools fastq -@ 32 -f 4 -c 9 -0 ${sample_id}.hisat2_se.unmapped.fastq.gz ${sample_id}.hisat2_se.sam
     awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==0)||(\$2==16)){print \$0}}' ${sample_id}.hisat2_se.sam | grep "NH:i:1\\|^@" | samtools view -b - > ${sample_id}.hisat2_se.unique.bam
     rm ${sample_id}.hisat2_se.sam
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        hisat2: \$( hisat2 --version | head -n 1 | awk '{print \$3}' )
+        samtools: \$( samtools --version | head -n 1 | awk '{print \$2}' )
+    END_VERSIONS
     """
 }
 
@@ -61,5 +67,11 @@ process HISAT2_ALIGN_PE_READS {
     samtools fastq -@ 32 -F 2 -c 9 -1 ${sample_id}.hisat2_pe.unmapped.R1.fastq.gz -2 ${sample_id}.hisat2_pe.unmapped.R2.fastq.gz -n ${sample_id}.hisat2_pe.sam
     awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==99)||(\$2==147)||(\$2==83)||(\$2==163)){print \$0}}' ${sample_id}.hisat2_pe.sam | grep "NH:i:1\\|^@" | samtools view -b - > ${sample_id}.hisat2_pe.unique.bam
     rm ${sample_id}.hisat2_pe.sam
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        hisat2: \$( hisat2 --version | head -n 1 | awk '{print \$3}' )
+        samtools: \$( samtools --version | head -n 1 | awk '{print \$2}' )
+    END_VERSIONS
     """
 }

@@ -14,6 +14,11 @@ process EXTRACT_SE_JUNCTIONS {
     script:
     """
     regtools junctions extract -s RF -a ${params.regtools_min_anchor} -m ${params.regtools_min_intron} -o ${sample_id}.hisat2_se.junctions.bed ${bam}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        regtools: \$( regtools --version 2>&1 | grep -i "Version" | awk '{print \$2}' )
+    END_VERSIONS
     """
 }
 
@@ -33,5 +38,10 @@ process EXTRACT_PE_JUNCTIONS {
     script:
     """
     regtools junctions extract -s RF -a ${params.regtools_min_anchor} -m ${params.regtools_min_intron} -o ${sample_id}.hisat2_pe.junctions.bed ${bam}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        regtools: \$( regtools --version 2>&1 | grep -i "Version" | awk '{print \$2}' )
+    END_VERSIONS
     """
 }

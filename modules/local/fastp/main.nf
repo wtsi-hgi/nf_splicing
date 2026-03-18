@@ -20,5 +20,10 @@ process FASTP {
           --cut_mean_quality  ${params.fastp_cut_mean_quality} \
           --thread            16 \
           --html              ${sample_id}.trim.html 2>&1 | tee ${sample_id}.trim.tsv
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        fastp: \$( fastp --version | awk '{print \$2}' )
+    END_VERSIONS
     """
 }

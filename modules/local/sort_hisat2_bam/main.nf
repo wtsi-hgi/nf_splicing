@@ -15,6 +15,11 @@ process SORT_SE_BAM {
     samtools index -@ 40 ${sample_id}.hisat2_se.fixed.sorted.bam
     bamtools stats -in ${sample_id}.hisat2_se.fixed.sorted.bam > ${sample_id}.hisat2_se.fixed.tsv
     rm ${bam}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        samtools: \$( samtools --version | head -n 1 | awk '{print \$2}' )
+    END_VERSIONS
     """
 }
 
@@ -35,5 +40,10 @@ process SORT_PE_BAM {
     samtools index -@ 40 ${sample_id}.hisat2_pe.fixed.sorted.bam
     bamtools stats -in ${sample_id}.hisat2_pe.fixed.sorted.bam > ${sample_id}.hisat2_pe.fixed.tsv
     rm ${bam}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        samtools: \$( samtools --version | head -n 1 | awk '{print \$2}' )
+    END_VERSIONS
     """
 }

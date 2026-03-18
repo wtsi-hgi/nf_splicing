@@ -28,5 +28,13 @@ process CLASSIFY_NOVEL_JUNCTIONS {
                                                              --junc_cov ${params.classify_min_cov} \
                                                              --min_overlap ${params.classify_min_overlap} \
                                                              --output_prefix ${sample_id}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: \$(python --version | sed 's/Python //g')
+        py_argparse: \$(python -c "import argparse; print(argparse.__version__)")
+        py_csv: \$(python -c "import csv; print(csv.__version__)")
+        py_polars: \$(python -c "import polars; print(polars.__version__)")
+    END_VERSIONS
     """
 }

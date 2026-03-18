@@ -37,5 +37,16 @@ process CALCULATE_PSI {
                                                            -d ${list_splicing_counts} \
                                                            -c all \
                                                            -p ${sample}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        r_base: \$(R --version | sed -n '1p' | sed 's/R version //; s/ (.*//')
+        r_optparse: \$(Rscript -e "cat(as.character(packageVersion('optparse')))")
+        r_data.table: \$(Rscript -e "cat(as.character(packageVersion('data.table')))")
+        r_glue: \$(Rscript -e "cat(as.character(packageVersion('glue')))")
+        r_tidyverse: \$(Rscript -e "cat(as.character(packageVersion('tidyverse')))")
+        r_vroom: \$(Rscript -e "cat(as.character(packageVersion('vroom')))")
+        r_gtools: \$(Rscript -e "cat(as.character(packageVersion('gtools')))")
+    END_VERSIONS
     """
 }

@@ -25,5 +25,13 @@ process CREATE_SPLICING_COUNTS {
                                                            --novel_file ${classified_junctions} \
                                                            --barcode_file ${barcode} \
                                                            --output_prefix ${sample_id}
+    
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: \$(python --version | sed 's/Python //g')
+        py_argparse: \$(python -c "import argparse; print(argparse.__version__)")
+        py_csv: \$(python -c "import csv; print(csv.__version__)")
+        py_polars: \$(python -c "import polars; print(polars.__version__)")
+    END_VERSIONS
     """
 }

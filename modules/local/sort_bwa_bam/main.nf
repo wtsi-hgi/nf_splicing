@@ -16,6 +16,11 @@ process SORT_BWA_SE_BAM {
     samtools index -@ 40 ${sample_id}.bwa_se.filtered.sorted.bam
     samtools idxstats ${sample_id}.bwa_se.filtered.sorted.bam > ${sample_id}.bwa_se.canonical_stats.tsv
     rm ${bam}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        samtools: \$( samtools --version | head -n 1 | awk '{print \$2}' )
+    END_VERSIONS
     """
 }
 
@@ -37,5 +42,10 @@ process SORT_BWA_PE_BAM {
     samtools index -@ 40 ${sample_id}.bwa_pe.filtered.sorted.bam
     samtools idxstats ${sample_id}.bwa_pe.filtered.sorted.bam > ${sample_id}.bwa_pe.canonical_stats.tsv
     rm ${bam}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        samtools: \$( samtools --version | head -n 1 | awk '{print \$2}' )
+    END_VERSIONS
     """
 }

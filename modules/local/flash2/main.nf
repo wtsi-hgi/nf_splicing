@@ -31,5 +31,10 @@ process FLASH2 {
            --threads               32 \
            --compress \
            ${read1} ${read2} 2>&1 | tee ${sample_id}.merge.tsv
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        flash2: \$( flash2 --version | head -n 1 | awk '{print \$2}' )
+    END_VERSIONS
     """
 }

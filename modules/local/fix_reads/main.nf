@@ -29,6 +29,18 @@ process FIX_SE_READS {
                                                       --output_prefix ${sample_id}.hisat2_se \
                                                       --chunk_size 100000 \
                                                       --threads 40
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: \$(python --version | sed 's/Python //g')
+        py_argparse: \$(python -c "import argparse; print(argparse.__version__)")
+        py_csv: \$(python -c "import csv; print(csv.__version__)")
+        py_pysam: \$(python -c "import pysam; print(pysam.__version__)")
+        py_polars: \$(python -c "import polars; print(polars.__version__)")
+        py_pandas: \$(python -c "import pandas; print(pandas.__version__)")
+        py_Bio: \$(python -c "import Bio; print(Bio.__version__)")
+        py_numpy: \$(python -c "import numpy; print(numpy.__version__)")
+    END_VERSIONS
     """
 }
 
@@ -64,5 +76,16 @@ process FIX_PE_READS {
                                                       --chunk_size 100000 \
                                                       --threads 40
  
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: \$(python --version | sed 's/Python //g')
+        py_argparse: \$(python -c "import argparse; print(argparse.__version__)")
+        py_csv: \$(python -c "import csv; print(csv.__version__)")
+        py_pysam: \$(python -c "import pysam; print(pysam.__version__)")
+        py_polars: \$(python -c "import polars; print(polars.__version__)")
+        py_pandas: \$(python -c "import pandas; print(pandas.__version__)")
+        py_Bio: \$(python -c "import Bio; print(Bio.__version__)")
+        py_numpy: \$(python -c "import numpy; print(numpy.__version__)")
+    END_VERSIONS
     """
 }

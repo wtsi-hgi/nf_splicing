@@ -21,6 +21,12 @@ process BWA_ALIGN_SE_READS {
     samtools fastq -@ 32 -f 4 -c 9 -0 ${sample_id}.bwa_se.unmapped.fastq.gz ${sample_id}.bwa_se.sam
     samtools view -@ 32 -b -F 4 -F 256 -F 2048 ${sample_id}.bwa_se.sam > ${sample_id}.bwa_se.unique.bam
     rm ${sample_id}.bwa_se.sam
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        bwa: \$( bwa 2>&1 | grep -i version | awk '{print \$2}' )
+        samtools: \$( samtools --version | head -n 1 | awk '{print \$2}' )
+    END_VERSIONS
     """
 }
 
@@ -46,5 +52,11 @@ process BWA_ALIGN_PE_READS {
     samtools fastq -@ 32 -F 2 -c 9 -1 ${sample_id}.bwa_pe.unmapped.r1.fastq.gz -2 ${sample_id}.bwa_pe.unmapped.r2.fastq.gz -n ${sample_id}.bwa_pe.sam
     samtools view -b -f 2 -F 256 -F 2048 ${sample_id}.bwa_pe.sam > ${sample_id}.bwa_pe.unique.bam
     rm ${sample_id}.bwa_pe.sam
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        bwa: \$( bwa 2>&1 | grep -i version | awk '{print \$2}' )
+        samtools: \$( samtools --version | head -n 1 | awk '{print \$2}' )
+    END_VERSIONS
     """
 }
