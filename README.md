@@ -249,8 +249,6 @@ nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
     ├─── 📁 novel_splicing_results
     │       ├─── 📁 s1_rep1
     │       │       ├─── 📄 classified_junctions.tsv
-    │       │       ├─── 📄 bam
-    │       │       ├─── 📄 bam.bai
     │       │       ├─── 📄 junctions.bed
     │       │       ├─── 📄 spliced_products.tsv
     │       │       └─── 📄 novel_barcodes.tsv
@@ -264,7 +262,8 @@ nextflow run -resume nf_splicing/main.nf --sample_sheet $INPUTSAMPLE \
             └─── 📁 s1
                     ├─── 📄 splicing_report.html
                     ├─── 📄 junctions_category.tsv
-                    └─── 📄 psi_values.tsv
+                    ├─── 📄 all_events.corrected_psi.tsv
+                    └─── 📄 canon_only.corrected_psi.tsv
 ```
 
 ### File Description
@@ -317,13 +316,9 @@ These files summarize all the barcodes in the sequencing library, categorized by
 #### Novel splicing results
 
 > [!NOTE]
-> 📄 **novel splicing bam**
-> 
-> This is the bam output file for novel splicing events.
->
 > 📄 **novel splicing products**
 > 
-> This is an output file which contains all the spliced products (sequences) generating from the bam file.
+> Optional: This is an output file which contains all the spliced products (sequences) generating from the bam file.
 
 <br>
 
@@ -347,12 +342,28 @@ These files summarize all the barcodes in the sequencing library, categorized by
 > | - | - | - | - | - | - | - | - |
 > | CABP4_e2_A105C | 20 | 106 | intron_retension_3p_I1 | 122 | 84 | 114 | 106.67 |
 > | SPAST_e16_del101to101 | 228 | 360 | exon_splicing_5p_E3;<br>intron_retension_5p_I2 | 68 | 53 | 28 | 49.67 |
+>
+> * **donor**: the position of donor site
+> * **acceptor**: the position of acceptor site
+
 
 <br>
 
 > [!NOTE] 
-> 📄 **psi_values**
+> 📄 **corrected_psi**
 >
+> | var_id | psi1 | psi2 | psi3 | ratio1 | ratio2 | ratio3 | n_total1 | n_total2 | n_total3 | theta | var_theta | psi_est | shrinkage | theta_shrunk | var_theta_shrunk | psi_shrunk | psi_shrunk_lwr | psi_shrunk_upr |
+> | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+> | ABHD12_e5_A110T | 0 | 0.0221 | 0.02 | 0:7:93 | 2:9:89 | 1:9:90 | 307 | 272 | 952 | -3.9157 | 0.1186 | 0.0195 | 0.9895 | -3.917 | 0.1161 | 0.0195 | 0.0101 | 0.0374 |
+> | PTPRF_e14_del85to85 | 0 | 0.1368 | 0.0791 | 0:88:12 | 13:58:29 | 7:67:26 | 218 | 190 | 316 | -2.0166 | 0.0537 | 0.1175 | 0.9952 | -2.0263 | 0.0532 | 0.1165 | 0.0774 | 0.1716 |
+> | FCRL6_e9_del38to38 | 0 | 0 | 0 | 0:27:73 | 0:18:82 | 0:8:92 | 65 | 99 | 349 | -5.5237 | 0.7169 | 0.004 | 0.9398 | -5.4345 | 0.6331 | 0.0043 | 9e-04 | 0.0203 |
+> | CERKL_e4_G130T | 0.5055 | 0.6053 | 0.8462 | 50:23:27 | 60:11:29 | 84:8:8 | 91 | 76 | 156 | 0.2619 | 0.026 | 0.5651 | 0.9977 | 0.252 | 0.0258 | 0.5627 | 0.4842 | 0.6381 |
+>
+> * **ratio**: the ratios of [canonical inclusion : canonical skipping : others]
+> * **n_total**: the counts of [canonical inclusion : canonical skipping : others]
+> * **psi_shrunk**: the corrected psi
+> * **psi_shrunk_lwr**: the lower bound of the psi confidence interval
+> * **psi_shrunk_upr**: the upper bound of the psi confidence interval
 
 <br>
 
