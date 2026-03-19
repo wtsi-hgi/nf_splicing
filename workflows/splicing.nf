@@ -1,6 +1,7 @@
 /* ---- splicing analysis pipeline ---- */
 
 /* -- load modules -- */
+include { NOTE_CMD }                  from "$projectDir/modules/local/init_workflow/main"
 include { STATS_GET_VALUES; 
           STATS_ADD_VALUES }          from "$projectDir/modules/local/format_stats/main"
 include { HISAT2_SUMMARY_GET_VALUES; 
@@ -113,6 +114,7 @@ params.help                        = false
 params.version                     = false
 params.pipeline_name               = workflow.manifest.name
 params.pipeline_version            = workflow.manifest.version
+params.sanger_module               = params.sanger_module               ?: false
 
 params.sample_sheet                = null
 params.library                     = params.library                     ?: "random_intron"
@@ -223,6 +225,9 @@ check_required(required_tools)
 
 /* -- workflow -- */
 workflow splicing {
+    /* -- note down the command line -- */
+    NOTE_CMD(workflow.commandLine)
+
     /* -- check input files exist -- */
     check_input_files(ch_input)
     ch_sample_mapping  = check_input_files.out.ch_sample_mapping
