@@ -75,7 +75,7 @@ def process_se_read(read: tuple) -> list:
                 if pre_exon_found == -1:
                     return (), (), read, {}
                 else:
-                    return (), (), (read[0], read[1][pre_exon_found:], read[2][pre_exon_found:]), {}
+                    return (), (), (read[0] + "||" + res_bar_var["var_id"], read[1][pre_exon_found:], read[2][pre_exon_found:]), {}
             else:
                 dict_barcode = { 'read_ref' : res_bar_var["var_id"],
                                  'var_id'   : res_bar_var["var_id"],
@@ -139,7 +139,7 @@ def process_pe_pair(read_pair: tuple) -> list:
                 if pre_exon_found == -1:
                     return  (), (), (), (), read1, read2, {}
                 else:
-                    return  (), (), (), (), (read1[0], read1[1][pre_exon_found:], read1[2][pre_exon_found:]), read2, {}
+                    return  (), (), (), (), (read1[0] + "||" + res_bar_var["var_id"], read1[1][pre_exon_found:], read1[2][pre_exon_found:]), read2, {}
             else:
                 dict_barcode = { 'read_ref' : res_bar_var["var_id"],
                                  'var_id'   : res_bar_var["var_id"],
