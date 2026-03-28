@@ -13,7 +13,7 @@ from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections import Counter
 from collections import defaultdict
-from sequence_utils import reverse_complement, extract_sequence, check_barcode
+from sequence_utils import reverse_complement, extract_sequence, check_barcode, match_approximate
 
 #-- functions --#
 def init_worker():
@@ -84,29 +84,42 @@ def process_se_read(read: dict) -> list:
         read['rname'] = var_id
     
     if args.spliced:
-        read_cigar_ops, read_cigar_length = zip(*read['cigartuples'])
-        if args.lib_type == "muta_exon" or args.lib_type == "muta_intron":
-            getseq_id = read_ref
+        barcode_down_start = match_approximate(read_seq, args.barcode_down, 1, "hamming")
+        if barcode_down_start != -1:
+            spliced_seq = read_seq[:(barcode_down_start - len(barcode_seq))]
         else:
-            getseq_id = read['rname']
-
-        read_spliced_list = []
-        for op, length in zip(read_cigar_ops, read_cigar_length):
-            if op in (0, 2): # M or D
-                ref_segment = ref_sequences[getseq_id][read_pos : read_pos + length]
-                read_spliced_list.append(ref_segment)
-                read_pos += length  
-            elif op == 3: # N
-                read_pos += length
-            elif op in (1, 4, 5): # I, S, H
-                continue
+            spliced_seq = "unknown"
 
         dict_barcode = { 
             'read_ref': read_ref,
             'var_id': var_id,
             'barcode': barcode_seq,
-            'spliced_sequence': ''.join(read_spliced_list) if read_spliced_list else None
+            'spliced_sequence': spliced_seq
         }
+
+        # read_cigar_ops, read_cigar_length = zip(*read['cigartuples'])
+        # if args.lib_type == "muta_exon" or args.lib_type == "muta_intron":
+        #     getseq_id = read_ref
+        # else:
+        #     getseq_id = read['rname']
+
+        # read_spliced_list = []
+        # for op, length in zip(read_cigar_ops, read_cigar_length):
+        #     if op in (0, 2): # M or D
+        #         ref_segment = ref_sequences[getseq_id][read_pos : read_pos + length]
+        #         read_spliced_list.append(ref_segment)
+        #         read_pos += length  
+        #     elif op == 3: # N
+        #         read_pos += length
+        #     elif op in (1, 4, 5): # I, S, H
+        #         continue
+
+        # dict_barcode = { 
+        #     'read_ref': read_ref,
+        #     'var_id': var_id,
+        #     'barcode': barcode_seq,
+        #     'spliced_sequence': ''.join(read_spliced_list) if read_spliced_list else None
+        # }
     else:
         dict_barcode = { 
             'read_ref': read_ref,
@@ -154,50 +167,63 @@ def process_pe_read(read_pair: tuple) -> list:
         read2['rname'] = var_id
 
     if args.spliced:
-        read1_cigar_ops, read1_cigar_length = zip(*read1['cigartuples'])
-        read2_cigar_ops, read2_cigar_length = zip(*read2['cigartuples'])
-        if args.lib_type == "muta_exon" or args.lib_type == "muta_intron":
-            getseq_id = read1_ref
+        barcode_down_start = match_approximate(read2_seq, args.barcode_down, 1, "hamming")
+        if barcode_down_start != -1:
+            spliced_seq = read1_seq + "NNNN" + read2_seq[:(barcode_down_start - len(barcode_seq))]
         else:
-            getseq_id = read1['rname']
-
-        read1_spliced_list = []
-        for op, length in zip(read1_cigar_ops, read1_cigar_length):
-            if op in (0, 2): # M or D
-                ref_segment = ref_sequences[getseq_id][read1_pos : read1_pos + length]
-                read1_spliced_list.append(ref_segment)
-                read1_pos += length  
-            elif op == 3: # N
-                read1_pos += length
-            elif op in (1, 4, 5): # I, S, H
-                continue
-        
-        read2_spliced_list = []
-        for op, length in zip(read2_cigar_ops, read2_cigar_length):
-            if op in (0, 2): # M or D
-                ref_segment = ref_sequences[getseq_id][read2_pos : read2_pos + length]
-                read2_spliced_list.append(ref_segment)
-                read2_pos += length  
-            elif op == 3: # N
-                read2_pos += length
-            elif op in (1, 4, 5): # I, S, H
-                continue
-
-        # read1_pos and read2_pos have been updated to the end of alignments
-        # get the gap sequence between read1 and read2
-        # normally read1 and read2 should not overlap in the middle as reads have been separated
-        if read1_pos < read2['pos']: # read2_pos now is changed to the end of read2 alignment
-            pe_gap_seq = ref_sequences[getseq_id][(read1_pos + 1): read2['pos']]
-        else:
-            pe_gap_seq = ''
-        spliced_sequence = ''.join(read1_spliced_list) + pe_gap_seq + ''.join(read2_spliced_list)
+            spliced_seq = "unknown"
 
         dict_barcode = { 
             'read_ref': read1_ref,
             'var_id': var_id,
             'barcode': barcode_seq,
-            'spliced_sequence': spliced_sequence if spliced_sequence else None
+            'spliced_sequence': spliced_seq
         }
+
+        # read1_cigar_ops, read1_cigar_length = zip(*read1['cigartuples'])
+        # read2_cigar_ops, read2_cigar_length = zip(*read2['cigartuples'])
+        # if args.lib_type == "muta_exon" or args.lib_type == "muta_intron":
+        #     getseq_id = read1_ref
+        # else:
+        #     getseq_id = read1['rname']
+
+        # read1_spliced_list = []
+        # for op, length in zip(read1_cigar_ops, read1_cigar_length):
+        #     if op in (0, 2): # M or D
+        #         ref_segment = ref_sequences[getseq_id][read1_pos : read1_pos + length]
+        #         read1_spliced_list.append(ref_segment)
+        #         read1_pos += length  
+        #     elif op == 3: # N
+        #         read1_pos += length
+        #     elif op in (1, 4, 5): # I, S, H
+        #         continue
+        
+        # read2_spliced_list = []
+        # for op, length in zip(read2_cigar_ops, read2_cigar_length):
+        #     if op in (0, 2): # M or D
+        #         ref_segment = ref_sequences[getseq_id][read2_pos : read2_pos + length]
+        #         read2_spliced_list.append(ref_segment)
+        #         read2_pos += length  
+        #     elif op == 3: # N
+        #         read2_pos += length
+        #     elif op in (1, 4, 5): # I, S, H
+        #         continue
+
+        # # read1_pos and read2_pos have been updated to the end of alignments
+        # # get the gap sequence between read1 and read2
+        # # normally read1 and read2 should not overlap in the middle as reads have been separated
+        # if read1_pos < read2['pos']: # read2_pos now is changed to the end of read2 alignment
+        #     pe_gap_seq = ref_sequences[getseq_id][(read1_pos + 1): read2['pos']]
+        # else:
+        #     pe_gap_seq = ''
+        # spliced_sequence = ''.join(read1_spliced_list) + pe_gap_seq + ''.join(read2_spliced_list)
+
+        # dict_barcode = { 
+        #     'read_ref': read1_ref,
+        #     'var_id': var_id,
+        #     'barcode': barcode_seq,
+        #     'spliced_sequence': spliced_sequence if spliced_sequence else None
+        # }
     else:
         dict_barcode = { 
             'read_ref': read1_ref,
