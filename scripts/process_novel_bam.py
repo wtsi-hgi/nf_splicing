@@ -84,9 +84,9 @@ def process_se_read(read: dict) -> list:
         read['rname'] = var_id
     
     if args.spliced:
-        barcode_down_start = match_approximate(read_seq, args.barcode_down, 2, "hamming")
-        if barcode_down_start != -1 and barcode_seq is not None:
-            if (barcode_down_start - len(barcode_seq)) > 0:
+        if barcode_seq is not None:
+            barcode_down_start = match_approximate(read_seq, args.barcode_down, 2, "hamming")
+            if barcode_down_start != -1 and (barcode_down_start - len(barcode_seq)) > 0:
                 spliced_seq = read_seq[:(barcode_down_start - len(barcode_seq))]
             else:
                 spliced_seq = "unknown"
@@ -170,9 +170,9 @@ def process_pe_read(read_pair: tuple) -> list:
         read2['rname'] = var_id
 
     if args.spliced:
-        barcode_down_start = match_approximate(read2_seq, args.barcode_down, 2, "hamming")
-        if barcode_down_start != -1 and barcode_seq is not None:
-            if (barcode_down_start - len(barcode_seq)) > 0:
+        if barcode_seq is not None:
+            barcode_down_start = match_approximate(read2_seq, args.barcode_down, 2, "hamming")
+            if barcode_down_start != -1 and (barcode_down_start - len(barcode_seq)) > 0:
                 spliced_seq = read1_seq + "NNNN" + read2_seq[:(barcode_down_start - len(barcode_seq))]
             else:
                 spliced_seq = "unknown"
