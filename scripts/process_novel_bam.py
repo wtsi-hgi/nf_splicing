@@ -608,7 +608,7 @@ if __name__ == "__main__":
 
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing bam file, please wait...", flush = True)
     for i, chunk_result in enumerate(read_bam_in_chunk(args.bam_file, args.read_type, args.chunk_size, args.threads)):
-        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {len(chunk_result)} reads", flush = True)
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |--> Processed chunk {i+1} with {args.chunk_size} reads", flush = True)
         list_results.append(chunk_result)    
         # -- free memory -- #
         del chunk_result
