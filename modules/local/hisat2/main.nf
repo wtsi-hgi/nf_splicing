@@ -47,7 +47,10 @@ process HISAT2_ALIGN_SE_READS {
 
             samtools fastq -@ 32 -f 4 -c 9 -0 \${prefix}.hisat2_se.unmapped.fastq.gz \${prefix}.hisat2_se.sam
             awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==0)||(\$2==16)){print \$0}}' \${prefix}.hisat2_se.sam | grep "NH:i:1\\|^@" | samtools view -b - > \${prefix}.hisat2_se.unique.bam
+            
             rm \${prefix}.hisat2_se.sam
+            rm \${prefix}.exon.fasta*
+            rm \${prefix}.exon.fastq.gz
         done
 
         samtools merge -@ ${task.cpus} ${sample_id}.hisat2_se.unique.bam ${sample_id}.*.hisat2_se.unique.bam
@@ -64,8 +67,6 @@ process HISAT2_ALIGN_SE_READS {
         echo "Aligned >1 times: \$alignedm" >> ${sample_id}.hisat2_se.novel_stats.tsv
         echo "Overall alignment rate: \$(( (aligned1 + alignedm)*100 / total ))%" >> ${sample_id}.hisat2_se.novel_stats.tsv
 
-        rm ${sample_id}.*.exon.fasta
-        rm ${sample_id}.*.exon.fastq.gz
         rm ${sample_id}.*.hisat2_se.unique.bam
         rm ${sample_id}.*.hisat2_se.unmapped.fastq.gz
         rm ${sample_id}.*.hisat2_se.novel_stats.tsv
@@ -157,7 +158,11 @@ process HISAT2_ALIGN_PE_READS {
 
             samtools fastq -@ 32 -F 2 -c 9 -1 \${prefix}.hisat2_pe.unmapped.R1.fastq.gz -2 \${prefix}.hisat2_pe.unmapped.R2.fastq.gz -n \${prefix}.hisat2_pe.sam
             awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==99)||(\$2==147)||(\$2==83)||(\$2==163)){print \$0}}' \${prefix}.hisat2_pe.sam | grep "NH:i:1\\|^@" | samtools view -b - > \${prefix}.hisat2_pe.unique.bam
+            
             rm \${prefix}.hisat2_pe.sam
+            rm \${prefix}.exon.fasta*
+            rm \${prefix}.exon.R1.fastq.gz
+            rm \${prefix}.exon.R2.fastq.gz
         done
 
         samtools merge -@ ${task.cpus} ${sample_id}.hisat2_pe.unique.bam ${sample_id}.*.hisat2_pe.unique.bam
@@ -175,9 +180,6 @@ process HISAT2_ALIGN_PE_READS {
         echo "Aligned >1 times: \$alignedm" >> ${sample_id}.hisat2_pe.novel_stats.tsv
         echo "Overall alignment rate: \$(( (aligned1 + alignedm)*100 / total ))%" >> ${sample_id}.hisat2_pe.novel_stats.tsv
 
-        rm ${sample_id}.*.exon.fasta
-        rm ${sample_id}.*.exon.R1.fastq.gz
-        rm ${sample_id}.*.exon.R2.fastq.gz
         rm ${sample_id}.*.hisat2_pe.unique.bam
         rm ${sample_id}.*.hisat2_pe.unmapped.R1.fastq.gz
         rm ${sample_id}.*.hisat2_pe.unmapped.R2.fastq.gz
