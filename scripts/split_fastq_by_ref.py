@@ -36,6 +36,14 @@ def process_se_read(read: tuple) -> list:
     var_id = read[0].split("||")[-1].strip()
     exon_id = "_".join(var_id.split("_")[:2])
 
+    if "_del" in var_id:
+        m = re.search(r"_del(\d+)to(\d+)", var_id)
+        if m:
+            start = int(m.group(1))
+            end = int(m.group(2))
+            if (end - start + 1) == 21:
+                return var_id, read
+
     return exon_id, read
     
 def process_pe_pair(read_pair: tuple) -> list:
@@ -49,6 +57,14 @@ def process_pe_pair(read_pair: tuple) -> list:
     read1, read2 = read_pair
     var_id = read1[0].split("||")[-1].strip()
     exon_id = "_".join(var_id.split("_")[:2])
+
+    if "_del" in var_id:
+        m = re.search(r"_del(\d+)to(\d+)", var_id)
+        if m:
+            start = int(m.group(1))
+            end = int(m.group(2))
+            if (end - start + 1) == 21:
+                return var_id, read1, read2
 
     return exon_id, read1, read2
 
@@ -129,9 +145,9 @@ def process_se_reads_in_chunk(path_read, handles):
             futures = [ executor.submit(function_processpool_se, batch) for batch in read_batches ]
             for future in as_completed(futures):
                 batch_result = future.result()
-                for exon_id, read in batch_result:
-                    if exon_id in handles:
-                        handle = handles[exon_id]
+                for rid, read in batch_result:
+                    if rid in handles:
+                        handle = handles[rid]
                         handle.write(f"{read[0]}\n{read[1]}\n+\n{read[2]}\n")
 
                 # -- free memory -- #
@@ -180,11 +196,11 @@ def process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2):
             futures = [ executor.submit(function_processpool_pe, batch) for batch in read_batches ]
             for future in as_completed(futures):
                 batch_result = future.result()
-                for exon_id, read1, read2 in batch_result:
-                    if exon_id in fh_fastq_r1 and exon_id in fh_fastq_r2:
-                        handle_r1 = fh_fastq_r1[exon_id]
+                for rid, read1, read2 in batch_result:
+                    if rid in fh_fastq_r1 and rid in fh_fastq_r2:
+                        handle_r1 = fh_fastq_r1[rid]
                         handle_r1.write(f"{read1[0]}\n{read1[1]}\n+\n{read1[2]}\n")
-                        handle_r2 = fh_fastq_r2[exon_id]
+                        handle_r2 = fh_fastq_r2[rid]
                         handle_r2.write(f"{read2[0]}\n{read2[1]}\n+\n{read2[2]}\n")
 
                 # -- free memory -- #
@@ -233,11 +249,18 @@ if __name__ == "__main__":
 
     # -- read input files -- #
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Reading files, please wait...", flush = True)
-    dict_ref = {
-        record.id.split("_wt")[0]: str(record.seq)
-        for record in SeqIO.parse(args.ref_file, "fasta")
-    }
-    
+    dict_ref = {}
+    for record in SeqIO.parse(args.ref_file, "fasta"):
+        if "_wt" in record.id:
+            dict_ref[record.id.split("_wt")[0]] = str(record.seq)
+        elif "_del" in record.id:
+            m = re.search(r"_del(\d+)to(\d+)", record.id)
+            if m:
+                start = int(m.group(1))
+                end = int(m.group(2))
+                if (end - start + 1) == 21:
+                    dict_ref[record.id] = str(record.seq)
+
     # -- prepare output files -- #
     os.makedirs(args.output_dir, exist_ok = True)
     os.chdir(args.output_dir)
