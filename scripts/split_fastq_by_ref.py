@@ -42,7 +42,7 @@ def process_se_read(read: tuple) -> list:
             start = int(m.group(1))
             end = int(m.group(2))
             if (end - start + 1) == 21:
-                return var_id, read
+                return exon_id + "_del21nt", read
 
     return exon_id, read
     
@@ -64,7 +64,7 @@ def process_pe_pair(read_pair: tuple) -> list:
             start = int(m.group(1))
             end = int(m.group(2))
             if (end - start + 1) == 21:
-                return var_id, read1, read2
+                return exon_id + "_del21nt", read1, read2
 
     return exon_id, read1, read2
 
@@ -266,29 +266,49 @@ if __name__ == "__main__":
     os.chdir(args.output_dir)
 
     for id, seq in dict_ref.items():
-        out_file = f"{output_prefix}.{id}.exon.fasta"
-        with open(out_file, "w") as fh:
-            fh.write(f">{id}_wt\n{seq}\n")
+        if "_del" in id:
+            sub_id = id.split("_del")[0] + "_del21nt"
+            del_file = f"{output_prefix}.{sub_id}.exon.fasta"
+            with open(del_file, "a") as fh:
+                fh.write(f">{id}\n{seq}\n")
+        else:
+            exon_file = f"{output_prefix}.{id}.exon.fasta"
+            with open(exon_file, "w") as fh:
+                fh.write(f">{id}_wt\n{seq}\n")
 
     if args.read_type == 'se':
         handles = {}
         for id in dict_ref.keys():
-            out = f"{output_prefix}.{id}.exon.fastq.gz"
-            if os.path.exists(out):
-                os.remove(out)
-            handles[id] = gzip.open(out, "wt")
+            if "_del" in id:
+                sub_id = id.split("_del")[0] + "_del21nt"
+                out = f"{output_prefix}.{sub_id}.exon.fastq.gz"
+            else:
+                out = f"{output_prefix}.{id}.exon.fastq.gz"
+            
+            if out not in handles:
+                if os.path.exists(out):
+                    os.remove(out)
+                handles[id] = gzip.open(out, "wt")
     else:
         handles_r1 = {}
         handles_r2 = {}
         for id in dict_ref.keys():
-            out_r1 = f"{output_prefix}.{id}.r1.exon.fastq.gz"
-            out_r2 = f"{output_prefix}.{id}.r2.exon.fastq.gz"
-            if os.path.exists(out_r1):
-                os.remove(out_r1)
-            if os.path.exists(out_r2):
-                os.remove(out_r2)
-            handles_r1[id] = gzip.open(out_r1, "wt")
-            handles_r2[id] = gzip.open(out_r2, "wt")
+            if "_del" in id:
+                sub_id = id.split("_del")[0] + "_del21nt"
+                out_r1 = f"{output_prefix}.{sub_id}.exon.r1.fastq.gz"
+                out_r2 = f"{output_prefix}.{sub_id}.exon.r2.fastq.gz"
+            else:
+                out_r1 = f"{output_prefix}.{id}.r1.exon.fastq.gz"
+                out_r2 = f"{output_prefix}.{id}.r2.exon.fastq.gz"
+            
+            if out_r1 not in handles_r1:
+                if os.path.exists(out_r1):
+                    os.remove(out_r1)
+                handles_r1[id] = gzip.open(out_r1, "wt")
+            if out_r2 not in handles_r2:
+                if os.path.exists(out_r2):
+                    os.remove(out_r2)
+                handles_r2[id] = gzip.open(out_r2, "wt")
 
     # -- parallel processing -- #
     if args.read_type == 'se':
