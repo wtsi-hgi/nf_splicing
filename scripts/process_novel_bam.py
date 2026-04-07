@@ -84,14 +84,18 @@ def process_se_read(read: dict) -> list:
         read['rname'] = var_id
     
     if args.spliced:
+        spliced_seq = "unavail"
+
         if barcode_seq is not None:
             barcode_down_start = match_approximate(read_seq, args.barcode_down, 2, "hamming")
             if barcode_down_start != -1 and (barcode_down_start - len(barcode_seq)) > 0:
-                spliced_seq = read_seq[:(barcode_down_start - len(barcode_seq))]
-            else:
-                spliced_seq = "unknown"
-        else:
-            spliced_seq = "unknown"
+                has_valid_splice = any(
+                    length >= args.spliced_len
+                    for op, length in read['cigartuples']
+                    if op == 3
+                )
+                if has_valid_splice:
+                    spliced_seq = read_seq[:(barcode_down_start - len(barcode_seq))]
 
         dict_barcode = { 
             'read_ref': read_ref,
@@ -170,14 +174,23 @@ def process_pe_read(read_pair: tuple) -> list:
         read2['rname'] = var_id
 
     if args.spliced:
+        spliced_seq = "unavail"
+
         if barcode_seq is not None:
             barcode_down_start = match_approximate(read2_seq, args.barcode_down, 2, "hamming")
             if barcode_down_start != -1 and (barcode_down_start - len(barcode_seq)) > 0:
-                spliced_seq = read1_seq + "NNNN" + read2_seq[:(barcode_down_start - len(barcode_seq))]
-            else:
-                spliced_seq = "unknown"
-        else:
-            spliced_seq = "unknown"
+                has_valid_splice_r1 = any(
+                    length >= args.spliced_len
+                    for op, length in read1['cigartuples']
+                    if op == 3
+                )
+                has_valid_splice_r2 = any(
+                    length >= args.spliced_len
+                    for op, length in read2['cigartuples']
+                    if op == 3
+                )
+                if has_valid_splice_r1 or has_valid_splice_r2:
+                    spliced_seq = read1_seq + "NNNN" + read2_seq[:(barcode_down_start - len(barcode_seq))]
 
         dict_barcode = { 
             'read_ref': read1_ref,
@@ -547,6 +560,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_mismatch",        type = int, default = 2,           help = "max mismatches allowed in up/down matches")
     parser.add_argument("--barcode_mismatch",    type = int, default = 1,           help = "number of mismatches allowed in barcode checking")
     parser.add_argument("--spliced",             action="store_true",               help = "enable to create spliced products/seqeuences")
+    parser.add_argument("--spliced_len",         type = int, default = 20,          help = "minimum length of spliced sequences")
     parser.add_argument("--output_dir",          type = str, default = os.getcwd(), help = "output directory")
     parser.add_argument("--output_prefix",       type = str, default = '',          help = "output prefix")
     parser.add_argument("--chunk_size",          type = int, default = 1000,        help = "chunk size for processing reads")
