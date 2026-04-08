@@ -130,6 +130,7 @@ The reference must be the sequence(s) of the minigene. If the library only conta
 > 1. File must be a fasta file
 > 2. **Exons** must be in **Uppercase**
 > 3. **Introns** must be in **Lowercase**
+> 4. ID of each variant must be follow the pattern, **BRCA2_e5_T6A** or **KIF5A_e27_wt**
 
 <br>
 
