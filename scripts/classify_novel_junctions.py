@@ -104,6 +104,8 @@ def annotate_junction(var_id, donor_pos, acceptor_pos, exon_pos, intron_pos, min
     if args.lib_type in ["muta_intron", "muta_exon"]:
         var_id_base = var_id.split("/")[0]
         var_id_base = "_".join(var_id_base.split("_")[:-1]) + "_wt"
+    else:
+        var_id_base = var_id
 
     exon_list = exon_pos.get(var_id_base, [])
     intron_list = intron_pos.get(var_id_base, [])
