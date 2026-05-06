@@ -79,10 +79,16 @@ $$
 
 **Variance of PSI:**
 
-The observed PSI is $\hat{\mathrm{PSI}} = \mathrm{I}/\mathrm{N}$. Using standard variance scaling:
+The observed PSI is 
 
 $$
-{\mathrm{Var\hat{(PSI)}}} = \frac{\mathrm{Var(I)}}{\mathrm{N^2}} = \frac{\mathrm{N} \cdot \mathrm{PSI} \cdot (1 - \mathrm{PSI})}{\mathrm{N}^2} = \frac{\mathrm{PSI} \cdot (1 - \mathrm{PSI})}{\mathrm{N}}
+\mathrm{PSI} = \frac{\mathrm{I}}{\mathrm{N}}
+$$
+
+Using standard variance scaling:
+
+$$
+{\mathrm{Var(PSI)}} = \frac{\mathrm{Var(I)}}{\mathrm{N^2}} = \frac{\mathrm{N} \cdot \mathrm{PSI} \cdot (1 - \mathrm{PSI})}{\mathrm{N}^2} = \frac{\mathrm{PSI} \cdot (1 - \mathrm{PSI})}{\mathrm{N}}
 $$
 
 **Variance of logit(PSI) via delta method:**
@@ -122,11 +128,11 @@ This term represents sampling uncertainty due to finite read depth. It captures 
 For variant $v$ in replicate $r$, the observed logit-PSI is modeled as:
 
 $$
-\theta_{vr} = \theta_{v0} + \varepsilon^{(M)}_{vr} + \varepsilon^{(A)}_{r}
+\theta_{vr} = \theta_{v} + \varepsilon^{(M)}_{vr} + \varepsilon^{(A)}_{r}
 $$
 
 where:
-* $\theta_{v0}$ is the true underlying logit-PSI of variant ${v}$
+* $\theta_{v}$ is the true underlying logit-PSI of variant ${v}$
 * $\varepsilon^{(M)}_{vr}$ is a multiplicative error term arising from sampling noise
     * variants with small $\mathrm{N}_{vr}$ show higher sampling variance, while variants with large $\mathrm{N}_{vr}$ have reduced variance.
 * $\varepsilon^{(A)}_{r}$ is an additive replicate-specific error term.
@@ -209,6 +215,39 @@ Replicate-specific additive variances $\sigma_r^2$ are assumed to be shared acro
 
 This pooling strategy provides robust estimates of replicate variance and reduces the influence of low-coverage or noisy variants.
 
+To ensure identifiability and robust estimation of $\sigma_r^2$ , parameters are estimated jointly across all replicate subsets. For each subset $S$, the negative log-likelihood is
+
+$$
+L(S) = \sum_{r \in S} \sum_{v} \frac{1}{2} \left[ \log(\sigma_{vr}^2) + \frac{(\theta_{vr} - \theta_v)^2}{\sigma_{vr}^2} \right]
+$$
+
+$\theta_v$ is computed using only observations within subset S
+
+The total objective function is defined as the sum over all subsets:
+
+$$
+L(total) = \sum_{S} L(S) 
+$$
+
+Then following the DiMSum framework, a joint negative log-likelihood was minimised over all replicate subsets simultaneously using the BFGS algorithm
+
+$$
+arg min_{\sigma_r^2} \sum_{S} \sum_{r \in S} \sum_v \frac{1}{2} \left[ \log(\sigma_{vr}^2) + \frac{(\theta_{vr} - \theta_v)^2}{\sigma_{vr}^2} \right]
+$$
+
+Then under the Gaussian error model
+
+$$
+\theta_{vr} \sim N(\theta_v, \sigma_{vr}^2)
+$$
+
+For a given set of variances, the maximum likelihood estimate of $\theta_v$ is given by the inverse-variance weighted mean.
+
+$$
+\theta_v = \frac{ \sum_r \frac{\theta_{vr}}{\sigma_{vr}^2}}{ \sum_r \frac{1}{\sigma_{vr}^2}}
+$$
+
+
 ---
 
 ### Combining replicates by inverse-variance weighting
@@ -233,6 +272,29 @@ Replicates with higher coverage and lower technical variance contribute more wei
 ### Empirical Bayes shrinkage
 
 To stabilize estimates for low-coverage variants, logit-PSI estimates are shrunk toward the global mean using an empirical Bayes framework. Variants with large uncertainty exhibit stronger shrinkage, whereas high-coverage variants remain largely unchanged. Final PSI estimates are obtained by inverse logit transformation.
+
+Assuming a normal prior
+$$
+\theta_v \sim N(\mu, \tau^2)
+$$
+
+$\mu$ and $\tau^2$ are the mean and variance of logit-PSI across all variants, the shrinkage factor for each variant is:
+
+$$
+\lambda_v = \frac{\tau^2}{\tau^2 + \sigma_v^2}
+$$
+
+The posterior (shrunk) estimate and variance are given by:
+
+$$
+\bar{\theta_v} = \lambda_v \cdot \theta_v + (1 - \lambda_v) \cdot \mu
+$$
+
+$$
+\bar{\sigma_v} = \lambda_v^2 \cdot \sigma_v^2
+$$
+
+The final PSI estimate and 95% confidence interval were obtained by back-transforming through the logistic function. Only variants with at least one replicate meeting a minimum coverage of 10 reads were retained for downstream analysis.
 
 ---
 
