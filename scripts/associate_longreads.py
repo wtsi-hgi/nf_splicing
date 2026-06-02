@@ -182,23 +182,23 @@ def process_long_read(long_read: tuple) -> list:
     Parameters:
         -- read: tuple (header, sequence, quality) for read
     Returns:
-        -- tuple: (barcode_seq, vnn_seq, target_seq) 
+        -- tuple: (barcode_seq, vhh_seq, target_seq) 
     """
     long_read = long_read[1]
 
     barcode_seq = extract_sequence(long_read, args.barcode_up, args.barcode_down, args.max_mismatches)
-    vnn_seq     = extract_sequence(long_read, args.vnn_up,     args.vnn_down,     args.max_mismatches)
+    vhh_seq     = extract_sequence(long_read, args.vhh_up,     args.vhh_down,     args.max_mismatches)
     target_seq  = extract_sequence(long_read, args.target_up,  args.target_down,  args.max_mismatches)
 
     not_found = ["upstream not found", "downstream not found"]
-    flags = [ barcode_seq in not_found, vnn_seq in not_found, target_seq in not_found ]
+    flags = [ barcode_seq in not_found, vhh_seq in not_found, target_seq in not_found ]
     if sum(flags) >= 2:
         long_read_rc = reverse_complement(long_read)
         barcode_seq = extract_sequence(long_read_rc, args.barcode_up, args.barcode_down, args.max_mismatches)
-        vnn_seq     = extract_sequence(long_read_rc, args.vnn_up,     args.vnn_down,     args.max_mismatches)
+        vhh_seq     = extract_sequence(long_read_rc, args.vhh_up,     args.vhh_down,     args.max_mismatches)
         target_seq  = extract_sequence(long_read_rc, args.target_up,  args.target_down,  args.max_mismatches)
         
-    return (barcode_seq, vnn_seq, target_seq)
+    return (barcode_seq, vhh_seq, target_seq)
 
 def batch_process_long_reads(batch_long_reads: list) -> list:
     """
@@ -247,14 +247,14 @@ def process_long_reads_in_chunk(path_long_reads: str):
             futures = [ executor.submit(function_processpool_long, batch) for batch in read_batches ]
             for future in as_completed(futures):
                 batch_result = future.result()
-                list_barcodes.append(pl.DataFrame(batch_result, schema = ["barcode_seq", "vnn_seq", "target_seq"], orient = "row"))
+                list_barcodes.append(pl.DataFrame(batch_result, schema = ["barcode_seq", "vhh_seq", "target_seq"], orient = "row"))
 
                 # -- free memory -- #
                 del batch_result
                 gc.collect()
 
             df_yield = ( pl.concat(list_barcodes, how = "vertical")
-                           .group_by(["barcode_seq", "vnn_seq", "target_seq"])
+                           .group_by(["barcode_seq", "vhh_seq", "target_seq"])
                            .agg(pl.len().alias("count")) )
 
             # -- free memory -- #
@@ -272,9 +272,9 @@ if __name__ == "__main__":
     parser.add_argument("--barcode_down",     type = str.upper, required = True,       help = "Downstream flank sequence of barcode in long read")
     parser.add_argument("--barcode_temp",     type = str.upper, default = None,        help = "Template for barcode sequence (e.g., 'NNATNNNNATNNNNATNNNN')")
     parser.add_argument("--barcode_mismatch", type = int,       default = 1,           help = "Number of mismatches allowed in barcode checking")
-    parser.add_argument("--vnn_up",           type = str.upper, required = True,       help = "Upstream flank sequence of vnn in long read")
-    parser.add_argument("--vnn_down",         type = str.upper, required = True,       help = "Downstream flank sequence of vnn in long read")
-    parser.add_argument("--vnn_len",          type = str,       default = None,        help = "Length of the VNN sequence, eg., '16' or '16,17,18'")
+    parser.add_argument("--vhh_up",           type = str.upper, required = True,       help = "Upstream flank sequence of vhh in long read")
+    parser.add_argument("--vhh_down",         type = str.upper, required = True,       help = "Downstream flank sequence of vhh in long read")
+    parser.add_argument("--vhh_len",          type = str,       default = None,        help = "Length of the VNN sequence, eg., '16' or '16,17,18'")
     parser.add_argument("--target_up",        type = str.upper, required = True,       help = "Upstream flank sequence of target in long read")
     parser.add_argument("--target_down",      type = str.upper, required = True,       help = "Downstream flank sequence of target in long read")
     parser.add_argument("--target_len",       type = str,       default = None,        help = "Length of the target sequence, eg., '100' or '100,101,102'")    
@@ -313,7 +313,7 @@ if __name__ == "__main__":
     list_results_filtered = [df for df in list_results if df.height > 0]
     if list_results_filtered:
         df_barcode = pl.concat(list_results_filtered, how = "vertical")
-        df_barcode_counts = ( df_barcode.group_by(["barcode_seq", "vnn_seq", "target_seq"])
+        df_barcode_counts = ( df_barcode.group_by(["barcode_seq", "vhh_seq", "target_seq"])
                                         .agg(pl.sum("count").alias("count")) )
     else:
         with open(barcode_out, "w") as f:
@@ -348,24 +348,24 @@ if __name__ == "__main__":
         df_barcode_counts = df_barcode_counts.filter(pl.col("barcode_corrected").is_not_null())
         df_barcode_counts = df_barcode_counts.drop("barcode_corrected")        
 
-    # -- (4) vnn_seq == "upstream not found" -- #
-    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against vnn upstream match, please wait ...", flush=True)
-    mask = df_barcode_counts["vnn_seq"] == "upstream not found"
-    count_vnnup_notfound = df_barcode_counts.filter(mask)["count"].sum()
+    # -- (4) vhh_seq == "upstream not found" -- #
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against vhh upstream match, please wait ...", flush=True)
+    mask = df_barcode_counts["vhh_seq"] == "upstream not found"
+    count_vhhup_notfound = df_barcode_counts.filter(mask)["count"].sum()
     df_barcode_counts = df_barcode_counts.filter(~mask)
 
-    # -- (5) vnn_seq == "downstream not found" -- #
-    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against vnn downstream match, please wait ...", flush=True)
-    mask = df_barcode_counts["vnn_seq"] == "downstream not found"
-    count_vnndown_notfound = df_barcode_counts.filter(mask)["count"].sum()
+    # -- (5) vhh_seq == "downstream not found" -- #
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against vhh downstream match, please wait ...", flush=True)
+    mask = df_barcode_counts["vhh_seq"] == "downstream not found"
+    count_vhhdown_notfound = df_barcode_counts.filter(mask)["count"].sum()
     df_barcode_counts = df_barcode_counts.filter(~mask)
 
-    # -- (6) vnn length check -- #
-    if args.vnn_len is not None:
-        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against vnn length match, please wait ...", flush=True)
-        vnn_lens = set(map(int, args.vnn_len.split(",")))
-        mask = df_barcode_counts["vnn_seq"].str.len_chars().isin(vnn_lens)
-        count_vnn_length = df_barcode_counts.filter(mask)["count"].sum()
+    # -- (6) vhh length check -- #
+    if args.vhh_len is not None:
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Filtering against vhh length match, please wait ...", flush=True)
+        vhh_lens = set(map(int, args.vhh_len.split(",")))
+        mask = df_barcode_counts["vhh_seq"].str.len_chars().isin(vhh_lens)
+        count_vhh_length = df_barcode_counts.filter(mask)["count"].sum()
         df_barcode_counts = df_barcode_counts.filter(~mask)
 
     # -- (7) target_seq == "upstream not found" -- #
@@ -399,12 +399,12 @@ if __name__ == "__main__":
     count_before_filter = df_barcode_counts["count"].sum()
     df_barcode_counts = ( df_barcode_counts.sort("count", descending = True)
                                            .group_by("barcode_seq")
-                                           .agg([pl.first("vnn_seq").alias("vnn_seq"), 
+                                           .agg([pl.first("vhh_seq").alias("vhh_seq"), 
                                                  pl.first("target_seq").alias("target_seq"), 
                                                  pl.first("count").alias("count")]) )
 
     # -- (12) remainning records -- #
-    df_barcode_counts = df_barcode_counts.sort(["vnn_seq", "target_seq"])
+    df_barcode_counts = df_barcode_counts.sort(["vhh_seq", "target_seq"])
     count_effective_reads = df_barcode_counts["count"].sum()
 
     # -- output results and stats -- #
@@ -417,10 +417,10 @@ if __name__ == "__main__":
         f.write(f"Total reads with barcode downstream not found: {count_bardown_notfound}\n")
         if args.barcode_temp is not None:
             f.write(f"Total reads with barcode template mismatch: {count_barcode_template}\n")
-        f.write(f"Total reads with vnn upstream not found: {count_vnnup_notfound}\n")
-        f.write(f"Total reads with vnn downstream not found: {count_vnndown_notfound}\n")
-        if args.vnn_len is not None:
-            f.write(f"Total reads with vnn length mismatch ({args.vnn_len}): {count_vnn_length}\n")
+        f.write(f"Total reads with vhh upstream not found: {count_vhhup_notfound}\n")
+        f.write(f"Total reads with vhh downstream not found: {count_vhhdown_notfound}\n")
+        if args.vhh_len is not None:
+            f.write(f"Total reads with vhh length mismatch ({args.vhh_len}): {count_vhh_length}\n")
         f.write(f"Total reads with target upstream not found: {count_tarup_notfound}\n")
         f.write(f"Total reads with target downstream not found: {count_tardown_notfound}\n")
         if args.target_len is not None:
