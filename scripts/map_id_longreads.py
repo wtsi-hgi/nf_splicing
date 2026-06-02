@@ -98,73 +98,86 @@ def process_record(record: tuple) -> list:
     vhh_seq_rc    = reverse_complement(vhh_seq)
     target_seq_rc = reverse_complement(target_seq)
 
-    vhh_id = ""
+    vhh_id = "not_found"
     if vhh_seq in vhh_map:
         vhh_id = vhh_map[vhh_seq]
     elif vhh_seq_rc in vhh_map:
         vhh_id = vhh_map[vhh_seq_rc]
     else:
         for known_seq, known_id in vhh_map.items():
-            found = match_hamming_numpy(vhh_seq, known_seq, args.max_mismatches)
-            if found != -1:
-                vhh_id = known_id
-                break
+            if len(vhh_seq) == len(known_seq):
+                found = match_hamming_numpy(vhh_seq, known_seq, args.max_mismatches)
+                if found != -1:
+                    vhh_id = known_id
+                    break
 
-            found = match_hamming_numpy(vhh_seq_rc, known_seq, args.max_mismatches)
-            if found != -1:
-                vhh_id = known_id
-                break
+                found = match_hamming_numpy(vhh_seq_rc, known_seq, args.max_mismatches)
+                if found != -1:
+                    vhh_id = known_id
+                    break
+            
+            if abs(len(known_seq) - len(vhh_seq)) <= 2 * args.max_mismatches:
+                dist = edlib.align(vhh_seq, known_seq, mode = "NW", k = 2 * args.max_mismatches)["editDistance"]
+                if dist != -1:
+                    vhh_id = known_id
+                    break
 
-            dist = edlib.align(vhh_seq, known_seq, mode = "NW", k = 2 * args.max_mismatches)["editDistance"]
-            if dist != -1:
-                vhh_id = known_id
-                break
-
-            dist = edlib.align(vhh_seq_rc, known_seq, mode = "NW", k = 2 * args.max_mismatches)["editDistance"]
-            if dist != -1:
-                vhh_id = known_id
-                break
+                dist = edlib.align(vhh_seq_rc, known_seq, mode = "NW", k = 2 * args.max_mismatches)["editDistance"]
+                if dist != -1:
+                    vhh_id = known_id
+                    break
     
-    target_id = ""
+    target_id = "not_found"
     if target_seq in target_map:
         target_id = target_map[target_seq]
     elif target_seq_rc in target_map:
         target_id = target_map[target_seq_rc]
     else:
         for known_seq, known_id in target_map.items():
-            found = match_hamming_numpy(target_seq, known_seq, args.max_mismatches)
-            if found != -1:
-                target_id = known_id
-                break
+            if len(target_seq) == len(known_seq):
+                found = match_hamming_numpy(target_seq, known_seq, args.max_mismatches)
+                if found != -1:
+                    target_id = known_id
+                    break
 
-            found = match_hamming_numpy(target_seq_rc, known_seq, args.max_mismatches)
-            if found != -1:
-                target_id = known_id
-                break
+                found = match_hamming_numpy(target_seq_rc, known_seq, args.max_mismatches)
+                if found != -1:
+                    target_id = known_id
+                    break
 
-            dist = edlib.align(target_seq, known_seq, mode = "NW", k = 2 * args.max_mismatches)["editDistance"]
-            if dist != -1:
-                target_id = known_id
-                break
+            if abs(len(known_seq) - len(target_seq)) <= 2 * args.max_mismatches:
+                dist = edlib.align(target_seq, known_seq, mode = "NW", k = 2 * args.max_mismatches)["editDistance"]
+                if dist != -1:
+                    target_id = known_id
+                    break
 
-            dist = edlib.align(target_seq_rc, known_seq, mode = "NW", k = 2 * args.max_mismatches)["editDistance"]
-            if dist != -1:
-                target_id = known_id
-                break
+                dist = edlib.align(target_seq_rc, known_seq, mode = "NW", k = 2 * args.max_mismatches)["editDistance"]
+                if dist != -1:
+                    target_id = known_id
+                    break
 
     return (barcode_seq, vhh_id, vhh_seq, target_id, target_seq)
 
-def batch_process(batch: list) -> list:
-    """
-    Process a batch of long reads to extract sequences.
-    Parameters:
-        -- batch: list of records
-    Returns:
-        -- list of tuples
-    """
+# def batch_process(batch: list) -> list:
+#     """
+#     Process a batch of long reads to extract sequences.
+#     Parameters:
+#         -- batch: list of records
+#     Returns:
+#         -- list of tuples
+#     """
+#     results = []
+#     for record in batch.iter_rows():
+#         result = process_record(record)
+#         if result is not None:
+#             results.append(result)
+#     return results
+
+def batch_process(rows: list) -> list:
+    """rows is a plain Python list of tuples – no polars overhead in workers."""
     results = []
-    for record in batch.iter_rows():
-        result = process_record(record)
+    for row in rows:
+        result = process_record(row)
         if result is not None:
             results.append(result)
     return results
@@ -192,15 +205,24 @@ def process_records_in_chunk(path_file: str):
     
     with ProcessPoolExecutor(max_workers = args.threads) as executor:
         while True:
-            record_chunk = reader.next_batches(1)
+            record_chunk = reader.next_batches(args.threads * 2)
             if not record_chunk:
                 break
 
-            batch_size = min(len(record_chunk), args.batch_size)
+            record_combined = pl.concat(record_chunk, how = "vertical")
+            rows_all = record_combined.rows()
+
+            batch_size = max(1, len(rows_all) // args.threads)
             record_batches = [
-                pl.concat(record_chunk[i:i + batch_size])
-                for i in range(0, len(record_chunk), batch_size)
+                rows_all[i : i + batch_size]
+                for i in range(0, len(rows_all), batch_size)
             ]
+
+            # batch_size = min(len(record_chunk), args.batch_size)
+            # record_batches = [
+            #     pl.concat(record_chunk[i:i + batch_size])
+            #     for i in range(0, len(record_chunk), batch_size)
+            # ]
 
             list_records = []
             futures = [ executor.submit(function_processpool, batch) for batch in record_batches ]
@@ -208,10 +230,6 @@ def process_records_in_chunk(path_file: str):
                 batch_result = future.result()
                 if batch_result:
                     list_records.append(pl.DataFrame(batch_result, schema = ["barcode_seq", "vhh_id", "vhh_seq", "target_id", "target_seq"], orient = "row"))
-
-                # -- free memory -- #
-                del batch_result
-                gc.collect()
 
             if list_records:
                 df_yield = pl.concat(list_records, how = "vertical")
@@ -238,7 +256,6 @@ if __name__ == "__main__":
     parser.add_argument("--max_mismatches",   type = int, default = 2,           help = "Max mismatches allowed in matches")
     parser.add_argument("--output_dir",       type = str, default = os.getcwd(), help = "output directory")
     parser.add_argument("--output_prefix",    type = str, required = True,       help = "output prefix")
-    parser.add_argument("--batch_size",       type = int, default = 100,         help = "Batch size for processing reads")
     parser.add_argument("--threads",          type = int, default = 40,          help = "Number of threads")
 
     args, unknown = parser.parse_known_args()
