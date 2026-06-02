@@ -7,6 +7,7 @@ import re
 import gc
 import subprocess
 import numpy as np
+import pandas as pd
 import polars as pl
 import edlib
 import gzip
@@ -86,18 +87,18 @@ def process_record(record: tuple) -> list:
     target_seq  = record[2]
 
     if vhh_seq == "" or target_seq == "":
-        return (None, None, None, None, None)
+        return None
     
     if len(vhh_seq) < vhh_min_len - 2 * args.max_mismatches or \
         len(vhh_seq) > vhh_max_len + 2 * args.max_mismatches or \
         len(target_seq) < target_min_len - 2 * args.max_mismatches or \
         len(target_seq) > target_max_len + 2 * args.max_mismatches:
-        return (None, None, None, None, None)
+        return None
 
     vhh_seq_rc    = reverse_complement(vhh_seq)
     target_seq_rc = reverse_complement(target_seq)
 
-    vhh_id = None
+    vhh_id = ""
     if vhh_seq in vhh_map:
         vhh_id = vhh_map[vhh_seq]
     elif vhh_seq_rc in vhh_map:
@@ -124,7 +125,7 @@ def process_record(record: tuple) -> list:
                 vhh_id = known_id
                 break
     
-    target_id = None
+    target_id = ""
     if target_seq in target_map:
         target_id = target_map[target_seq]
     elif target_seq_rc in target_map:
@@ -164,7 +165,8 @@ def batch_process(batch: list) -> list:
     results = []
     for record in batch.iter_rows():
         result = process_record(record)
-        results.append(result)
+        if result is not None:
+            results.append(result)
     return results
 
 def function_processpool(args):
@@ -190,11 +192,11 @@ def process_records_in_chunk(path_file: str):
     
     with ProcessPoolExecutor(max_workers = args.threads) as executor:
         while True:
-            record_chunk = reader.next_batches(args.chunk_size)
+            record_chunk = reader.next_batches(1)
             if not record_chunk:
                 break
 
-            batch_size = min(args.chunk_size, 1000)
+            batch_size = min(len(record_chunk), args.batch_size)
             record_batches = [
                 pl.concat(record_chunk[i:i + batch_size])
                 for i in range(0, len(record_chunk), batch_size)
@@ -204,13 +206,18 @@ def process_records_in_chunk(path_file: str):
             futures = [ executor.submit(function_processpool, batch) for batch in record_batches ]
             for future in as_completed(futures):
                 batch_result = future.result()
-                list_records.append(pl.DataFrame(batch_result, schema = ["barcode_seq", "vhh_id", "vhh_seq", "target_id", "target_seq"], orient = "row"))
+                if batch_result:
+                    list_records.append(pl.DataFrame(batch_result, schema = ["barcode_seq", "vhh_id", "vhh_seq", "target_id", "target_seq"], orient = "row"))
 
                 # -- free memory -- #
                 del batch_result
                 gc.collect()
 
-            df_yield = pl.concat(list_records, how = "vertical")
+            if list_records:
+                df_yield = pl.concat(list_records, how = "vertical")
+                df_yield = df_yield.filter( pl.any_horizontal(pl.all().is_not_null()) )
+            else:
+                df_yield = pl.DataFrame([], schema = ["barcode_seq", "vhh_id", "vhh_seq", "target_id", "target_seq"])
 
             # -- free memory -- #
             del record_chunk, record_batches, futures, list_records
@@ -231,7 +238,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_mismatches",   type = int, default = 2,           help = "Max mismatches allowed in matches")
     parser.add_argument("--output_dir",       type = str, default = os.getcwd(), help = "output directory")
     parser.add_argument("--output_prefix",    type = str, required = True,       help = "output prefix")
-    parser.add_argument("--chunk_size",       type = int, default = 10000,       help = "Chunk size for processing reads")
+    parser.add_argument("--batch_size",       type = int, default = 100,         help = "Batch size for processing reads")
     parser.add_argument("--threads",          type = int, default = 40,          help = "Number of threads")
 
     args, unknown = parser.parse_known_args()
@@ -271,7 +278,7 @@ if __name__ == "__main__":
     print(f"Mapping IDs to records, please wait ...", flush = True)
     list_results = []
     for i, chunk_result in enumerate(process_records_in_chunk(args.associate_file)):
-        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Processed chunk {i+1} with {args.chunk_size} records", flush=True)
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Processed chunk {i+1} with {chunk_result.height} effective records", flush=True)
         if not chunk_result.is_empty():
             list_results.append(chunk_result)
     print(f"Finished processing all the records.", flush=True)
