@@ -237,7 +237,7 @@ def process_long_reads_in_chunk(path_long_reads: str):
             if not read_chunk:
                 break
 
-            batch_size = min(args.chunk_size, 40000)
+            batch_size = min(args.chunk_size, 5000)
             read_batches = [
                 read_chunk[i:i+batch_size]
                 for i in range(0, len(read_chunk), batch_size)
@@ -264,7 +264,9 @@ def process_long_reads_in_chunk(path_long_reads: str):
             yield df_yield
     fh_long_reads.close()
 
-#-- main execution --#
+#-------------------------------------------------------
+# main function
+#-------------------------------------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Association using long reads.", allow_abbrev = False)
     parser.add_argument("--longread",         type = str,       required = True,       help = "the path of long read FASTQ file")
