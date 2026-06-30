@@ -1,7 +1,7 @@
 import re
 import numpy as np
 import subprocess
-import Levenshtein
+import edlib
 
 def pigz_open(path: str):
     """
@@ -135,7 +135,8 @@ def match_levenshtein(seq: str, pattern: str, max_mismatches: int) -> int:
 
     for i in range(n - k + 1):
         window = seq[i:i+k]
-        if Levenshtein.distance(window, pattern) <= max_mismatches:
+        dist = edlib.align(window, pattern, mode = "NW", k = max_mismatches)["editDistance"]
+        if dist != -1:
             return i
     return -1
 
