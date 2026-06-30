@@ -62,25 +62,6 @@ def fastq_iter_pe(handle1, handle2):
         yield ((header1.rstrip("\n"), seq1.rstrip("\n"), qual1.rstrip("\n")), 
                (header2.rstrip("\n"), seq2.rstrip("\n"), qual2.rstrip("\n")))
 
-def read_first_fasta_seq(fasta_path):
-    """
-    Read the first record of the fasta file
-    Parameters:
-        -- fasta_path: the path of fasta file
-    Returns:
-        -- str: the first sequence of the fasta file
-    """
-    seq_lines = []
-    with open(fasta_path, "r") as f:
-        for line in f:
-            line = line.rstrip()
-            if line.startswith(">"):
-                if seq_lines:
-                    break
-                continue
-            seq_lines.append(line)
-    return "".join(seq_lines)
-
 def reverse_complement(seq: str) -> str:
     """
     Generate the reverse complement of a DNA sequence.
