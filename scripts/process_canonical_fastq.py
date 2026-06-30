@@ -7,6 +7,7 @@ import re
 import gc
 import subprocess
 import polars as pl
+from Bio import SeqIO
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import islice
@@ -16,7 +17,6 @@ from sequence_utils import (
     pigz_open,
     fastq_iter_se,
     fastq_iter_pe,
-    read_first_fasta_seq,
     match_approximate,
     extract_sequence,
     reverse_complement,
@@ -27,11 +27,9 @@ def init_worker():
     """
     Initilize worker
     """
-    global global_dict_bar_var, global_pre_exon, global_mid_exon, global_post_exon
+    global global_dict_bar_var, global_dict_id_seq
     global_dict_bar_var = dict_bar_var
-    global_pre_exon = pre_exon
-    global_mid_exon = mid_exon
-    global_post_exon = post_exon
+    global_dict_id_seq = dict_id_seq
 
 def process_se_read(read: tuple) -> list:
     """
@@ -61,17 +59,14 @@ def process_se_read(read: tuple) -> list:
 
     res_bar_var = global_dict_bar_var.get(barcode_seq)    
     if res_bar_var is not None:
-        if args.lib_type in {"random_intron", "muta_intron"}:
-            exon_seq = global_mid_exon
-        else:
-            exon_seq = res_bar_var["exon"]
-        ref_exon_inclusion = global_pre_exon + exon_seq + global_post_exon
-        ref_exon_skipping = global_pre_exon + global_post_exon
+        ref_seqs = global_dict_id_seq[res_bar_var["var_id"]]
+        ref_exon_inclusion = ref_seqs["inclusion"]
+        ref_exon_skipping = ref_seqs["skipping"]
         ref_found = match_approximate(read_seq, ref_exon_inclusion, args.max_mismatch, "hamming")
         if ref_found == -1:
             ref_found = match_approximate(read_seq, ref_exon_skipping, args.max_mismatch, "hamming")
             if ref_found == -1:
-                pre_exon_found = match_approximate(read_seq, global_pre_exon, args.max_mismatch, "hamming")
+                pre_exon_found = match_approximate(read_seq, ref_seqs["first_exon"], args.max_mismatch, "hamming")
                 if pre_exon_found == -1:
                     return (), (), read, {}
                 else:
@@ -122,12 +117,9 @@ def process_pe_pair(read_pair: tuple) -> list:
 
     res_bar_var = global_dict_bar_var.get(barcode_seq)    
     if res_bar_var is not None:
-        if args.lib_type in {"random_intron", "muta_intron"}:
-            exon_seq = global_mid_exon
-        else:
-            exon_seq = res_bar_var["exon"]
-        ref_exon_inclusion = global_pre_exon + exon_seq + global_post_exon
-        ref_exon_skipping = global_pre_exon + global_post_exon
+        ref_seqs = global_dict_id_seq[res_bar_var["var_id"]]
+        ref_exon_inclusion = ref_seqs["inclusion"]
+        ref_exon_skipping = ref_seqs["skipping"]
         # Note: assuming read1_seq + read2_seq is the whole sequence
         # hamming distance requires the same length
         # need levenshtein distance
@@ -135,7 +127,7 @@ def process_pe_pair(read_pair: tuple) -> list:
         if ref_found == -1:
             ref_found = match_approximate(read1_seq + read2_seq, ref_exon_skipping, 4 * args.max_mismatch, "levenshtein")
             if ref_found == -1:
-                pre_exon_found = match_approximate(read1_seq, global_pre_exon, args.max_mismatch, "hamming")
+                pre_exon_found = match_approximate(read1_seq, ref_seqs["first_exon"], args.max_mismatch, "hamming")
                 if pre_exon_found == -1:
                     return  (), (), (), (), read1, read2, {}
                 else:
@@ -350,7 +342,7 @@ def process_pe_pairs_in_chunk(path_read1, path_read2, fh_fastq_r1, fh_fastq_r2):
 #-- main execution --#
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Process a bwa bam file for canonical splicing events.", allow_abbrev = False)
-    parser.add_argument("--lib_type",            type = str, required = True,       help = "library type", choices = ['random_intron', 'random_exon', 'muta_intron', 'muta_exon'])
+    parser.add_argument("--lib_type",            type = str, required = True,       help = "library type", choices = ['random_intron', 'random_exon', 'random_combi', 'muta_intron', 'muta_exon', 'muta_combi'])
     parser.add_argument("--reads",               type = str, required = True,       help = "fastq file(s), eg: se_reads.fq.gz or pe_r1.fq.gz,pe_r2.fq.gz")
     parser.add_argument("--read_type",           type = str, default = 'se',        help = "sequence read type (se or pe)", choices = ['se', 'pe'])
     parser.add_argument("--ref_file",            type = str, required = True,       help = "reference fasta file (reads must cover the whole reference sequence, end to end)")
@@ -408,12 +400,16 @@ if __name__ == "__main__":
     del df_bar_var
     gc.collect()
 
-    first_fasta_seq = read_first_fasta_seq(args.ref_file)
-    exons_in_first_fasta_seq = re.findall(r"[A-Z]+", first_fasta_seq)
-    exons_in_first_fasta_seq = [e.split("N", 1)[0] for e in exons_in_first_fasta_seq]
-    pre_exon = exons_in_first_fasta_seq[0]
-    mid_exon = exons_in_first_fasta_seq[1]
-    post_exon = exons_in_first_fasta_seq[2]
+    dict_id_seq = {}
+    for record in SeqIO.parse(args.ref_file, "fasta"):
+        record_seq = str(record.seq)
+        record_exons = re.findall(r"[A-Z]+", record_seq)
+        record_exons = [e.split("N", 1)[0] for e in record_exons]
+        dict_id_seq[record.id] = {
+            "skipping":   record_exons[0] + record_exons[2],
+            "inclusion":  record_exons[0] + record_exons[1] + record_exons[2],
+            "first_exon": record_exons[0]
+        }
 
     # -- prepare output files -- #
     os.makedirs(args.output_dir, exist_ok = True)
