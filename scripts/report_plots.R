@@ -109,7 +109,7 @@ rescale_junctions <- function(sample_reps, junctions, exons, lib_type)
                                           intron_start = shift(exon_end, type = "lag") + 1,
                                           intron_end   = exon_start - 1), by = .(var_id)][!is.na(intron_start)]
 
-    if(lib_type == "random_intron" || lib_type == "random_exon")
+    if(lib_type == "random_intron" || lib_type == "random_exon" || lib_type == "random_combi")
     {
         return(list(junctions, exon_template, introns_template))
     }

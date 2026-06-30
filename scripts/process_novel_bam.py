@@ -479,7 +479,7 @@ def read_bam_in_chunk(bam_file: str, read_type: str, chunk_size: int, threads: i
 #-- main execution --#
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Process a hisat2 bam file for novel splicing events.", allow_abbrev = False)
-    parser.add_argument("--lib_type",            type = str, required = True,       help = "library type", choices = ['random_intron', 'random_exon', 'muta_intron', 'muta_exon'])
+    parser.add_argument("--lib_type",            type = str, required = True,       help = "library type", choices = ['random_intron', 'random_exon', 'random_combi', 'muta_intron', 'muta_exon', 'muta_combi'])
     parser.add_argument("--bam_file",            type = str, required = True,       help = "bam file sorted by read name")
     parser.add_argument("--ref_file",            type = str, required = True,       help = "reference fasta file")
     parser.add_argument("--barcode_file",        type = str, required = True,       help = "barcode association file")
@@ -535,7 +535,7 @@ if __name__ == "__main__":
     bam_file = pysam.AlignmentFile(args.bam_file, "rb")
 
     # !!!important: make sure each variant has a reference sequence
-    if args.lib_type == "muta_exon" or args.lib_type == "muta_intron":
+    if args.lib_type in ["muta_exon", "muta_intron", "muta_combi"]:
         var_ids = df_bar_var["var_id"].unique().to_list()
         var_ids_map = {v: v.split("/")[0] for v in var_ids}
 

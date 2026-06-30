@@ -35,7 +35,7 @@ def extract_exons_and_positions(seq: str) -> tuple:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Create a reference with exon only (may include barcode).", allow_abbrev = False)
     parser.add_argument("-r", "--reference", type = str, required = True, help = "Reference FASTA file")
-    parser.add_argument("-l", "--lib_type",  type = str, required = True, help = "Library type (random_intron, random_exon, muta_intron, muta_exon)")
+    parser.add_argument("-l", "--lib_type",  type = str, required = True, help = "library type", choices = ['random_intron', 'random_exon', 'random_combi', 'muta_intron', 'muta_exon', 'muta_combi'])
     parser.add_argument("-p", "--prefix",    type = str, required = True, help = "Output prefix")
     
     args, unknown = parser.parse_known_args()
@@ -44,10 +44,6 @@ if __name__ == "__main__":
         print(f"Error: Unrecognized arguments: {' '.join(unknown)}", file=sys.stderr)
         parser.print_help()
         sys.exit(1)
-
-    valid_lib_types = {"random_intron", "random_exon", "muta_intron", "muta_exon"}
-    if args.lib_type not in valid_lib_types:
-        sys.exit(f"Error: Invalid --lib_type '{args.lib_type}'. Must be one of: {', '.join(valid_lib_types)}")
 
     output_fasta = f"{args.prefix}.exon_ref.fasta"
     output_positions = f"{args.prefix}.exon_pos.tsv"

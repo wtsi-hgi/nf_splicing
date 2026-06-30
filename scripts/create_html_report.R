@@ -46,7 +46,7 @@ if(is.null(opt$novel_barcodes))       stop("-n, list of extracted novel barcode 
 if(is.null(opt$classified_junctions)) stop("-j, list of classified junction file is required!", call. = FALSE)
 if(is.null(opt$psi_results))          stop("-d, list of psi files (canon_only and all_events)!", call. = FALSE)
 
-valid_lib_types <- c("random_intron", "random_exon", "muta_intron", "muta_exon")
+valid_lib_types <- c("random_intron", "random_exon", "random_combi", "muta_intron", "muta_exon", "muta_combi")
 if(!(opt$lib_type %in% valid_lib_types))
 {
     stop(paste0("-l, library type must be one of: ", paste(valid_lib_types, collapse = ", ")), call. = FALSE)

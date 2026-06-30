@@ -101,7 +101,7 @@ def annotate_junction(var_id, donor_pos, acceptor_pos, exon_pos, intron_pos, min
     Returns:
         -- annotation: str, annotation string
     """
-    if args.lib_type in ["muta_intron", "muta_exon"]:
+    if args.lib_type in ["muta_intron", "muta_exon", "muta_combi"]:
         var_id_base = var_id.split("/")[0]
         var_id_base = "_".join(var_id_base.split("_")[:-1]) + "_wt"
     else:
@@ -157,7 +157,7 @@ def annotate_junction(var_id, donor_pos, acceptor_pos, exon_pos, intron_pos, min
 #-- main execution --#
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Classifying junctions types from a junction bed file.", allow_abbrev = False)
-    parser.add_argument("--lib_type",            type = str, required = True,       help = "Library type (random_intron, random_exon, muta_intron, muta_exon)")
+    parser.add_argument("--lib_type",            type = str, required = True,       help = "library type", choices = ['random_intron', 'random_exon', 'random_combi', 'muta_intron', 'muta_exon', 'muta_combi'])
     parser.add_argument("--bed_file",            type = str, required = True,       help = "bed file generated from regtools junctions extract")
     parser.add_argument("--exon_pos",            type = str, required = True,       help = "exon position file")
     parser.add_argument("--cluster_tol",         type = int, default = 2,           help = "maximum tolerance of donor/acceptor positions for clustering")

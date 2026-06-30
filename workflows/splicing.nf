@@ -209,7 +209,7 @@ if (!file(params.outdir).isDirectory()) {
     error("Invalid output directory: ${params.outdir}. Please specify a valid directory.")
 }
 
-def valid_library = ['random_intron', 'random_exon', 'muta_intron', 'muta_exon']
+def valid_library = ['random_intron', 'random_exon', 'random_combi', 'muta_intron', 'muta_exon', 'muta_combi']
 if (!(params.library in valid_library)) {
     error("Invalid library: ${params.library}. Valid options: ${valid_library.join(', ')}")
 }
