@@ -33,7 +33,7 @@ Usage:
 
     Mandatory arguments:
         --sample_sheet                path of the sample sheet
-        --library                     random_intron, random_exon, muta_intron, muta_exon, default: random_intron
+        --library                     random_intron, random_exon, random_combi, muta_intron, muta_exon, muta_combi,default: random_intron
         --outdir                      the directory path of output results, default: the current directory
     
     Optional arguments:
