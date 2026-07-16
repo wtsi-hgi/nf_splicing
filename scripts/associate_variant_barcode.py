@@ -4,13 +4,14 @@ import os
 import sys
 import argparse
 import re
-import gc
 import subprocess
+import duckdb
 import polars as pl
+import numpy as np
+import matplotlib.pyplot as plt
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import islice
-from collections import Counter
 
 from sequence_utils import (
     pigz_open,
@@ -81,7 +82,7 @@ def process_pe_pairs_in_chunk(path_read1, path_read2):
             # Divide chunk into batches
             # if process_long_read is very fast, we can use a larger batch size to make better use of CPU resources
             # if process_long_read is very slow, we can use a smaller batch size to make better use of CPU resources
-            batch_size = min(args.chunk_size, 40000)
+            batch_size = max(2000, args.chunk_size // (args.threads * 4))
             read_batches = [
                 read_chunk[i:i+batch_size]
                 for i in range(0, len(read_chunk), batch_size)
@@ -93,21 +94,84 @@ def process_pe_pairs_in_chunk(path_read1, path_read2):
                 batch_result = future.result()
                 list_barcodes.append(pl.DataFrame(batch_result, schema = ["variant_seq", "barcode_seq"], orient = "row"))
 
-                # -- free memory -- #
-                del batch_result
-                gc.collect()
-
             df_yield = ( pl.concat(list_barcodes, how = "vertical")
                            .group_by(["variant_seq", "barcode_seq"])
                            .agg(pl.len().alias("count")) )
 
-            # -- free memory -- #
-            del read_chunk, read_batches, futures, list_barcodes
-            gc.collect()
-
             yield df_yield
     fh_read1.close()
     fh_read2.close()
+
+#-------------------------------------------------------
+# memory-efficient data merge
+#-------------------------------------------------------
+def duckdb_merge(chunk_files: list, tmp_dir: str) -> pl.DataFrame:
+    """
+    Merge all chunk parquet files using DuckDB with automatic spill-to-disk.
+    Parameters:
+        -- chunk_files: list of parquet file paths to merge
+        -- tmp_dir:     directory to write the final merged parquet and spill files
+    Returns:
+        -- pl.DataFrame with columns ["variant_seq", "barcode_seq", "count"]
+    """
+    con = duckdb.connect()
+    con.execute(f"SET temp_directory='{tmp_dir}'")
+    con.execute(f"SET memory_limit='{args.db_mem_limit}'")
+    con.execute(f"SET threads={args.threads}") 
+
+    file_list = ", ".join(f"'{f}'" for f in chunk_files)
+    final_path = os.path.join(tmp_dir, "final.parquet")
+
+    con.execute(f"""
+        COPY (
+            SELECT variant_seq, barcode_seq, SUM(count) AS count
+            FROM read_parquet([{file_list}])
+            GROUP BY variant_seq, barcode_seq
+            ORDER BY variant_seq
+        )
+        TO '{final_path}' (FORMAT PARQUET)
+    """)
+    con.close()
+
+    return pl.read_parquet(final_path)
+
+#-------------------------------------------------------
+# create histogram of barcode counts
+#-------------------------------------------------------
+def create_barcode_count_histogram(df_barcode_counts: pl.DataFrame, output_path: str, bins: int = 50) -> None:
+    """
+    Create a histogram of barcode counts and save to file.
+    Parameters:
+        -- df_barcode_counts: DataFrame with columns ["variant_seq", "barcode_seq", "count"]
+        -- output_path: path to save the histogram plot
+        -- bins: number of bins for the histogram
+    """
+    counts = df_barcode_counts["count"].to_numpy()
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    bins = np.logspace(np.log10(max(1, counts.min())), np.log10(counts.max()), bins)
+    ax.hist(counts, bins = bins, color = "royalblue", edgecolor = "white", linewidth = 0.4)
+    ax.set_title("Distribution of Barcode Abundance", fontsize = 14)
+    ax.set_xscale("log")
+    ax.set_xlabel("Count", fontsize = 12)
+    ax.set_ylabel("Number of barcodes", fontsize = 12)
+
+    median_val = np.median(counts)
+    mean_val = np.mean(counts)
+    n_barcodes = len(counts)
+    ax.axvline(median_val, color = "red", linestyle = "--", linewidth = 1.2, label = f"Median = {median_val:.1f}")
+    ax.axvline(mean_val, color = "orange", linestyle = "--", linewidth = 1.2, label = f"Mean = {mean_val:.1f}")
+    ax.legend(fontsize = 10)
+
+    ax.text(0.98, 0.97, f"n barcodes = {n_barcodes:,}", transform = ax.transAxes, ha = "right", va = "top", fontsize = 8, color = "black")
+ 
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    plt.tight_layout()
+
+    fig.savefig(output_path, dpi = 150)
+    plt.close(fig)
 
 #-- main execution --#
 if __name__ == "__main__":
@@ -125,10 +189,12 @@ if __name__ == "__main__":
     parser.add_argument("--barcode_mismatch", type = int,       default = 1,           help = "Number of mismatches allowed in barcode checking")
     parser.add_argument("--max_mismatches",   type = int,       default = 2,           help = "Max mismatches allowed in up/down matches")
     parser.add_argument("--min_barcov",       type = int,       default = 2,           help = "Minimum coverage for barcode-variant association")
+    parser.add_argument("--resume_tmp",       action = "store_true",                   help = "Whether to resume the process and keep temporary files")
     parser.add_argument("--output_dir",       type = str,       default = os.getcwd(), help = "output directory")
     parser.add_argument("--output_prefix",    type = str,       required = True,       help = "output prefix")
     parser.add_argument("--chunk_size",       type = int,       default = 100000,      help = "Chunk size for processing reads")
     parser.add_argument("--threads",          type = int,       default = 40,          help = "Number of threads")
+    parser.add_argument("--db_mem_limit",     type = str,       default = "60GB",      help = "Memory limit for DuckDB during merging")
 
     args, unknown = parser.parse_known_args()
 
@@ -151,27 +217,57 @@ if __name__ == "__main__":
     if os.path.exists(stats_out):
         os.remove(stats_out)
 
-    print(f"Detecting variant and barcode associations, please wait...", flush=True)
-    list_results = []
-    for i, chunk_result in enumerate(process_pe_pairs_in_chunk(args.read1, args.read2)):
-        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Processed chunk {i+1} with {args.chunk_size} read pairs", flush=True)
-        if not chunk_result.is_empty():
-            list_results.append(chunk_result)
-    print(f"Finished processing all the reads.", flush=True)
+    hist_out = f"{args.output_prefix}.barcode_count_histogram.png"
+    if os.path.exists(hist_out):
+        os.remove(hist_out)
 
-    # -- clean and format the extracted barcodes from reads -- #
-    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Generating barcode results, please wait ...", flush = True)
-    list_results_filtered = [df for df in list_results if df.height > 0]
-    if list_results_filtered:
-        df_barcode = pl.concat(list_results_filtered, how = "vertical")
-        df_barcode_counts = ( df_barcode.group_by(["variant_seq", "barcode_seq"])
-                                        .agg(pl.sum("count").alias("count")) )
+    #-- processing --#
+    print(f"Detecting variant and barcode associations, please wait...", flush=True)
+
+    tmp_dir = os.path.join(args.output_dir, args.output_prefix + "_tmp")
+    if os.path.exists(tmp_dir):
+        if not args.resume_tmp:
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Warning: Temporary directory {tmp_dir} already exists, it will be removed and recreated.", flush=True)
+            for f in os.listdir(tmp_dir):
+                os.remove(os.path.join(tmp_dir, f))
+        else:
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Resuming from existing temporary directory {tmp_dir}.", flush=True)
     else:
+        os.makedirs(tmp_dir, exist_ok = True)
+
+    chunk_files = []
+    if args.resume_tmp:
+        existing = {f for f in os.listdir(tmp_dir) if f.startswith("tmp_chunk_") and f.endswith(".parquet")}
+        chunk_files = [os.path.join(tmp_dir, f) for f in sorted(existing)]
+        if not chunk_files:
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} No existing chunk files found in {tmp_dir}, starting fresh.", flush=True)
+        else:
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Found {len(chunk_files)} existing chunk files in {tmp_dir}, resuming from these files.", flush=True)
+
+    if not chunk_files:
+        for i, chunk_result in enumerate(process_pe_pairs_in_chunk(args.read1, args.read2)):
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} --> Processed chunk {i+1} with {args.chunk_size} read pairs", flush=True)
+            if not chunk_result.is_empty():
+                tmp_path = os.path.join(tmp_dir, f"tmp_chunk_{i}.parquet")
+                chunk_result.write_parquet(tmp_path)
+                chunk_files.append(tmp_path)
+
+    if not chunk_files:
         with open(barcode_out, "w") as f:
             f.write("no barcode found in the reads, please check your barcode marker or template!\n")
         exit(0)
 
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Generating barcode results, please wait...", flush=True)
+    df_barcode_counts = duckdb_merge(chunk_files, tmp_dir).with_columns(pl.col("count").cast(pl.Int64))
+
+    if not args.resume_tmp:
+        for f in chunk_files:
+            os.remove(f)
+        os.remove(os.path.join(tmp_dir, "final.parquet"))
+        os.rmdir(tmp_dir)
+
     count_processed_reads = df_barcode_counts["count"].sum()
+
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Filtering barcode results, please wait ...", flush = True)
 
     # -- (1) variant_seq == "upstream not found" -- #
@@ -251,5 +347,5 @@ if __name__ == "__main__":
         f.write(f"Total reads with barcode coverage < {args.min_barcov}: {count_low_barcov}\n")
         f.write(f"Total reads with barcodes matching multiple variants: {count_before_filter - count_effective_reads}\n")
         f.write(f"Total effective reads: {count_effective_reads}\n")
-    
 
+    create_barcode_count_histogram(df_barcode_counts, hist_out)
