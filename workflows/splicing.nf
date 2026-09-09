@@ -294,17 +294,19 @@ workflow splicing {
     ch_sample_step3_se = ch_sample_barcodes.join(ch_se_canonical_fail)
                                            .join(ch_hisat2_ref)
     detect_novel_se(ch_sample_step3_se)
+    ch_se_novel_stats    = detect_novel_se.out.ch_se_novel_stats
     ch_se_novel_barcodes = detect_novel_se.out.ch_se_novel_barcodes
     ch_se_junctions      = detect_novel_se.out.ch_se_junctions
-    ch_se_novel_stats    = detect_novel_se.out.ch_se_novel_stats
+    ch_se_base_cov       = detect_novel_se.out.ch_se_base_cov
 
     if (params.do_pe_reads) {
         ch_sample_step3_pe = ch_sample_barcodes.join(ch_fail_reads_pe)
                                                .join(ch_hisat2_ref)
         detect_novel_pe(ch_sample_step3_pe)
+        ch_pe_novel_stats    = detect_novel_pe.out.ch_pe_novel_stats
         ch_pe_novel_barcodes = detect_novel_pe.out.ch_pe_novel_barcodes
         ch_pe_junctions      = detect_novel_pe.out.ch_pe_junctions
-        ch_pe_novel_stats    = detect_novel_pe.out.ch_pe_novel_stats
+        ch_pe_base_cov       = detect_novel_pe.out.ch_pe_base_cov
     }
 
     /* -- prepare channels for downstream -- */
