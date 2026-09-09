@@ -2,6 +2,7 @@ include { HISAT2_ALIGN_SE_READS } from "$projectDir/modules/local/hisat2/main"
 include { FIX_SE_READS }          from "$projectDir/modules/local/fix_reads/main"
 include { SORT_SE_BAM }           from "$projectDir/modules/local/sort_hisat2_bam/main"
 include { EXTRACT_SE_JUNCTIONS }  from "$projectDir/modules/local/regtools/main"
+include { BASE_COV }              from "$projectDir/modules/local/base_cov/main"
 
 workflow detect_novel_se {
     take:
@@ -31,9 +32,14 @@ workflow detect_novel_se {
     EXTRACT_SE_JUNCTIONS(ch_se_sorted_bam)
     ch_se_junctions = EXTRACT_SE_JUNCTIONS.out.ch_se_junctions
 
+    /* -- 4. get base coverage -- */
+    BAE_COV(ch_se_sorted_bam)
+    ch_se_base_cov = BASE_COV.out.ch_base_cov
+
     emit:
     ch_se_sorted_bam
+    ch_se_novel_stats
     ch_se_novel_barcodes
     ch_se_junctions
-    ch_se_novel_stats
+    ch_se_base_cov
 }
