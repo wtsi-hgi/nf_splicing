@@ -62,6 +62,27 @@ def fastq_iter_pe(handle1, handle2):
         yield ((header1.rstrip("\n"), seq1.rstrip("\n"), qual1.rstrip("\n")), 
                (header2.rstrip("\n"), seq2.rstrip("\n"), qual2.rstrip("\n")))
 
+def base_cov_iter(handle):
+    """
+    Base coverage parser yielding (var_id, base_pos, base_cov)
+    Parameters:
+        -- handle: file handle for the base coverage file
+    Yields:
+        -- (var_id, base_pos, base_cov): a tuple containing the variant ID, base position, and base coverage
+    """
+    while True:
+        line = handle.readline()
+        if not line:
+            break
+
+        fields = line.rstrip("\n").split("\t")
+        if len(fields) < 3:
+            break
+
+        var_id, base_pos, base_cov = fields[0], int(fields[1]), int(fields[2])
+        
+        yield (var_id, base_pos, base_cov)
+
 def reverse_complement(seq: str) -> str:
     """
     Generate the reverse complement of a DNA sequence.

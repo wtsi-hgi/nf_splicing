@@ -44,6 +44,9 @@ def process_base_cov(base_cov: tuple) -> list:
     e2_start, e2_end = global_dict_exon_pos[var_id][1]
     e3_start, e3_end = global_dict_exon_pos[var_id][2]
 
+    if base_pos < e1_start or base_pos > e3_end:
+        return (None, None, None)
+
     inclusion_count, skipping_count = global_dict_splicing_counts[var_id]
 
     if e1_start <= base_pos <= e1_end:
