@@ -171,8 +171,8 @@ if __name__ == "__main__":
     parser.add_argument("--output_prefix",    type = str,       required = True,       help = "output prefix")
     parser.add_argument("--resume_tmp",       action = "store_true",                   help = "Whether to resume the process and keep temporary files")
     parser.add_argument("--chunk_size",       type = int,       default = 100000,      help = "Chunk size for processing reads")
-    parser.add_argument("--threads",          type = int,       default = 40,          help = "Number of threads")
-    parser.add_argument("--db_mem_limit",     type = str,       default = "20GB",      help = "Memory limit for DuckDB during merging")
+    parser.add_argument("--threads",          type = int,       default = 20,          help = "Number of threads")
+    parser.add_argument("--db_mem_limit",     type = str,       default = "10GB",      help = "Memory limit for DuckDB during merging")
 
     args, unknown = parser.parse_known_args()
 
