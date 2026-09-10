@@ -1,8 +1,6 @@
 process FIX_SE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.novel_barcodes.tsv.gz", mode: "copy", overwrite: true
-
     tag "$sample_id"
 
     input:
@@ -48,8 +46,6 @@ process FIX_SE_READS {
 
 process FIX_PE_READS {
     label 'process_high_memory'
-
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.novel_barcodes.tsv.gz", mode: "copy", overwrite: true
  
     tag "$sample_id"
 

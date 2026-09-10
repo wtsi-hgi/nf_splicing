@@ -1,5 +1,7 @@
 process CAT_CANONICAL_BARCODES {
     label 'process_single'
+
+    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.canonical_barcodes.tsv.gz", mode: "copy", overwrite: true
     
     tag "$sample_id"
 
@@ -23,6 +25,8 @@ process CAT_CANONICAL_BARCODES {
 process CAT_NOVEL_BARCODES {
     label 'process_single'
     
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.novel_barcodes.tsv.gz", mode: "copy", overwrite: true
+
     tag "$sample_id"
 
     input:

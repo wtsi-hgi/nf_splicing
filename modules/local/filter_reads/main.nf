@@ -1,8 +1,6 @@
 process FILTER_SE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.canonical_barcodes.tsv.gz", mode: "copy", overwrite: true
-
     tag "$sample_id"
 
     input:
@@ -46,8 +44,6 @@ process FILTER_SE_READS {
 
 process FILTER_PE_READS {
     label 'process_high_memory'
-
-    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.canonical_barcodes.tsv.gz", mode: "copy", overwrite: true
 
     tag "$sample_id"
 
