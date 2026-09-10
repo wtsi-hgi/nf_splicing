@@ -7,14 +7,14 @@ process BASE_COV {
 
     input:
     tuple val(sample_id), path(bam), path(bai)
+    value val(read_type)
 
     output:
-    tuple val(sample_id), path("${sample_id}.base_cov.tsv.gz"), emit: ch_base_cov
+    tuple val(sample_id), path("${sample_id}.base_cov_${read_type}.tsv.gz"), emit: ch_base_cov
 
     script:
     """
-    samtools depth -@ ${task.cpus} -aa ${bam} > ${sample_id}.base_cov.tsv
-    pigz -p ${task.cpus} ${sample_id}.base_cov.tsv
+    samtools depth -@ ${task.cpus} -aa ${bam} | pigz -p ${task.cpus} > ${sample_id}.base_cov_${read_type}.tsv.gz
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
