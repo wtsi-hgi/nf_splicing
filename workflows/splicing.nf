@@ -109,46 +109,6 @@ def check_required(required_tools) {
     log.info "====================================="
 }
 
-/* -- initialising parameters -- */
-params.help                        = false
-params.version                     = false
-params.pipeline_name               = workflow.manifest.name
-params.pipeline_version            = workflow.manifest.version
-params.sanger_module               = params.sanger_module               ?: false
-
-params.sample_sheet                = null
-params.library                     = params.library                     ?: "random_intron"
-params.outdir                      = params.outdir                      ?: "$PWD"
-
-params.do_pe_reads                 = params.do_pe_reads                 ?: false
-params.canonical_method            = params.canonical_method            ?: "match"
-
-params.fastp_cut_mean_quality      = params.fastp_cut_mean_quality      ?: 20
-params.flash2_min_overlap          = params.flash2_min_overlap          ?: 10
-params.flash2_max_overlap          = params.flash2_max_overlap          ?: 250
-params.flash2_min_overlap_outie    = params.flash2_min_overlap_outie    ?: 20
-params.flash2_max_mismatch_density = params.flash2_max_mismatch_density ?: 0.25
-
-params.bwa_mismatch                = params.bwa_mismatch                ?: 4
-params.bwa_gap_open                = params.bwa_gap_open                ?: "10,10"
-params.bwa_gap_ext                 = params.bwa_gap_ext                 ?: "5,5"
-params.bwa_clip                    = params.bwa_clip                    ?: "1,1"
-params.filter_softclip_base        = params.filter_softclip_base        ?: 5
-
-params.hisat2_score_min            = params.hisat2_score_min            ?: "L,0,-0.3"
-params.hisat2_mp                   = params.hisat2_mp                   ?: "5,2"
-params.hisat2_sp                   = params.hisat2_sp                   ?: "2,1"
-params.hisat2_np                   = params.hisat2_np                   ?: 0
-params.hisat2_pen_noncansplice     = params.hisat2_pen_noncansplice     ?: 0
-
-params.do_spliced_products         = params.do_spliced_products         ?: false
-params.regtools_min_anchor         = params.regtools_min_anchor         ?: 5
-params.regtools_min_intron         = params.regtools_min_intron         ?: 20
-
-params.classify_cluster_tol        = params.classify_cluster_tol        ?: 2
-params.classify_min_overlap        = params.classify_min_overlap        ?: 2
-params.classify_min_cov            = params.classify_min_cov            ?: 2
-
 /* -- pipeline info -- */
 log.info """
 =====================================
