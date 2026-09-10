@@ -8,7 +8,8 @@ include { HISAT2_SUMMARY_GET_VALUES;
           HISAT2_SUMMARY_ADD_VALUES } from "$projectDir/modules/local/format_hisat2_stats/main"
 include { CAT_CANONICAL_BARCODES; 
           CAT_NOVEL_BARCODES;
-          CAT_BEDS }                  from "$projectDir/modules/local/cat_files/main"
+          CAT_BEDS;
+          CAT_BASE_COVS }             from "$projectDir/modules/local/cat_files/main"
 include { RENAME_CANONICAL_BARCODES;
           RENAME_NOVEL_BARCODES }     from "$projectDir/modules/local/rename_files/main"
 
@@ -285,6 +286,9 @@ workflow splicing {
 
         CAT_BEDS(ch_se_junctions.join(ch_pe_junctions))
         ch_junctions = CAT_BEDS.out.ch_bed
+
+        CAT_BASE_COVS(ch_se_base_cov.join(ch_pe_base_cov))
+        ch_base_cov = CAT_BASE_COVS.ch_base_cov
     } else {
         STATS_GET_VALUES(ch_se_canonical_stats)
         ch_canonical_stats = STATS_GET_VALUES.out.ch_canonical_stats
@@ -299,6 +303,8 @@ workflow splicing {
         ch_novel_stats = HISAT2_SUMMARY_GET_VALUES.out.ch_novel_stats
 
         ch_junctions = ch_se_junctions
+
+        ch_base_cov = ch_se_base_cov
     }
 
     /* -- step 4: create count matrices -- */
@@ -309,6 +315,11 @@ workflow splicing {
     create_splicing_counts(ch_sample_step4)
     ch_splicing_counts = create_splicing_counts.out.ch_splicing_counts
     ch_classified_junctions = create_splicing_counts.out.ch_classified_junctions
+
+
+
+
+
 
     /* -- step 5: summarise results -- */
     ch_sample_step5 = ch_input.map { sample_id, sample, replicate, directory, read1, read2, reference, barcode, barcode_up, barcode_down, barcode_temp -> 
