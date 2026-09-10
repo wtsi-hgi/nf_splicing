@@ -11,8 +11,8 @@ process SORT_SE_BAM {
 
     script:
     """
-    samtools sort -@ 40 -o ${sample_id}.hisat2_se.fixed.sorted.bam ${bam}
-    samtools index -@ 40 ${sample_id}.hisat2_se.fixed.sorted.bam
+    samtools sort -@ ${task.cpus} -o ${sample_id}.hisat2_se.fixed.sorted.bam ${bam}
+    samtools index -@ ${task.cpus} ${sample_id}.hisat2_se.fixed.sorted.bam
     bamtools stats -in ${sample_id}.hisat2_se.fixed.sorted.bam > ${sample_id}.hisat2_se.fixed.tsv
     rm ${bam}
 
@@ -36,8 +36,8 @@ process SORT_PE_BAM {
 
     script:
     """
-    samtools sort -@ 40 -o ${sample_id}.hisat2_pe.fixed.sorted.bam ${bam}
-    samtools index -@ 40 ${sample_id}.hisat2_pe.fixed.sorted.bam
+    samtools sort -@ ${task.cpus} -o ${sample_id}.hisat2_pe.fixed.sorted.bam ${bam}
+    samtools index -@ ${task.cpus} ${sample_id}.hisat2_pe.fixed.sorted.bam
     bamtools stats -in ${sample_id}.hisat2_pe.fixed.sorted.bam > ${sample_id}.hisat2_pe.fixed.tsv
     rm ${bam}
 

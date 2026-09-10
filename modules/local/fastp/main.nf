@@ -18,7 +18,7 @@ process FASTP {
           --compression       9 \
           --cut_tail \
           --cut_mean_quality  ${params.fastp_cut_mean_quality} \
-          --thread            16 \
+          --thread            ${task.cpus} \
           --html              ${sample_id}.trim.html 2>&1 | tee ${sample_id}.trim.tsv
 
     cat <<-END_VERSIONS > versions.yml

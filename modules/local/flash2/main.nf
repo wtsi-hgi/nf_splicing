@@ -28,7 +28,7 @@ process FLASH2 {
            --max-mismatch-density  ${params.flash2_max_mismatch_density} \
            --output-prefix         ${sample_id} \
            --output-directory      . \
-           --threads               32 \
+           --threads               ${task.cpus} \
            --compress \
            ${read1} ${read2} 2>&1 | tee ${sample_id}.merge.tsv
 

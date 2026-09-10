@@ -42,10 +42,10 @@ process HISAT2_ALIGN_SE_READS {
                    --pen-noncansplice ${params.hisat2_pen_noncansplice} \
                    --summary-file \${prefix}.hisat2_se.novel_stats.tsv \
                    --new-summary \
-                   --threads 32 \
+                   --threads ${task.cpus} \
                    -S \${prefix}.hisat2_se.sam
 
-            samtools fastq -@ 32 -f 4 -c 9 -0 \${prefix}.hisat2_se.unmapped.fastq.gz \${prefix}.hisat2_se.sam
+            samtools fastq -@ ${task.cpus} -f 4 -c 9 -0 \${prefix}.hisat2_se.unmapped.fastq.gz \${prefix}.hisat2_se.sam
             awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==0)||(\$2==16)){print \$0}}' \${prefix}.hisat2_se.sam | grep "NH:i:1\\|^@" | samtools view -b - > \${prefix}.hisat2_se.unique.bam
             
             rm \${prefix}.hisat2_se.sam
@@ -89,9 +89,9 @@ process HISAT2_ALIGN_SE_READS {
                --pen-noncansplice ${params.hisat2_pen_noncansplice} \
                --summary-file ${sample_id}.hisat2_se.novel_stats.tsv \
                --new-summary \
-               --threads 32 \
+               --threads ${task.cpus} \
                -S ${sample_id}.hisat2_se.sam
-        samtools fastq -@ 32 -f 4 -c 9 -0 ${sample_id}.hisat2_se.unmapped.fastq.gz ${sample_id}.hisat2_se.sam
+        samtools fastq -@ ${task.cpus} -f 4 -c 9 -0 ${sample_id}.hisat2_se.unmapped.fastq.gz ${sample_id}.hisat2_se.sam
         awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==0)||(\$2==16)){print \$0}}' ${sample_id}.hisat2_se.sam | grep "NH:i:1\\|^@" | samtools view -b - > ${sample_id}.hisat2_se.unique.bam
         rm ${sample_id}.hisat2_se.sam
 
@@ -153,10 +153,10 @@ process HISAT2_ALIGN_PE_READS {
                    --pen-noncansplice ${params.hisat2_pen_noncansplice} \
                    --summary-file \${prefix}.hisat2_pe.novel_stats.tsv \
                    --new-summary \
-                   --threads 32 \
+                   --threads ${task.cpus} \
                    -S \${prefix}.hisat2_pe.sam
 
-            samtools fastq -@ 32 -F 2 -c 9 -1 \${prefix}.hisat2_pe.unmapped.R1.fastq.gz -2 \${prefix}.hisat2_pe.unmapped.R2.fastq.gz -n \${prefix}.hisat2_pe.sam
+            samtools fastq -@ ${task.cpus} -F 2 -c 9 -1 \${prefix}.hisat2_pe.unmapped.R1.fastq.gz -2 \${prefix}.hisat2_pe.unmapped.R2.fastq.gz -n \${prefix}.hisat2_pe.sam
             awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==99)||(\$2==147)||(\$2==83)||(\$2==163)){print \$0}}' \${prefix}.hisat2_pe.sam | grep "NH:i:1\\|^@" | samtools view -b - > \${prefix}.hisat2_pe.unique.bam
             
             rm \${prefix}.hisat2_pe.sam
@@ -203,9 +203,9 @@ process HISAT2_ALIGN_PE_READS {
                --pen-noncansplice ${params.hisat2_pen_noncansplice} \
                --summary-file ${sample_id}.hisat2_pe.novel_stats.tsv \
                --new-summary \
-               --threads 32 \
+               --threads ${task.cpus} \
                -S ${sample_id}.hisat2_pe.sam
-        samtools fastq -@ 32 -F 2 -c 9 -1 ${sample_id}.hisat2_pe.unmapped.R1.fastq.gz -2 ${sample_id}.hisat2_pe.unmapped.R2.fastq.gz -n ${sample_id}.hisat2_pe.sam
+        samtools fastq -@ ${task.cpus} -F 2 -c 9 -1 ${sample_id}.hisat2_pe.unmapped.R1.fastq.gz -2 ${sample_id}.hisat2_pe.unmapped.R2.fastq.gz -n ${sample_id}.hisat2_pe.sam
         awk -F'\\t' -v OFS='\\t' '{if((\$1~/^@/)||(\$2==99)||(\$2==147)||(\$2==83)||(\$2==163)){print \$0}}' ${sample_id}.hisat2_pe.sam | grep "NH:i:1\\|^@" | samtools view -b - > ${sample_id}.hisat2_pe.unique.bam
         rm ${sample_id}.hisat2_pe.sam
 

@@ -35,7 +35,7 @@ process MATCH_SE_READS {
                                                             --barcode_temp ${barcode_temp} \
                                                             --output_prefix ${sample_id}.match_se \
                                                             --chunk_size 100000 \
-                                                            --threads 40
+                                                            --threads ${task.cpus}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -84,7 +84,7 @@ process MATCH_PE_READS {
                                                             --barcode_temp ${barcode_temp} \
                                                             --output_prefix ${sample_id}.match_pe \
                                                             --chunk_size 100000 \
-                                                            --threads 40
+                                                            --threads ${task.cpus}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
