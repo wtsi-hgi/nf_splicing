@@ -4,17 +4,18 @@ process CAT_CANONICAL_BARCODES {
     tag "$sample_id"
 
     input:
-    tuple val(sample_id), path(filter_se), path(filter_pe)
+    tuple val(sample_id), path(can_barcode_se), path(can_barcode_pe)
     
     output:
-    tuple val(sample_id), path("${sample_id}.canonical_barcodes.tsv"), emit: ch_canonical_barcodes
+    tuple val(sample_id), path("${sample_id}.canonical_barcodes.tsv.gz"), emit: ch_canonical_barcodes
     
     script:
     """
-    head -n 1 ${filter_se} > header.tsv
-    tail -n +2 ${filter_se} > se.tsv
-    tail -n +2 ${filter_pe} > pe.tsv
+    zcat ${can_barcode_se} | head -n 1 > header.tsv
+    zcat ${can_barcode_se} | tail -n +2 > se.tsv
+    zcat ${can_barcode_pe} | tail -n +2 > pe.tsv
     cat header.tsv se.tsv pe.tsv > ${sample_id}.canonical_barcodes.tsv
+    gzip ${sample_id}.canonical_barcodes.tsv
     rm header.tsv se.tsv pe.tsv
     """
 }
@@ -25,17 +26,18 @@ process CAT_NOVEL_BARCODES {
     tag "$sample_id"
 
     input:
-    tuple val(sample_id), path(map_se), path(map_pe)
+    tuple val(sample_id), path(nov_barcode_se), path(nov_barcode_pe)
     
     output:
-    tuple val(sample_id), path("${sample_id}.novel_barcodes.tsv"), emit: ch_novel_barcodes
+    tuple val(sample_id), path("${sample_id}.novel_barcodes.tsv.gz"), emit: ch_novel_barcodes
     
     script:
     """
-    head -n 1 ${map_se} > header.tsv
-    tail -n +2 ${map_se} > se.tsv
-    tail -n +2 ${map_pe} > pe.tsv
+    zcat ${nov_barcode_se} | head -n 1 > header.tsv
+    zcat ${nov_barcode_se} | tail -n +2 > se.tsv
+    zcat ${nov_barcode_pe} | tail -n +2 > pe.tsv
     cat header.tsv se.tsv pe.tsv > ${sample_id}.novel_barcodes.tsv
+    gzip ${sample_id}.novel_barcodes.tsv
     rm header.tsv se.tsv pe.tsv
     """
 }
