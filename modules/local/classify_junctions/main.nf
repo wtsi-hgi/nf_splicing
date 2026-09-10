@@ -3,9 +3,9 @@ process CLASSIFY_NOVEL_JUNCTIONS {
 
     memory {
         def file_size = novel_junctions.size()
-        def mem = file_size <= 1_000_000 ? 2 :
-                  file_size <= 10_000_000 ? 8 :
-                  file_size <= 100_000_000 ? 16 : 32
+        def mem = file_size <= 1_000_000 ? 8 :
+                  file_size <= 10_000_000 ? 16 :
+                  file_size <= 100_000_000 ? 32 : 64
         "${mem * task.attempt} GB"
     }
 

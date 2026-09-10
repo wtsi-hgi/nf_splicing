@@ -3,10 +3,10 @@ process CALCULATE_PSI {
     
     memory {
         def file_size = splicing_counts[0].size()
-        def mem = file_size <= 100_000_000 ? 4 :
-                  file_size <= 1_000_000_000 ? 8 :
-                  file_size <= 2_000_000_000 ? 16 :
-                  file_size <= 4_000_000_000 ? 32 : 64
+        def mem = file_size <= 100_000_000 ? 6 :
+                  file_size <= 1_000_000_000 ? 12 :
+                  file_size <= 2_000_000_000 ? 24 :
+                  file_size <= 4_000_000_000 ? 48 : 96
         "${mem * task.attempt} GB"
     }
 

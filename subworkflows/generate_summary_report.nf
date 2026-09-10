@@ -40,10 +40,10 @@ process CREATE_HTML_REPORT {
         def file_size_1 = canonical_barcodes[0].size()
         def file_size_2 = novel_barcodes[0].size()
         def file_size_total = file_size_1 + file_size_2
-        def mem = file_size_total <= 100_000_000 ? 8 :
-                  file_size_total <= 1_000_000_000 ? 16 :
-                  file_size_total <= 2_000_000_000 ? 32 :
-                  file_size_total <= 4_000_000_000 ? 64 : 128
+        def mem = file_size_total <= 100_000_000 ? 16 :
+                  file_size_total <= 1_000_000_000 ? 32 :
+                  file_size_total <= 2_000_000_000 ? 64 :
+                  file_size_total <= 4_000_000_000 ? 128 : 256
         "${mem * task.attempt} GB"
     }
 
