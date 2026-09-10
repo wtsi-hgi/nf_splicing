@@ -63,7 +63,7 @@ process CAT_BEDS {
     """
 }
 
-process CAT_BASE_COV {
+process CAT_BASE_COVS {
     label 'process_single'
     
     tag "$sample_id"
@@ -72,7 +72,7 @@ process CAT_BASE_COV {
     tuple val(sample_id), path(base_cov_se), path(base_cov_pe)
     
     output:
-    tuple val(sample_id), path("${sample_id}.base_cov.tsv.gz"), emit: ch_bed
+    tuple val(sample_id), path("${sample_id}.base_cov.tsv.gz"), emit: ch_base_cov
     
     script:
     """
