@@ -33,7 +33,7 @@ workflow detect_novel_se {
     ch_se_junctions = EXTRACT_SE_JUNCTIONS.out.ch_se_junctions
 
     /* -- 4. get base coverage -- */
-    BAE_COV(ch_se_sorted_bam)
+    BAE_COV(ch_se_sorted_bam, "se")
     ch_se_base_cov = BASE_COV.out.ch_base_cov
 
     emit:

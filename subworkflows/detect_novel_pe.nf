@@ -34,7 +34,7 @@ workflow detect_novel_pe {
     ch_pe_junctions = EXTRACT_PE_JUNCTIONS.out.ch_pe_junctions
 
     /* -- 4. get base coverage -- */
-    BASE_COV(ch_pe_sorted_bam)
+    BASE_COV(ch_pe_sorted_bam, "pe")
     ch_pe_base_cov = BASE_COV.out.ch_base_cov
 
     emit:
