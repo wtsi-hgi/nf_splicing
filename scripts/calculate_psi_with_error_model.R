@@ -94,7 +94,7 @@ files_splicing_counts <- sort_paths_by_filename(files_splicing_counts)
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
 setwd(opt$output_dir)
 
-sample_prefix <- ifelse(opt$calc_psi == "can", paste0(opt$prefix, ".canon_only"), paste0(opt$prefix, ".all_events"))
+sample_prefix <- ifelse(opt$calc_psi == "can", paste0(opt$prefix, ".psi_canon_only"), paste0(opt$prefix, ".psi_all_events"))
 
 # -- 1. reading files and formating -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "1. reading input files ...")
@@ -258,5 +258,5 @@ dt_splicing_corrected[, psi_shrunk_upr   := plogis(theta_shrunk + z * sqrt(var_t
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "9. output ...")
 num_cols <- names(dt_splicing_corrected)[sapply(dt_splicing_corrected, is.numeric)]
 dt_splicing_corrected[, (num_cols) := lapply(.SD, round, 4), .SDcols = num_cols]
-output_file <- file.path(opt$output_dir, paste0(sample_prefix, ".corrected_psi.tsv"))
+output_file <- file.path(opt$output_dir, paste0(sample_prefix, ".details.tsv"))
 fwrite(dt_splicing_corrected, file = output_file, sep = "\t", quote = FALSE, na = "NA", row.names = FALSE)
