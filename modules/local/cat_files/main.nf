@@ -62,3 +62,33 @@ process CAT_BEDS {
     cat ${bed_se} ${bed_pe} > ${sample_id}.junctions.bed
     """
 }
+
+process CAT_BASE_COV {
+    label 'process_single'
+    
+    tag "$sample_id"
+
+    input:
+    tuple val(sample_id), path(base_cov_se), path(base_cov_pe)
+    
+    output:
+    tuple val(sample_id), path("${sample_id}.base_cov.tsv.gz"), emit: ch_bed
+    
+    script:
+    """
+    awk 'BEGIN{
+            FS="\\t"
+            OFS="\\t"
+        } NR==FNR {
+            a[\$1"_"\$2] = \$3
+            next
+        }{
+            key = \$1"_"\$2
+            if (key in a) {
+                print \$1, \$2, \$3 + a[key]
+            } else {
+                print
+            }
+        }' <(zcat ${base_cov_pe}) <(zcat ${base_cov_se}) | gzip > ${sample_id}.base_cov.tsv.gz
+    """    
+}
