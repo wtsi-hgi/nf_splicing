@@ -56,7 +56,9 @@ process CREATE_HTML_REPORT {
           val(psi_can_results), val(psi_all_results)
 
     output:
-    tuple val(sample), path("${sample}.junctions_category.tsv"), emit: ch_junctions_category
+    tuple val(sample), path("${sample}.junctions_category.tsv.gz"), emit: ch_junctions_category
+    tuple val(sample), path("${sample}.psi_canon_only.tsv.gz"), emit: ch_psi_can_results
+    tuple val(sample), path("${sample}.psi_all_events.tsv.gz"), emit: ch_psi_all_results
     tuple val(sample), path("${sample}.splicing_report.html"), emit: ch_html_report
 
     script:
@@ -94,6 +96,10 @@ process CREATE_HTML_REPORT {
                                                -p ${sample} \
                                                -w ${params.pipeline_name} \
                                                -v ${params.pipeline_version}
+
+    gzip ${sample}.junctions_category.tsv
+    gzip ${sample}.psi_canon_only.tsv
+    gzip ${sample}.psi_all_events.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

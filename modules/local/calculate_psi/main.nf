@@ -18,8 +18,8 @@ process CALCULATE_PSI {
     tuple val(sample), val(sample_id), val(splicing_counts)
 
     output:
-    tuple val(sample), path("${sample}.canon_only.corrected_psi.tsv"), emit: ch_psi_can_results
-    tuple val(sample), path("${sample}.all_events.corrected_psi.tsv"), emit: ch_psi_all_results
+    tuple val(sample), path("${sample}.psi_canon_only.details.tsv.gz"), emit: ch_psi_can_results
+    tuple val(sample), path("${sample}.psi_all_events.details.tsv.gz"), emit: ch_psi_all_results
 
     script:
     def list_sample_ids = sample_id.join(',')
@@ -32,11 +32,15 @@ process CALCULATE_PSI {
                                                            -c can \
                                                            -p ${sample}
 
+    gzip ${sample}.psi_canon_only.details.tsv
+
     ${projectDir}/scripts/calculate_psi_with_error_model.R -r ${projectDir}/scripts \
                                                            -s ${list_sample_ids} \
                                                            -d ${list_splicing_counts} \
                                                            -c all \
                                                            -p ${sample}
+    
+    gzip ${sample}.psi_all_events.details.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
