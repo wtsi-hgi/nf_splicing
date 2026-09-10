@@ -1,7 +1,7 @@
 process FIX_SE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.novel_barcodes.tsv", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.novel_barcodes.tsv.gz", mode: "copy", overwrite: true
 
     tag "$sample_id"
 
@@ -10,7 +10,7 @@ process FIX_SE_READS {
 
     output:
     tuple val(sample_id), path("${sample_id}.hisat2_se.fixed.bam"), emit: ch_se_fixed_bam 
-    tuple val(sample_id), path("${sample_id}.hisat2_se.novel_barcodes.tsv"), emit: ch_se_novel_barcodes
+    tuple val(sample_id), path("${sample_id}.hisat2_se.novel_barcodes.tsv.gz"), emit: ch_se_novel_barcodes
 
     script:
     def do_spliced_products = params.do_spliced_products ? '--spliced' : ''
@@ -28,7 +28,9 @@ process FIX_SE_READS {
                                                       ${do_spliced_products} \
                                                       --output_prefix ${sample_id}.hisat2_se \
                                                       --chunk_size 100000 \
-                                                      --threads 40
+                                                      --threads ${task.cpus}
+
+    pigz -p ${task.cpus} ${sample_id}.hisat2_se.novel_barcodes.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -47,7 +49,7 @@ process FIX_SE_READS {
 process FIX_PE_READS {
     label 'process_high_memory'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.novel_barcodes.tsv", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.novel_barcodes.tsv.gz", mode: "copy", overwrite: true
  
     tag "$sample_id"
 
@@ -56,7 +58,7 @@ process FIX_PE_READS {
 
     output:
     tuple val(sample_id), path("${sample_id}.hisat2_pe.fixed.bam"), emit: ch_pe_fixed_bam 
-    tuple val(sample_id), path("${sample_id}.hisat2_pe.novel_barcodes.tsv"), emit: ch_pe_novel_barcodes
+    tuple val(sample_id), path("${sample_id}.hisat2_pe.novel_barcodes.tsv.gz"), emit: ch_pe_novel_barcodes
 
     script:
     def do_spliced_products = params.do_spliced_products ? '--spliced' : ''
@@ -74,8 +76,10 @@ process FIX_PE_READS {
                                                       ${do_spliced_products} \
                                                       --output_prefix ${sample_id}.hisat2_pe \
                                                       --chunk_size 100000 \
-                                                      --threads 40
- 
+                                                      --threads ${task.cpus}
+    
+    pigz -p ${task.cpus} ${sample_id}.hisat2_pe.novel_barcodes.tsv
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: \$(python --version | sed 's/Python //g')
