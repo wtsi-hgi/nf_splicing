@@ -9,7 +9,7 @@ process CREATE_SPLICING_COUNTS {
         "${mem * task.attempt} GB"
     }
 
-    publishDir "${params.outdir}/splicing_counts/", pattern: "*.splicing_counts.tsv", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/splicing_counts/", pattern: "*.splicing_counts.tsv.gz", mode: "copy", overwrite: true
 
     tag "$sample_id"
 
@@ -17,7 +17,7 @@ process CREATE_SPLICING_COUNTS {
     tuple val(sample_id), path(barcode), path(canonical_barcodes), path(classified_junctions)
 
     output:
-    tuple val(sample_id), path("${sample_id}.splicing_counts.tsv"), emit: ch_splicing_counts
+    tuple val(sample_id), path("${sample_id}.splicing_counts.tsv.gz"), emit: ch_splicing_counts
 
     script:
     """
@@ -25,6 +25,8 @@ process CREATE_SPLICING_COUNTS {
                                                            --novel_file ${classified_junctions} \
                                                            --barcode_file ${barcode} \
                                                            --output_prefix ${sample_id}
+
+    gzip ${sample_id}.splicing_counts.tsv
     
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
