@@ -1,8 +1,6 @@
 process EXTRACT_SE_JUNCTIONS {
     label 'process_single'
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
-
     tag "$sample_id"
 
     input:
@@ -24,8 +22,6 @@ process EXTRACT_SE_JUNCTIONS {
 
 process EXTRACT_PE_JUNCTIONS {
     label 'process_single'
-
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
 
     tag "$sample_id"
 

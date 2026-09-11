@@ -11,7 +11,9 @@ include { CAT_CANONICAL_BARCODES;
           CAT_BEDS;
           CAT_BASE_COVS }             from "$projectDir/modules/local/cat_files/main"
 include { RENAME_CANONICAL_BARCODES;
-          RENAME_NOVEL_BARCODES }     from "$projectDir/modules/local/rename_files/main"
+          RENAME_NOVEL_BARCODES;
+          RENAME_BEDS;
+          RENAME_BASE_COVS }          from "$projectDir/modules/local/rename_files/main"
 
 /* -- load subworkflows -- */
 include { check_input_files }         from "$projectDir/subworkflows/check_input_files.nf"
@@ -302,9 +304,11 @@ workflow splicing {
         HISAT2_SUMMARY_GET_VALUES(ch_se_novel_stats)
         ch_novel_stats = HISAT2_SUMMARY_GET_VALUES.out.ch_novel_stats
 
-        ch_junctions = ch_se_junctions
+        RENAME_BEDS(ch_se_junctions)
+        ch_junctions = RENAME_BEDS.out.ch_junctions
 
-        ch_base_cov = ch_se_base_cov
+        RENAME_BASE_COVS(ch_se_base_cov)
+        ch_base_cov = RENAME_BASE_COVS.out.ch_base_cov
     }
 
     /* -- step 4: create count matrices -- */

@@ -9,7 +9,7 @@ process CLASSIFY_NOVEL_JUNCTIONS {
         "${mem * task.attempt} GB"
     }
 
-    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", pattern: "*.classified_junctions.tsv.gz", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
 
     tag "$sample_id"
 
@@ -29,7 +29,7 @@ process CLASSIFY_NOVEL_JUNCTIONS {
                                                              --min_overlap ${params.classify_min_overlap} \
                                                              --output_prefix ${sample_id}
 
-    gzip ${sample_id}.classified_junctions.tsv.gz
+    gzip ${sample_id}.classified_junctions.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

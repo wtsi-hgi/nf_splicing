@@ -1,7 +1,7 @@
 process CALCULATE_SSU {
     label 'process_medium'
 
-    publishDir "${params.outdir}/splicing_counts", pattern: "*.splicing_counts.tsv.gz", mode: "copy", overwrite: true
+    publishDir "${params.outdir}/splicing_counts/${sample_id}", mode: "copy", overwrite: true
 
     tag "$sample_id"
 

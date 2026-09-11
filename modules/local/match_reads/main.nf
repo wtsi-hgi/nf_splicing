@@ -10,8 +10,6 @@ process MATCH_SE_READS {
         "${mem * task.attempt} GB"
     }
 
-    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.canonical_barcodes.tsv", mode: "copy", overwrite: true
-
     tag "$sample_id"
 
     input:
@@ -58,8 +56,6 @@ process MATCH_PE_READS {
                   file_size <= 400_000_000 ? 320 : 640
         "${mem * task.attempt} GB"
     }
-
-    publishDir "${params.outdir}/canonical_splicing_results/${sample_id}", pattern: "*.canonical_barcodes.tsv", mode: "copy", overwrite: true
 
     tag "$sample_id"
 

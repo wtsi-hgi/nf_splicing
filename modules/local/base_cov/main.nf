@@ -1,8 +1,6 @@
 process BASE_COV {
     label 'process_medium'
 
-    // publishDir "${params.outdir}/novel_splicing_results/${sample_id}", mode: "copy", overwrite: true
-
     tag "$sample_id"
 
     input:
