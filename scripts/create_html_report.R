@@ -4,23 +4,25 @@ packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", 
 invisible(lapply(packages, quiet_library))
 
 # ---- options ---- #
-option_list <- list(make_option(c("-r", "--rscript_dir"),          type = "character", help = "directory path of R scripts",                   default = NULL),
-                    make_option(c("-l", "--lib_type"),             type = "character", help = "library type",                                  default = NULL),
-                    make_option(c("-e", "--exon_pos"),             type = "character", help = "exon position file",                            default = NULL),
-                    make_option(c("-b", "--barcode_association"),  type = "character", help = "barcode association file",                      default = NULL),
-                    make_option(c("-s", "--sample_id"),            type = "character", help = "list of sample IDs",                            default = NULL),
-                    make_option(c("-t", "--trim_stats"),           type = "character", help = "list of trim stats files",                      default = NULL),
-                    make_option(c("-m", "--merge_stats"),          type = "character", help = "list of merge stats files",                     default = NULL),
-                    make_option(c("-f", "--bwa_idxstats"),         type = "character", help = "list of bwa map idxstats files",                default = NULL),
-                    make_option(c("-a", "--hisat2_stats"),         type = "character", help = "list of hisat2 map summary files",              default = NULL),
-                    make_option(c("-c", "--canonical_barcodes"),   type = "character", help = "list of extracted canonical barcode files",     default = NULL),
-                    make_option(c("-n", "--novel_barcodes"),       type = "character", help = "list of extracted novel barcode files",         default = NULL),
-                    make_option(c("-j", "--classified_junctions"), type = "character", help = "list of classified junction files",             default = NULL),
-                    make_option(c("-d", "--psi_results"),          type = "character", help = "list of psi files (canon_only and all_events)", default = NULL),
-                    make_option(c("-o", "--output_dir"),           type = "character", help = "output directory",                              default = getwd()),
-                    make_option(c("-p", "--prefix"),               type = "character", help = "output prefix",                                 default = "sample"),
-                    make_option(c("-w", "--pl_name"),              type = "character", help = "pipeline name",                                 default = "nf_splicing"),
-                    make_option(c("-v", "--pl_version"),           type = "character", help = "pipeline version",                              default = "dev"))
+option_list <- list(
+    make_option("--rscript_dir",          type = "character", help = "directory path of R scripts",                   default = NULL),
+    make_option("--lib_type",             type = "character", help = "library type",                                  default = NULL),
+    make_option("--exon_pos",             type = "character", help = "exon position file",                            default = NULL),
+    make_option("--barcode_association",  type = "character", help = "barcode association file",                      default = NULL),
+    make_option("--sample_id",            type = "character", help = "list of sample IDs",                            default = NULL),
+    make_option("--trim_stats",           type = "character", help = "list of trim stats files",                      default = NULL),
+    make_option("--merge_stats",          type = "character", help = "list of merge stats files",                     default = NULL),
+    make_option("--bwa_idxstats",         type = "character", help = "list of bwa map idxstats files",                default = NULL),
+    make_option("--hisat2_stats",         type = "character", help = "list of hisat2 map summary files",              default = NULL),
+    make_option("--canonical_barcodes",   type = "character", help = "list of extracted canonical barcode files",     default = NULL),
+    make_option("--novel_barcodes",       type = "character", help = "list of extracted novel barcode files",         default = NULL),
+    make_option("--classified_junctions", type = "character", help = "list of classified junction files",             default = NULL),
+    make_option("--psi_results",          type = "character", help = "list of psi files (canon_only and all_events)", default = NULL),
+    make_option("--output_dir",           type = "character", help = "output directory",                              default = getwd()),
+    make_option("--prefix",               type = "character", help = "output prefix",                                 default = "sample"),
+    make_option("--pl_name",              type = "character", help = "pipeline name",                                 default = "nf_splicing"),
+    make_option("--pl_version",           type = "character", help = "pipeline version",                              default = "dev")
+)
 
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
