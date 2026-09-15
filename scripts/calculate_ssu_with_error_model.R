@@ -101,14 +101,17 @@ dt_ssu <- rbindlist(ssu_counts, idcol = "reps")
 # Note: For low-count variants, SSU is pulled toward 0.5. This is intentional Bayesian shrinkage.
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "2. calculate SSU with eps ...")
 eps <- 0.5
-dt_ssu[max_cov == 0, max_cov := 0.1]
-dt_ssu[, ssu_eps := (base_cov + eps) / (max_cov + 2 * eps)]
+dt_ssu[, ssu_eps := NA_real_]
+dt_ssu[max_cov > 0, ssu_eps := (base_cov + eps) / (max_cov + 2 * eps)]
 
 # -- 3. calculate logit(ssu) and variance multiplicative -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "3. calculate logit(ssu) and variance multiplicative ...")
-dt_ssu[, logit_ssu := qlogis(ssu_eps)]
-dt_ssu[, var_mult := 1 /(max_cov * ssu_eps * (1 - ssu_eps))]
-
+dt_ssu[, logit_ssu := NA_real_]
+dt_ssu[max_cov > 0, logit_ssu := qlogis(ssu_eps)]
+ 
+dt_ssu[, var_mult := NA_real_]
+dt_ssu[max_cov > 0, var_mult := 1 / (max_cov * ssu_eps * (1 - ssu_eps))]
+ 
 dt_ssu_wide <- dcast(dt_ssu, var_id + base_pos ~ reps, value.var = c("logit_ssu", "var_mult"))
 setorder(dt_ssu_wide, var_id, base_pos)
 
@@ -129,7 +132,7 @@ V_full[!OK_full] <- 0
 n_rows <- nrow(Y_full)
 
 rm(dt_ssu_wide)
-gc()
+invisible(gc())
 
 # -- 5. set likelihood functions and parallel workers -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "5. set likelihood functions and parallel workers  ...")
@@ -162,7 +165,10 @@ subset_nll <- function(repset) {
 n_cores <- 4
 cl <- makeCluster(n_cores)
 clusterExport(cl, varlist = c("Y_full", "V_full", "OK_full", "n_rows", "rep_subsets", "subset_nll"), envir = environment())
-clusterEvalQ(cl, { nll_funs <- lapply(rep_subsets, subset_nll); NULL })
+invisible(clusterEvalQ(cl, {
+    nll_funs <- lapply(rep_subsets, subset_nll)
+    NULL
+}))
 
 chunk_id <- cut(seq_along(rep_subsets), n_cores, labels = FALSE)
 chunks <- split(seq_along(rep_subsets), chunk_id)
@@ -186,17 +192,6 @@ joint_nll <- function(a_log) {
     sum(unlist(partials))
 }
 
-
-# nll_funs <- lapply(rep_subsets, subset_nll)
-
-# joint_nll <- function(a_log) {
-#     total <- 0
-#     for (i in seq_along(rep_subsets)) {
-#         total <- total + nll_funs[[i]](a_log[rep_subsets[[i]]])
-#     }
-#     total
-# }
-
 # -- 6. estimate error variances -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "6. estimate error variances (long running) ...")
 
@@ -207,8 +202,6 @@ fit <- optim(par = init, fn = joint_nll, method = "L-BFGS-B")
 stopCluster(cl)
 
 var_addi_est <- exp(fit$par)
-
-save.image("/lustre/scratch126/gengen/projects_v2/lehner_splicing/test/test_out/correct_ssu/test.img")
 
 # -- 7. calculate error-corrected SSU -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "7. calculate error-corrected SSU ...")
@@ -222,15 +215,27 @@ setnames(dt_ssu_wide, base_ssu_cols, paste0("ssu", seq_along(base_ssu_cols)))
 setnames(dt_ssu_wide, max_cov_cols, paste0("mcov", seq_along(max_cov_cols)))
 
 # inverse variance weighting
-dt_ssu_corrected <- dt_ssu[, .(theta = sum(logit_ssu / var_total) / sum(1 / var_total),
-                               var_theta = 1 / sum(1 / var_total)),
-                               by = .(var_id, base_pos)]
+dt_ssu_corrected <- dt_ssu[, {
+    ok   <- is.finite(var_total) & is.finite(logit_ssu)
+    n_ok <- sum(ok)
+    if (n_ok >= 2) {
+        w  <- 1 / var_total[ok]
+        th <- sum(logit_ssu[ok] * w) / sum(w)
+        vt <- 1 / sum(w)
+    } else {
+        th <- NA_real_
+        vt <- NA_real_
+    }
+    .(theta = th, var_theta = vt, n_reps_used = n_ok)
+}, by = .(var_id, base_pos)]
+
 dt_ssu_corrected[, ssu_est := plogis(theta)]
 
 dt_ssu_corrected <- merge(dt_ssu_wide, dt_ssu_corrected, by = c("var_id", "base_pos"), all.x = TRUE)
 
 # -- 8. shrinkage (empirical Bayes) -- #
 # We now shrink variant estimates toward a global mean, exactly as DiMSum does for fitness.
+# NA theta values (insufficient coverage) are correctly excluded from mu_global/tau2
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "8. shrinkage (empirical Bayes) ...")
 
 mu_global <- mean(dt_ssu_corrected$theta, na.rm = TRUE)
