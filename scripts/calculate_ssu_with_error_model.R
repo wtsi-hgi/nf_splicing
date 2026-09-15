@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, character.only = TRUE))) }
-packages <- c("optparse", "glue", "tidyverse", "data.table", "vroom", "gtools")
+packages <- c("optparse", "glue", "tidyverse", "data.table", "vroom", "gtools", "parallel")
 invisible(lapply(packages, quiet_library))
 
 model_help_description <- glue(r"(
@@ -109,94 +109,155 @@ message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "3. calculate logit(ssu) and
 dt_ssu[, logit_ssu := qlogis(ssu_eps)]
 dt_ssu[, var_mult := 1 /(max_cov * ssu_eps * (1 - ssu_eps))]
 
-# -- 4. build replicate subsets -- #
-message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "4. build replicate subsets ...")
+dt_ssu_wide <- dcast(dt_ssu, var_id + base_pos ~ reps, value.var = c("logit_ssu", "var_mult"))
+setorder(dt_ssu_wide, var_id, base_pos)
+
+# -- 4. build replicate subsets and likelihood matrices -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "4. replicate subsets and likelihood matrices ...")
 rep_subsets <- unlist(lapply(2:length(sample_reps), function(k) combn(sample_reps, k, simplify = FALSE)), recursive = FALSE)
 
-subset_nll <- function(a_log, dt_sub)
-{
-    var_addi <- exp(a_log)
-    dt_sub[, var_total := var_mult + var_addi[reps]]
+# build full matrices once: n_rows x n_reps
+Y_full <- as.matrix(dt_ssu_wide[, paste0("logit_ssu_", sample_reps), with = FALSE])
+V_full <- as.matrix(dt_ssu_wide[, paste0("var_mult_",  sample_reps), with = FALSE])
+colnames(Y_full) <- sample_reps
+colnames(V_full) <- sample_reps
 
-    dt_theta <- dt_sub[, .(theta = sum(logit_ssu / var_total) / sum(1 / var_total)), by = var_id]
-    dt_sub <- merge(dt_sub, dt_theta, by = "var_id")
+OK_full <- is.finite(Y_full) & is.finite(V_full) 
+Y_full[!OK_full] <- 0 
+V_full[!OK_full] <- 0
 
-    return(sum(0.5 * (log(dt_sub$var_total) + (dt_sub$logit_ssu - dt_sub$theta)^2 / dt_sub$var_total)))
-}
+n_rows <- nrow(Y_full)
 
-joint_nll <- function(a_log, dt, rep_subsets)
-{
-    total_nll <- 0
-    
-    for(repset in rep_subsets) 
-    {
-        dt_sub <- dt[reps %in% repset]
-        a_log_sub <- a_log[repset]
-        total_nll <- total_nll + subset_nll(a_log_sub, dt_sub)
+rm(dt_ssu_wide)
+gc()
+
+# -- 5. set likelihood functions and parallel workers -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "5. set likelihood functions and parallel workers  ...")
+
+subset_nll <- function(repset) {
+    m   <- length(repset)
+    Yc  <- Y_full[, repset,  drop = FALSE]
+    Vc  <- V_full[, repset,  drop = FALSE]
+    OKc <- OK_full[, repset, drop = FALSE] * 1  # Multiplying by 1 coerces it to numeric
+    keep <- rowSums(OKc) >= 2
+
+    function(a_log_sub) {
+        va   <- rep(a_log_sub, each = n_rows)
+        VV   <- Vc + exp(va)
+        W    <- OKc / VV
+        WY   <- W * Yc
+
+        A    <- .rowSums(W,  n_rows, m)
+        B    <- .rowSums(WY, n_rows, m)
+        Csum <- .rowSums(WY * Yc, n_rows, m)
+        Lsum <- .rowSums(OKc * log(VV), n_rows, m)
+
+        Ak <- A[keep]
+        Bk <- B[keep]
+
+        sum(0.5 * (Lsum[keep] + Csum[keep] - Bk^2 / Ak))
     }
-
-    return(total_nll)
 }
 
-# -- 5. estimate error variances -- #
-message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "5. estimate error variances (long running) ...")
+n_cores <- 4
+cl <- makeCluster(n_cores)
+clusterExport(cl, varlist = c("Y_full", "V_full", "OK_full", "n_rows", "rep_subsets", "subset_nll"), envir = environment())
+clusterEvalQ(cl, { nll_funs <- lapply(rep_subsets, subset_nll); NULL })
 
-# initial values for log(a{rep}^2)
+chunk_id <- cut(seq_along(rep_subsets), n_cores, labels = FALSE)
+chunks <- split(seq_along(rep_subsets), chunk_id)
+
+joint_nll <- function(a_log) {
+    partials <- clusterApply(
+        cl, 
+        chunks, 
+        function(idxs, a_log) 
+        { 
+            sum(
+                vapply(
+                    idxs, 
+                    function(i) nll_funs[[i]](a_log[rep_subsets[[i]]]), 
+                    numeric(1)
+                )
+            ) 
+        }, 
+        a_log)
+
+    sum(unlist(partials))
+}
+
+
+# nll_funs <- lapply(rep_subsets, subset_nll)
+
+# joint_nll <- function(a_log) {
+#     total <- 0
+#     for (i in seq_along(rep_subsets)) {
+#         total <- total + nll_funs[[i]](a_log[rep_subsets[[i]]])
+#     }
+#     total
+# }
+
+# -- 6. estimate error variances -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "6. estimate error variances (long running) ...")
+
 init <- rep(log(0.01), length(sample_reps))
 names(init) <- sample_reps
 
-# estimates of additive variances for each replicate
-fit <- optim(par = init, fn = joint_nll, dt = dt_ssu, rep_subsets = rep_subsets, method = "BFGS")
+fit <- optim(par = init, fn = joint_nll, method = "L-BFGS-B")
+stopCluster(cl)
+
 var_addi_est <- exp(fit$par)
 
-# -- 6. calculate error-corrected SSU -- #
-message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "6. calculate error-corrected SSU ...")
+save.image("/lustre/scratch126/gengen/projects_v2/lehner_splicing/test/test_out/correct_ssu/test.img")
+
+# -- 7. calculate error-corrected SSU -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "7. calculate error-corrected SSU ...")
 dt_ssu[, var_addi := var_addi_est[reps]]
 dt_ssu[, var_total := var_mult + var_addi]
 
-dt_wide <- dcast(dt_ssu, var_id ~ reps, value.var = c("base_ssu", "max_cov"))
-base_ssu_cols <- grep("^base_ssu_", names(dt_wide), value = TRUE)
-max_cov_cols <- grep("^max_cov_", names(dt_wide), value = TRUE)
-setnames(dt_wide, base_ssu_cols, paste0("ssu", seq_along(base_ssu_cols)))
-setnames(dt_wide, max_cov_cols, paste0("max_cov", seq_along(n_total_cols)))
+dt_ssu_wide <- dcast(dt_ssu, var_id + base_pos ~ reps, value.var = c("base_ssu", "max_cov"))
+base_ssu_cols <- grep("^base_ssu_", names(dt_ssu_wide), value = TRUE)
+max_cov_cols <- grep("^max_cov_", names(dt_ssu_wide), value = TRUE)
+setnames(dt_ssu_wide, base_ssu_cols, paste0("ssu", seq_along(base_ssu_cols)))
+setnames(dt_ssu_wide, max_cov_cols, paste0("mcov", seq_along(max_cov_cols)))
 
 # inverse variance weighting
 dt_ssu_corrected <- dt_ssu[, .(theta = sum(logit_ssu / var_total) / sum(1 / var_total),
-                                         var_theta = 1 / sum(1 / var_total)), 
-                                         by = var_id]
+                               var_theta = 1 / sum(1 / var_total)),
+                               by = .(var_id, base_pos)]
 dt_ssu_corrected[, ssu_est := plogis(theta)]
 
-dt_ssu_corrected <- merge(dt_wide, dt_ssu_corrected, by = "var_id", all.x = TRUE)
+dt_ssu_corrected <- merge(dt_ssu_wide, dt_ssu_corrected, by = c("var_id", "base_pos"), all.x = TRUE)
 
-# -- 7. shrinkage (empirical Bayes) -- #
+# -- 8. shrinkage (empirical Bayes) -- #
 # We now shrink variant estimates toward a global mean, exactly as DiMSum does for fitness.
-message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "7. shrinkage (empirical Bayes) ...")
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "8. shrinkage (empirical Bayes) ...")
 
-mu_global <- mean(dt_ssu_corrected$theta)
-tau2 <- var(dt_ssu_corrected$theta)
+mu_global <- mean(dt_ssu_corrected$theta, na.rm = TRUE)
+tau2 <- var(dt_ssu_corrected$theta, na.rm = TRUE)
 
 # shrinkage factor
-# for each variant v: λ(v) = tau2 / (tau2 + var_theta(v))
+# for each variant per pos: λ(v,p) = tau2 / (tau2 + var_theta(v,p))
 dt_ssu_corrected[, shrinkage := tau2 / (tau2 + var_theta)]
 
 # shrunk estimates
-# θ(shrunk)​ = λ(v)​θ(v)​ + (1−λ(v)​) * mu_global
+# θ(shrunk)​ = λ(v,p)​θ(v,p)​ + (1−λ(v,p)​) * mu_global
 dt_ssu_corrected[, theta_shrunk := shrinkage * theta + (1 - shrinkage) * mu_global]
 dt_ssu_corrected[, var_theta_shrunk := shrinkage^2 * var_theta]
 dt_ssu_corrected[, ssu_corrected := plogis(theta_shrunk)]
 
-# -- 8. confidence intervals -- #
-message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "8. calculate confidence intervals ...")
+# -- 9. confidence intervals -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "9. calculate confidence intervals ...")
 
 # θ(hat​) = logit(SSU) ∼ N(θ,Var(θ(est)​))
 # a standard normal variable Z ~ N(0,1), so P(|Z| <= 1.96) = 0.95
 # then 95% CI = mean ± 1.96 × SD
 z <- 1.96
-dt_ssu_corrected[, ssu_corrected_lwr   := plogis(theta_shrunk - z * sqrt(var_theta_shrunk))]
-dt_ssu_corrected[, ssu_corrected_upr   := plogis(theta_shrunk + z * sqrt(var_theta_shrunk))]
+dt_ssu_corrected[, ssu_corrected_lwr := plogis(theta_shrunk - z * sqrt(var_theta_shrunk))]
+dt_ssu_corrected[, ssu_corrected_upr := plogis(theta_shrunk + z * sqrt(var_theta_shrunk))]
 
-# -- 9. output -- #
-message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "9. output ...")
+# -- 10. output -- #
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "10. output ...")
 num_cols <- names(dt_ssu_corrected)[sapply(dt_ssu_corrected, is.numeric)]
 dt_ssu_corrected[, (num_cols) := lapply(.SD, round, 4), .SDcols = num_cols]
 output_file <- file.path(opt$output_dir, paste0(sample_prefix, ".details.tsv"))
