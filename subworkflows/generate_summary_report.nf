@@ -80,22 +80,22 @@ process CREATE_HTML_REPORT {
     ln -s ${projectDir}/assets/src/select2.min.js select2.min.js
     ln -s ${projectDir}/assets/src/select2.min.css select2.min.css
 
-    ${projectDir}/scripts/create_html_report.R -r ${projectDir}/scripts \
-                                               -l ${params.library} \
-                                               -b ${file_barcode} \
-                                               -e ${file_exon_pos} \
-                                               -s ${list_sample_ids} \
-                                               -t ${list_trim_stats} \
-                                               -m ${list_merge_stats} \
-                                               -f ${list_idxstats} \
-                                               -a ${list_summary} \
-                                               -c ${list_canonical_barcodes} \
-                                               -n ${list_novel_barcodes} \
-                                               -j ${list_junctions} \
-                                               -d ${file_psi_can_results},${file_psi_all_results} \
-                                               -p ${sample} \
-                                               -w ${params.pipeline_name} \
-                                               -v ${params.pipeline_version}
+    ${projectDir}/scripts/create_html_report.R --rscript_dir          ${projectDir}/scripts \
+                                               --lib_type             ${params.library} \
+                                               --exon_pos             ${file_exon_pos} \
+                                               --barcode_association  ${file_barcode} \
+                                               --sample_id            ${list_sample_ids} \
+                                               --trim_stats           ${list_trim_stats} \
+                                               --merge_stats          ${list_merge_stats} \
+                                               --bwa_idxstats         ${list_idxstats} \
+                                               --hisat2_stats         ${list_summary} \
+                                               --canonical_barcodes   ${list_canonical_barcodes} \
+                                               --novel_barcodes       ${list_novel_barcodes} \
+                                               --classified_junctions ${list_junctions} \
+                                               --psi_results          ${file_psi_can_results},${file_psi_all_results} \
+                                               --prefix               ${sample} \
+                                               --pl_name              ${params.pipeline_name} \
+                                               --pl_version           ${params.pipeline_version}
 
     gzip ${sample}.junctions_category.tsv
     gzip ${sample}.psi_canon_only.tsv
