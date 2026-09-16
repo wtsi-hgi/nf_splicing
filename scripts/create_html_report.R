@@ -1,9 +1,17 @@
 #!/usr/bin/env Rscript
-quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, character.only = TRUE))) }
-packages <- c("tidyverse", "data.table", "vroom", "ggVennDiagram", "htmltools", "reactable", "optparse", "sparkline", "UpSetR", "patchwork", "glue", "scales", "ggExtra", "gtools")
-invisible(lapply(packages, quiet_library))
 
-# ---- options ---- #
+# ==============================================================================
+# Splicing QC and Summary Report
+# ==============================================================================
+
+quiet_library <- function(pkg) { suppressMessages(suppressWarnings(library(pkg, character.only = TRUE))) }
+packages1 <- c("optparse", "tidyverse", "data.table", "vroom", "glue", "scales", "kohonen", "matrixStats")
+packages2 <- c("htmltools", "reactable", "sparkline", "UpSetR", "patchwork", "ggVennDiagram", "ggExtra", "gtools")
+invisible(lapply(c(packages1, packages2), quiet_library))
+
+# ==============================================================================
+# Options
+# ==============================================================================
 option_list <- list(
     make_option("--rscript_dir",          type = "character", help = "directory path of R scripts",                   default = NULL),
     make_option("--lib_type",             type = "character", help = "library type",                                  default = NULL),
@@ -17,7 +25,8 @@ option_list <- list(
     make_option("--canonical_barcodes",   type = "character", help = "list of extracted canonical barcode files",     default = NULL),
     make_option("--novel_barcodes",       type = "character", help = "list of extracted novel barcode files",         default = NULL),
     make_option("--classified_junctions", type = "character", help = "list of classified junction files",             default = NULL),
-    make_option("--psi_results",          type = "character", help = "list of psi files (canon_only and all_events)", default = NULL),
+    make_option("--psi_results",          type = "character", help = "list of psi files (canon_only, all_events)",    default = NULL),
+    make_option("--ssu_results",          type = "character", help = "ssu file",                                      default = NULL),
     make_option("--output_dir",           type = "character", help = "output directory",                              default = getwd()),
     make_option("--prefix",               type = "character", help = "output prefix",                                 default = "sample"),
     make_option("--pl_name",              type = "character", help = "pipeline name",                                 default = "nf_splicing"),
@@ -33,20 +42,23 @@ if(length(commandArgs(trailingOnly = TRUE)) == 0)
     quit(status = 1)
 }
 
-# ---- check options ---- #
-if(is.null(opt$rscript_dir))          stop("-r, directory path of R scripts is required!", call. = FALSE)
-if(is.null(opt$lib_type))             stop("-l, library type is required!", call. = FALSE)
-if(is.null(opt$barcode_association))  stop("-b, barcode association file is required!", call. = FALSE)
-if(is.null(opt$exon_pos))             stop("-e, exon position file is required!", call. = FALSE)
-if(is.null(opt$sample_id))            stop("-s, list of sample IDs is required!", call. = FALSE)
-if(is.null(opt$trim_stats))           stop("-t, list of trim stats files is required!", call. = FALSE)
-if(is.null(opt$merge_stats))          stop("-m, list of merge stats files is required!", call. = FALSE)
-if(is.null(opt$bwa_idxstats))         stop("-f, list of bwa map idxstats files is required!", call. = FALSE)
-if(is.null(opt$hisat2_stats))         stop("-a, list of hisat2 map summary files is required!", call. = FALSE)
-if(is.null(opt$canonical_barcodes))   stop("-c, list of extracted canonical barcode files is required!", call. = FALSE)
-if(is.null(opt$novel_barcodes))       stop("-n, list of extracted novel barcode files is required!", call. = FALSE)
-if(is.null(opt$classified_junctions)) stop("-j, list of classified junction file is required!", call. = FALSE)
-if(is.null(opt$psi_results))          stop("-d, list of psi files (canon_only and all_events)!", call. = FALSE)
+# ==============================================================================
+# Validate options
+# ==============================================================================
+if(is.null(opt$rscript_dir))          stop("--rscript_dir, directory path of R scripts is required!", call. = FALSE)
+if(is.null(opt$lib_type))             stop("--lib_type, library type is required!", call. = FALSE)
+if(is.null(opt$barcode_association))  stop("--barcode_association, barcode association file is required!", call. = FALSE)
+if(is.null(opt$exon_pos))             stop("--exon_pos, exon position file is required!", call. = FALSE)
+if(is.null(opt$sample_id))            stop("--sample_id, list of sample IDs is required!", call. = FALSE)
+if(is.null(opt$trim_stats))           stop("--trim_stats, list of trim stats files is required!", call. = FALSE)
+if(is.null(opt$merge_stats))          stop("--merge_stats, list of merge stats files is required!", call. = FALSE)
+if(is.null(opt$bwa_idxstats))         stop("--bwa_idxstats, list of bwa map idxstats files is required!", call. = FALSE)
+if(is.null(opt$hisat2_stats))         stop("--hisat2_stats, list of hisat2 map summary files is required!", call. = FALSE)
+if(is.null(opt$canonical_barcodes))   stop("--canonical_barcodes, list of extracted canonical barcode files is required!", call. = FALSE)
+if(is.null(opt$novel_barcodes))       stop("--novel_barcodes, list of extracted novel barcode files is required!", call. = FALSE)
+if(is.null(opt$classified_junctions)) stop("--classified_junctions, list of classified junction file is required!", call. = FALSE)
+if(is.null(opt$psi_results))          stop("--psi_results, list of psi files (canon_only and all_events) is required!", call. = FALSE)
+if(is.null(opt$ssu_results))          stop("--ssu_results, ssu file is required!", call. = FALSE)
 
 valid_lib_types <- c("random_intron", "random_exon", "random_combi", "muta_intron", "muta_exon", "muta_combi")
 if(!(opt$lib_type %in% valid_lib_types))
@@ -54,12 +66,16 @@ if(!(opt$lib_type %in% valid_lib_types))
     stop(paste0("-l, library type must be one of: ", paste(valid_lib_types, collapse = ", ")), call. = FALSE)
 }
 
-# ---- modules ---- #
+# ==============================================================================
+# Load modules
+# ==============================================================================
 source(file.path(opt$rscript_dir, "report_utils.R"))
 source(file.path(opt$rscript_dir, "report_plots.R"))
 source(file.path(opt$rscript_dir, "report_html.R"))
 
-# ---- inputs ---- #
+# ==============================================================================
+# Prepare input file lists
+# ==============================================================================
 sample_reps                <- unlist(strsplit(opt$sample_id, ","))
 files_trim_stats           <- unlist(strsplit(opt$trim_stats, ","))
 files_merge_stats          <- unlist(strsplit(opt$merge_stats, ","))
@@ -79,14 +95,19 @@ files_novel_barcodes       <- sort_paths_by_filename(files_novel_barcodes)
 files_classified_junctions <- sort_paths_by_filename(files_classified_junctions)
 
 files_psi_results          <- unlist(strsplit(opt$psi_results, ","))
+file_ssu_results           <- opt$ssu_results
 
-# ---- outputs ---- #
+# ==============================================================================
+# Prepare output directory
+# ==============================================================================
 if(!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
 setwd(opt$output_dir)
 
 sample_prefix <- opt$prefix
 
-# ---- reading files ---- #
+# ==============================================================================
+# Read input files
+# ==============================================================================
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Reading input files ...")
 
 barcode_association <- as.data.table(vroom(opt$barcode_association, delim = "\t", comment = "#", show_col_types = FALSE, col_names = TRUE, col_select = c("barcode", "var_id")))
@@ -95,7 +116,11 @@ setnames(exon_pos, c("var_id", "exon_id", "exon_start", "exon_end"))
 
 dt_psi_can <- as.data.table(vroom(files_psi_results[1], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 dt_psi_all <- as.data.table(vroom(files_psi_results[2], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+dt_ssu <- as.data.table(vroom(file_ssu_results, delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 
+# ==============================================================================
+# Collect sequencing statistics for each replicate
+# ==============================================================================
 total_reads <- numeric(length(sample_reps))
 
 merged_reads <- numeric(length(sample_reps))
@@ -114,30 +139,48 @@ classified_junctions <- list()
 
 for(i in seq_along(sample_reps))
 {
+    # --------------------------------------------------------------------------
+    # Read trimming statistics
+    # --------------------------------------------------------------------------
     tmp_value <- as.numeric(str_extract(grep("reads passed filter:", readLines(files_trim_stats[i]), value = TRUE), "\\d+"))
     total_reads[i] <- tmp_value / 2
 
+    # --------------------------------------------------------------------------
+    # Read merging statistics
+    # --------------------------------------------------------------------------
     merged_reads[i] <- as.numeric(str_extract(grep("Combined pairs:", readLines(files_merge_stats[i]), value = TRUE), "\\d+"))
     unmerged_reads[i] <- as.numeric(str_extract(grep("Uncombined pairs:", readLines(files_merge_stats[i]), value = TRUE), "\\d+"))
 
-    # exon library has multiple lines for inclusion reads
+    # --------------------------------------------------------------------------
+    # BWA mapping statistics
+    # --------------------------------------------------------------------------
     tmp_dt <- read.table(files_bwa_idxstats[i])
     inclusion_reads[i] <- as.numeric(sum(tmp_dt[grep("_inclusion", tmp_dt$V1), 2]))
     skipping_reads[i] <- as.numeric(sum(tmp_dt[grep("_skipping", tmp_dt$V1), 2]))
 
+    # --------------------------------------------------------------------------
+    # HISAT2 mapping statistics
+    # --------------------------------------------------------------------------
     map_reads[i] <- as.numeric(read.table(files_hisat2_stats[i])[1, 2])
     unexplain_reads[i] <- as.numeric(read.table(files_hisat2_stats[i])[2, 2]) - as.numeric(read.table(files_hisat2_stats[i])[1, 2])
 
+    # --------------------------------------------------------------------------
+    # Barcode and junction tables
+    # --------------------------------------------------------------------------
     canonical_barcodes[[sample_reps[i]]] <- as.data.table(vroom(files_canonical_barcodes[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
     novel_barcodes[[sample_reps[i]]] <- as.data.table(vroom(files_novel_barcodes[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 
     classified_junctions[[sample_reps[i]]] <- as.data.table(vroom(files_classified_junctions[i], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
 }
 
-# ---- processing ---- #
+# ==============================================================================
+# Generate sequencing summaries and figures
+# ==============================================================================
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Preparing tables and figures ...")
 
-# -- 1. bar plots for statistics of sequencing reads
+# ------------------------------------------------------------------------------
+# 1. bar plots for statistics of sequencing reads
+# ------------------------------------------------------------------------------
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating read summaries and plots ...")
 
 data_barplots <- create_barplots(barcode_association, sample_reps, total_reads, merged_reads, unmerged_reads, inclusion_reads, skipping_reads, map_reads, unexplain_reads)
@@ -152,7 +195,9 @@ png(paste0(sample_prefix, ".reads_pct.png"), width = 800, height = 800, units = 
 barplots_combined
 invisible(dev.off())
 
-# -- 2. venn diagrams for detected barcodes and talbes of detected barcodes and variants
+# ------------------------------------------------------------------------------
+# 2. venn diagrams for detected barcodes and talbes of detected barcodes and variants
+# ------------------------------------------------------------------------------
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating barcode summaries and plots ...")
 
 venn_diagrams <- create_venn_diagrams(canonical_barcodes, novel_barcodes, barcode_association)
@@ -218,7 +263,9 @@ fwrite(summary_barvars, file = paste0(sample_prefix, ".summary_barvars.tsv"), se
 rm(barcode_association)
 invisible(gc(verbose = FALSE))
 
+# ------------------------------------------------------------------------------
 # 3. venn diagrams for detected junctions and correlation of junction quantifications
+# ------------------------------------------------------------------------------
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction correlation plot ...")
 
 junction_plots <- create_junction_plots(classified_junctions)
@@ -255,7 +302,9 @@ rm(cor_data)
 rm(cor_data_norm)
 invisible(gc(verbose = FALSE))
 
+# ------------------------------------------------------------------------------
 # 4. upset plots for splicing events and tables of splicing events
+# ------------------------------------------------------------------------------
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction category plot ...")
 
 junctions_category_reshape <- junctions_category %>%
@@ -288,12 +337,14 @@ rm(upset_input)
 rm(upset_join)
 invisible(gc(verbose = FALSE))
 
+# ------------------------------------------------------------------------------
 # 5. psi correlation of splicing events
+# ------------------------------------------------------------------------------
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating PSI plot ...")
 
 # canonical splicing events
 plot_psi <- dt_psi_can[, .(psi1, psi2, psi3, psi_shrunk)]
-plot_psi <- plot_psi[complete.cases(plot_psi)]
+plot_psi <- plot_psi[complete.cases(plot_psi)] # remove rows with NA
 setnames(plot_psi, colnames(plot_psi), c(sample_reps, "corrected_psi"))
 
 png(paste0(sample_prefix, ".psi_canon_only.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
@@ -331,7 +382,40 @@ rm(dt_psi_all)
 rm(plot_psi)
 invisible(gc(verbose = FALSE))
 
-# 6. junction distribution plots
+# ------------------------------------------------------------------------------
+# 6. ssu correlation of splicing events
+# ------------------------------------------------------------------------------
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU plot ...")
+plot_ssu <- dt_ssu[, .(ssu1, ssu2, ssu3, ssu_corrected)]
+plot_ssu <- plot_ssu[complete.cases(plot_ssu)] # remove rows with NA
+
+png(paste0(sample_prefix, ".ssu_per_base.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
+pairs(plot_ssu,
+      upper.panel = panel.cor,
+      diag.panel = panel.hist,
+      lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
+      use = "complete.obs")
+invisible(dev.off())
+
+plot_ssu <- dt_ssu[, .(var_id, base_pos, ssu1, ssu2, ssu3, mcov1, mcov2, mcov3, n_reps_used, ssu_corrected, ssu_ci_width, ssu_precision_class)]
+fwrite(plot_ssu, file = paste0(sample_prefix, ".ssu_per_base.tsv"), sep = "\t", row.names = FALSE)
+
+if(opt$lib_type %in% c("random_intron", "random_exon", "random_combi"))
+{
+    message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU mapping by clusters ...")
+
+} else {
+    message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU mapping by exons ...")
+
+}
+
+rm(dt_ssu)
+rm(plot_ssu)
+invisible(gc(verbose = FALSE))
+
+# ------------------------------------------------------------------------------
+# 7. junction distribution plots
+# ------------------------------------------------------------------------------
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction distribution plot ...")
 
 data_rescale <- rescale_junctions(sample_reps, junctions_category, exon_pos, opt$lib_type)
@@ -371,9 +455,11 @@ rm(junctions_diagramplot)
 rm(junctions_scatterplot)
 invisible(gc(verbose = FALSE))
 
+# ------------------------------------------------------------------------------
+# 8. junction distribution plots per exon
+# ------------------------------------------------------------------------------
 if(opt$lib_type == "muta_exon")
 {
-    # 7. junction distribution plots per exon
     message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating junction distribution plot per exon ...")
 
     parts <- tstrsplit(unique(exon_pos[var_id != "elib"]$var_id), "_", keep = 1:2)
@@ -423,7 +509,9 @@ if(opt$lib_type == "muta_exon")
     }
 }
 
-# ---- reporting ---- #
+# ==============================================================================
+# Generate report
+# ==============================================================================
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "Creating final html report...")
 
 file_summary_reads <- paste0(sample_prefix, ".summary_reads.tsv")
