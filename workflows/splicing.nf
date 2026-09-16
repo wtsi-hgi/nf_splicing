@@ -336,6 +336,7 @@ workflow splicing {
                               .join(ch_novel_barcodes)
                               .join(ch_classified_junctions)
                               .join(ch_splicing_counts)
+                              .join(ch_splicing_ssu)
 
     generate_summary_report(ch_sample_step5)
 }
