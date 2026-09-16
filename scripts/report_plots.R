@@ -241,3 +241,112 @@ create_junction_distribution_by_exon <- function(junctions, exons, introns)
 
     return(list(p1, p3))
 }
+
+create_ssu_map_by_clusters <- function(dt_ssu, dt_exon_pos)
+{
+    dt_ssu_wide <- dt_ssu[, .(var_id, base_pos, ssu_corrected)] 
+    dt_ssu_wide <- dt_ssu_wide[complete.cases(dt_ssu_wide)] %>%
+        pivot_wider(
+            id_cols     = var_id,
+            names_from  = base_pos,
+            values_from = ssu_corrected
+        )
+    
+    dt_ssu_mat <- dt_ssu_wide %>%
+        select(-var_id) %>%
+        as.matrix()
+    rownames(dt_ssu_mat) <- dt_ssu_wide$var_id
+    
+    set.seed(123)
+    som_model <- som(
+        dt_ssu_mat,
+        grid = somgrid(xdim = 5, ydim = 5, topo = "hexagonal"),
+        rlen = 100,
+        alpha = c(0.05, 0.01),
+        keep.data = TRUE
+    )
+
+    list_ssu_clusters       <- split(dt_ssu_wide, som_model$unit.classif)
+    list_ssu_cluster_mean   <- lapply(list_ssu_clusters, function(dt) { colMeans(as.matrix(dt[, -1]), na.rm = TRUE) })
+    list_ssu_cluster_median <- lapply(list_ssu_clusters, function(dt) { colMedians(as.matrix(dt[, -1]), na.rm = TRUE) })
+
+    list_exon_pos <- lapply(list_ssu_clusters, function(dt) {
+        tmp_var_id <- dt$var_id[1]
+        dt_exon_pos[dt_exon_pos$var_id == tmp_var_id]
+    })
+
+    list_ssu_cluster_plot <- lapply(seq_along(list_ssu_cluster_mean), function(i) {
+        dt_plot <- tibble(
+            position = as.numeric(names(list_ssu_cluster_mean[[i]])),
+            mean     = as.numeric(list_ssu_cluster_mean[[i]]),
+            median   = as.numeric(list_ssu_cluster_median[[i]])
+        ) %>% pivot_longer(
+            cols      = c(mean, median),
+            names_to  = "stats",
+            values_to = "SSU"
+        )
+
+        dt_plot_exons <- data.table(
+            start = list_exon_pos[[i]]$exon_start,
+            end   = list_exon_pos[[i]]$exon_end
+        )
+
+        dt_plot_introns <- data.table(
+            start = dt_plot_exons$end[-nrow(dt_plot_exons)],
+            end   = dt_plot_exons$start[-1]
+        )
+
+        p1 <- ggplot(dt_plot, aes(x = position, y = SSU, fill = stats)) + 
+                geom_area(alpha = 0.4, position = "identity") + 
+                geom_line(aes(color = stats), linewidth = 0.3) + 
+                scale_fill_manual(values = c(mean = "brown1", median = "royalblue")) + 
+                scale_color_manual(values = c(mean = "brown1", median = "royalblue")) + 
+                labs(title = paste0("Cluster ", i), x = "Position", y = "SSU") +
+                theme(legend.position = "bottom", legend.direction = "horizontal", legend.title = element_blank()) +
+                theme(panel.background = element_rect(fill = "ivory", colour = "white")) +
+                theme(axis.title = element_text(size = 16, face = "bold", family = "Arial")) +
+                theme(plot.title = element_text(size = 16, face = "bold", family = "Arial")) +
+                theme(axis.text = element_text(size = 8, face = "bold")) +
+                theme(axis.text.x = element_text(angle = 90)) + 
+                geom_segment(data = dt_plot_exons, 
+                             aes(x = start, xend = end, y = 0, yend = 0, fill = NULL), 
+                             color = "yellowgreen", 
+                             linewidth = 6, 
+                             lineend = "butt") +
+                geom_segment(data = dt_plot_introns, 
+                             aes(x = start, xend = end, y = 0, yend = 0, fill = NULL),
+                             color = "darkgreen", 
+                             linewidth = 1)      
+        
+        dt_plot <- list_ssu_clusters[[i]] %>%
+            pivot_longer(
+                cols      = -var_id,
+                names_to  = "position",
+                values_to = "SSU"
+            ) %>%
+            mutate(position = as.integer(position))
+
+        p2 <- ggplot(dt_plot, aes(x = position, y = SSU, group = var_id)) +
+                geom_line(alpha = 0.5, linewidth = 0.3, color = "grey") +
+                scale_y_continuous(limits = c(0, 1)) +
+                theme_classic() +
+                labs(x = "Position", y = "SSU") +
+                geom_line(data = data.frame( position = as.numeric(names(list_ssu_cluster_mean[[i]])),
+                                             SSU      = list_ssu_cluster_mean[[i]]),
+                          aes(x = position, y = SSU),
+                          color = "red",
+                          linewidth = 0.6,
+                          inherit.aes = FALSE)
+
+        p3 <- p1 / p2 + plot_layout(heights = c(1, 1))
+
+        p3
+    })
+
+    return(list_ssu_cluster_plot)
+}
+
+create_ssu_map_by_exons <- function(dt_ssu, dt_exon_pos)
+{
+
+}
