@@ -10,7 +10,7 @@ process CALCULATE_PSI {
         "${mem * task.attempt} GB"
     }
 
-    publishDir "${params.outdir}/splicing_reports/${sample}", mode: "copy", overwrite: true
+    // publishDir "${params.outdir}/splicing_reports/${sample}", mode: "copy", overwrite: true
 
     tag "$sample"
 
