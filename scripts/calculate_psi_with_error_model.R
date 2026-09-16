@@ -52,7 +52,7 @@ option_list <- list(make_option(c("-r", "--rscript_dir"),     type = "character"
                     make_option(c("-c", "--calc_psi"),        type = "character",    help = "how to calculate PSI(can or all)", default = "can"),
                     make_option(c("-o", "--output_dir"),      type = "character",    help = "output directory",                 default = getwd()),
                     make_option(c("-p", "--prefix"),          type = "character",    help = "output prefix",                    default = "sample"),
-                    make_option(c("-m", "--model_help"),      action = "store_true", help = "print model description",          default=FALSE))
+                    make_option(c("-m", "--model_help"),      action = "store_true", help = "print model description",          default = FALSE))
 
 opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
