@@ -1,12 +1,15 @@
 include { CALCULATE_PSI } from "$projectDir/modules/local/calculate_psi/main"
+include { CORRECT_SSU }   from "$projectDir/modules/local/calculate_ssu/main"
 
 workflow generate_summary_report {
     take:
     ch_sample
 
     main:
-    ch_input_psi = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, idxstats, summary, canonical_barcodes, novel_barcodes, junctions, splicing_counts -> 
-                                    tuple(sample, sample_id, splicing_counts) }
+    ch_input_psi = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, 
+                                   idxstats, summary, canonical_barcodes, novel_barcodes, junctions, 
+                                   splicing_counts, splicing_ssu -> 
+                                tuple(sample, sample_id, splicing_counts) }
                             .groupTuple()
 
     ch_input_psi = ch_input_psi.filter { sample, sample_id, splicing_counts -> sample_id.size() == 3 }
@@ -16,11 +19,24 @@ workflow generate_summary_report {
     ch_psi_can_results = CALCULATE_PSI.out.ch_psi_can_results
     ch_psi_all_results = CALCULATE_PSI.out.ch_psi_all_results
 
-    ch_report = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, idxstats, summary, canonical_barcodes, novel_barcodes, junctions, splicing_counts -> 
-                                    tuple(sample, sample_id, barcode, exon_pos, merge_stats, trim_stats, idxstats, summary, canonical_barcodes, novel_barcodes, junctions) }
+    ch_input_ssu = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, 
+                                   idxstats, summary, canonical_barcodes, novel_barcodes, junctions, 
+                                   splicing_counts, splicing_ssu -> 
+                                tuple(sample, sample_id, splicing_ssu) }
+                            .groupTuple()
+    
+    CORRECT_SSU(ch_input_ssu)
+    ch_ssu_corrected = CORRECT_SSU.out.ch_ssu_corrected
+
+    ch_report = ch_sample.map { sample_id, sample, barcode, exon_pos, merge_stats, trim_stats, idxstats, 
+                                summary, canonical_barcodes, novel_barcodes, junctions, 
+                                splicing_counts, splicing_ssu  -> 
+                                tuple(sample, sample_id, barcode, exon_pos, merge_stats, trim_stats, idxstats, 
+                                      summary, canonical_barcodes, novel_barcodes, junctions) }
                          .groupTuple()
                          .join(ch_psi_can_results)
                          .join(ch_psi_all_results)
+                         .join(ch_ssu_corrected)
 
     CREATE_HTML_REPORT(ch_report)
     ch_junctions_category = CREATE_HTML_REPORT.out.ch_junctions_category
@@ -29,6 +45,7 @@ workflow generate_summary_report {
     emit:
     ch_psi_can_results
     ch_psi_all_results
+    ch_ssu_corrected
     ch_junctions_category
     ch_html_report
 }
@@ -53,12 +70,13 @@ process CREATE_HTML_REPORT {
     tuple val(sample), val(sample_id), val(barcode), val(exon_pos), 
           val(merge_stats), val(trim_stats), val(idxstats), val(summary), 
           val(canonical_barcodes), val(novel_barcodes), val(junctions), 
-          val(psi_can_results), val(psi_all_results)
+          val(psi_can_results), val(psi_all_results), val(ssu_results)
 
     output:
     tuple val(sample), path("${sample}.junctions_category.tsv.gz"), emit: ch_junctions_category
     tuple val(sample), path("${sample}.psi_canon_only.tsv.gz"), emit: ch_psi_can_results
     tuple val(sample), path("${sample}.psi_all_events.tsv.gz"), emit: ch_psi_all_results
+    tuple val(sample), path("${sample}.ssu_per_base.tsv.gz"), emit: ch_ssu_corrected
     tuple val(sample), path("${sample}.splicing_report.html"), emit: ch_html_report
 
     script:
@@ -74,6 +92,7 @@ process CREATE_HTML_REPORT {
     def list_junctions = junctions.join(',')
     def file_psi_can_results = psi_can_results
     def file_psi_all_results = psi_all_results
+    def file_ssu_results = ssu_results
 
     """
     ln -s ${projectDir}/assets/src/jquery-3.6.0.min.js jquery-3.6.0.min.js
@@ -93,6 +112,7 @@ process CREATE_HTML_REPORT {
                                                --novel_barcodes       ${list_novel_barcodes} \
                                                --classified_junctions ${list_junctions} \
                                                --psi_results          ${file_psi_can_results},${file_psi_all_results} \
+                                               --ssu_results          ${file_ssu_results} \
                                                --prefix               ${sample} \
                                                --pl_name              ${params.pipeline_name} \
                                                --pl_version           ${params.pipeline_version}
