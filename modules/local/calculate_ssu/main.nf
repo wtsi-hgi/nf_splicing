@@ -51,7 +51,7 @@ process CORRECT_SSU {
     tuple val(sample), val(sample_id), val(ssu_counts)
 
     output:
-    tuple val(sample), path("${sample}.ssu_per_base.details.tsv.gz"), emit: ch_psi_can_results
+    tuple val(sample), path("${sample}.ssu_per_base.details.tsv.gz"), emit: ch_ssu_corrected
 
     script:
     def list_sample_ids = sample_id.join(',')
