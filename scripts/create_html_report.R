@@ -343,74 +343,82 @@ invisible(gc(verbose = FALSE))
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating PSI plot ...")
 
 # canonical splicing events
-plot_psi <- dt_psi_can[, .(psi1, psi2, psi3, psi_shrunk)]
-plot_psi <- plot_psi[complete.cases(plot_psi)] # remove rows with NA
-setnames(plot_psi, colnames(plot_psi), c(sample_reps, "corrected_psi"))
+dt_plot_psi <- dt_psi_can[, .(psi1, psi2, psi3, psi_shrunk)]
+dt_plot_psi <- dt_plot_psi[complete.cases(dt_plot_psi)] # remove rows with NA
+setnames(dt_plot_psi, colnames(dt_plot_psi), c(sample_reps, "corrected_psi"))
 
 png(paste0(sample_prefix, ".psi_canon_only.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
-pairs(plot_psi,
+pairs(dt_plot_psi,
       upper.panel = panel.cor,
       diag.panel = panel.hist,
       lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
       use = "complete.obs")
 invisible(dev.off())
 
-plot_psi <- dt_psi_can[, .(var_id, psi1, psi2, psi3, ratio1, ratio2, ratio3, n_total1, n_total2, n_total3, psi_shrunk)]
-setnames(plot_psi, "psi_shrunk", "corrected_psi")
-fwrite(plot_psi, file = paste0(sample_prefix, ".psi_canon_only.tsv"), sep = "\t", row.names = FALSE)
+dt_plot_psi <- dt_psi_can[, .(var_id, psi1, psi2, psi3, ratio1, ratio2, ratio3, n_total1, n_total2, n_total3, psi_shrunk)]
+setnames(dt_plot_psi, "psi_shrunk", "corrected_psi")
+fwrite(dt_plot_psi, file = paste0(sample_prefix, ".psi_canon_only.tsv"), sep = "\t", row.names = FALSE)
 
 # all splicing events
-plot_psi <- dt_psi_all[, .(psi1, psi2, psi3, psi_shrunk)]
-plot_psi <- plot_psi[complete.cases(plot_psi)]
-setnames(plot_psi, colnames(plot_psi), c(sample_reps, "corrected_psi"))
+dt_plot_psi <- dt_psi_all[, .(psi1, psi2, psi3, psi_shrunk)]
+dt_plot_psi <- dt_plot_psi[complete.cases(dt_plot_psi)]
+setnames(dt_plot_psi, colnames(dt_plot_psi), c(sample_reps, "corrected_psi"))
 
 png(paste0(sample_prefix, ".psi_all_events.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
-pairs(plot_psi,
+pairs(dt_plot_psi,
       upper.panel = panel.cor,
       diag.panel = panel.hist,
       lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
       use = "complete.obs")
 invisible(dev.off())
 
-plot_psi <- dt_psi_all[, .(var_id, psi1, psi2, psi3, ratio1, ratio2, ratio3, n_total1, n_total2, n_total3, psi_shrunk)]
-setnames(plot_psi, "psi_shrunk", "corrected_psi")
-fwrite(plot_psi, file = paste0(sample_prefix, ".psi_all_events.tsv"), sep = "\t", row.names = FALSE)
+dt_plot_psi <- dt_psi_all[, .(var_id, psi1, psi2, psi3, ratio1, ratio2, ratio3, n_total1, n_total2, n_total3, psi_shrunk)]
+setnames(dt_plot_psi, "psi_shrunk", "corrected_psi")
+fwrite(dt_plot_psi, file = paste0(sample_prefix, ".psi_all_events.tsv"), sep = "\t", row.names = FALSE)
 
 # << free memory >>
 rm(dt_psi_can)
 rm(dt_psi_all)
-rm(plot_psi)
+rm(dt_plot_psi)
 invisible(gc(verbose = FALSE))
 
 # ------------------------------------------------------------------------------
 # 6. ssu correlation of splicing events
 # ------------------------------------------------------------------------------
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU plot ...")
-plot_ssu <- dt_ssu[, .(ssu1, ssu2, ssu3, ssu_corrected)]
-plot_ssu <- plot_ssu[complete.cases(plot_ssu)] # remove rows with NA
+dt_plot_ssu <- dt_ssu[, .(ssu1, ssu2, ssu3, ssu_corrected)]
+dt_plot_ssu <- dt_plot_ssu[complete.cases(dt_plot_ssu)] # remove rows with NA
 
 png(paste0(sample_prefix, ".ssu_per_base.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
-pairs(plot_ssu,
+pairs(dt_plot_ssu,
       upper.panel = panel.cor,
       diag.panel = panel.hist,
       lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
       use = "complete.obs")
 invisible(dev.off())
 
-plot_ssu <- dt_ssu[, .(var_id, base_pos, ssu1, ssu2, ssu3, mcov1, mcov2, mcov3, n_reps_used, ssu_corrected, ssu_ci_width, ssu_precision_class)]
-fwrite(plot_ssu, file = paste0(sample_prefix, ".ssu_per_base.tsv"), sep = "\t", row.names = FALSE)
+dt_plot_ssu <- dt_ssu[, .(var_id, base_pos, ssu1, ssu2, ssu3, mcov1, mcov2, mcov3, n_reps_used, ssu_corrected, ssu_ci_width, ssu_precision_class)]
+fwrite(dt_plot_ssu, file = paste0(sample_prefix, ".ssu_per_base.tsv"), sep = "\t", row.names = FALSE)
 
 if(opt$lib_type %in% c("random_intron", "random_exon", "random_combi"))
 {
     message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU mapping by clusters ...")
 
+    list_ssu_maps <- create_ssu_map_by_clusters(dt_plot_ssu, exon_pos)
+
+    for(i in seq_along(list_ssu_maps))
+    {
+        png(paste0(sample_prefix, ".ssu_per_base.cluster_", i, ".png"), width = 1600, height = 600, units = "px", res = 200)
+        print(list_ssu_maps[[i]])
+        invisible(dev.off())
+    }
 } else {
     message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU mapping by exons ...")
 
 }
 
 rm(dt_ssu)
-rm(plot_ssu)
+rm(dt_plot_ssu)
 invisible(gc(verbose = FALSE))
 
 # ------------------------------------------------------------------------------
@@ -527,6 +535,7 @@ list_files_junctions_diagram <- list.files(pattern = paste0(sample_prefix, ".jun
 names(list_files_junctions_diagram) <- names(junctions_range)
 list_files_junctions_scatter <- list.files(pattern = paste0(sample_prefix, ".junctions_scatter_range_.*.png$"))
 names(list_files_junctions_scatter) <- names(junctions_range)
+
 if(opt$lib_type == "muta_exon")
 {
     list_files_exons_diagram <- list.files(pattern = paste0(sample_prefix, ".junctions_diagram_exons_.*.png$"))
@@ -544,6 +553,14 @@ plot_psi_can <- paste0(sample_prefix, ".psi_canon_only.corr.png")
 plot_psi_all <- paste0(sample_prefix, ".psi_all_events.corr.png")
 file_psi_can <- paste0(sample_prefix, ".psi_canon_only.tsv")
 file_psi_all <- paste0(sample_prefix, ".psi_all_events.tsv")
+
+plot_ssu <- paste0(sample_prefix, ".ssu_per_base.corr.png")
+if(opt$lib_type %in% c("random_intron", "random_exon", "random_combi"))
+{
+    list_files_ssu_diagram <- list.files(pattern = paste0(sample_prefix, ".ssu_per_base.cluster_.*.png$"))
+} else {
+    list_files_ssu_diagram <- list()
+}
 
 file_render_context <- paste0(sample_prefix, ".splicing_report.Rmd")
 create_html_render(opt$pl_name,
@@ -565,6 +582,8 @@ create_html_render(opt$pl_name,
                    plot_psi_all,
                    file_psi_can,
                    file_psi_all,
+                   plot_ssu,
+                   list_files_ssu_diagram
                    file_render_context)
 
 rmarkdown::render(file_render_context, clean = TRUE, quiet = TRUE)
