@@ -1,5 +1,6 @@
 create_html_render <- function(pipeline_name,
                                pipeline_version,
+                               lib_type,
                                file_summary_reads, 
                                file_summary_pct,
                                plot_reads_pct,
@@ -17,6 +18,8 @@ create_html_render <- function(pipeline_name,
                                plot_psi_all,
                                file_psi_can,
                                file_psi_all,
+                               plot_ssu,
+                               list_files_ssu_diagram,
                                out_render_context)
 {
     pipeline_info <- paste0(pipeline_name, " v", pipeline_version)
@@ -151,6 +154,7 @@ particularly in the context of variant interpretation and functional genomics.
 By introducing specific mutations into synthetic constructs (minigenes), 
 researchers can assess how sequence changes affect splicing outcomes in a controlled cellular environment.
 
+**Library Type:** {lib_type}
 ---
 
 ## 2. Read Processing
@@ -430,6 +434,84 @@ reactable(dt_psi, highlight = TRUE, bordered = TRUE, striped = TRUE, compact = T
 knitr::include_graphics("{plot_psi_all}", rel_path = FALSE)
 ```
 <br>
+
+---
+
+## 6. SSU Results
+This section summarises the correlation of SSU values between replicates.
+
+Splicing Site Usage (SSU) is calculated as:
+
+```{{r echo=FALSE, fig.width = 6, fig.height = 1.5}}
+par(mar=c(0,0,0,0))
+plot.new()
+text(0.5, 0.5, expression(SSU == frac("Reads spanning the site",  "Reads spanning the site + Reads skipping the site")))
+```
+
+<br>
+
+### 6.1. SSU correlations across all the replicates
+```{{r, echo = FALSE, fig.show = "hold", fig.align = "center", out.height = "80%", out.width = "80%"}}
+knitr::include_graphics("{plot_ssu}", rel_path = FALSE)
+```
+
+<br>
+
+---
+
+### 6.2. SSU mapping diagrams
+
+<script>
+$(document).ready(function() {{
+    $("#ssuSelect").select2({{ placeholder: "Search SSU category" }});
+    $("#ssuSelect").on("change", function() {{
+        var selected = $(this).val();
+        $(".ssu_fig").hide();
+        $("#" + selected).show();
+    }});
+}});
+</script>
+
+Please select the SSU category to show figure:
+
+<select id="ssuSelect" style="width:300px">
+
+    )"))
+
+    for(i in seq_along(list_files_ssu_diagram)) {
+        rmd_render_context <- paste0(rmd_render_context, glue(r"(
+    <option value="{paste0('SSU', i)}">{names(list_files_ssu_diagram)[i]}</option>
+
+        )"))
+    }
+
+    rmd_render_context <- paste0(rmd_render_context, glue(r"(
+</select>
+
+
+    )"))
+
+    for(i in seq_along(list_files_ssu_diagram)) {
+        if(i == 1) {
+            rmd_render_context <- paste0(rmd_render_context, glue(r"(
+<div id="{paste0('SSU', i)}" class="ssu_fig">
+  <img src="{list_files_ssu_diagram[i]}">
+</div>
+
+            )"))
+        } else {
+            rmd_render_context <- paste0(rmd_render_context, glue(r"(
+<div id="{paste0('SSU', i)}" class="ssu_fig" style="display:none">
+  <img src="{list_files_ssu_diagram[i]}">
+</div>
+
+            )"))
+        }
+    }
+
+    rmd_render_context <- paste0(rmd_render_context, glue(r"(
+<br>
+
     )"))
 
     writeLines(rmd_render_context, out_render_context)
