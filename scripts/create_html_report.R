@@ -403,18 +403,17 @@ fwrite(dt_plot_ssu, file = paste0(sample_prefix, ".ssu_per_base.tsv"), sep = "\t
 if(opt$lib_type %in% c("random_intron", "random_exon", "random_combi"))
 {
     message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU mapping by clusters ...")
-
     list_ssu_maps <- create_ssu_map_by_clusters(dt_plot_ssu, exon_pos)
-
-    for(i in seq_along(list_ssu_maps))
-    {
-        png(paste0(sample_prefix, ".ssu_per_base.cluster_", i, ".png"), width = 1600, height = 600, units = "px", res = 200)
-        print(list_ssu_maps[[i]])
-        invisible(dev.off())
-    }
 } else {
     message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU mapping by exons ...")
+    list_ssu_maps <- create_ssu_map_by_exons(dt_plot_ssu, exon_pos)
+}
 
+for(i in seq_along(list_ssu_maps))
+{
+    png(paste0(sample_prefix, ".ssu_per_base.map.", names(list_ssu_maps)[i], ".png"), width = 1600, height = 1200, units = "px", res = 200)
+    print(list_ssu_maps[[i]])
+    invisible(dev.off())
 }
 
 rm(dt_ssu)
@@ -555,16 +554,13 @@ file_psi_can <- paste0(sample_prefix, ".psi_canon_only.tsv")
 file_psi_all <- paste0(sample_prefix, ".psi_all_events.tsv")
 
 plot_ssu <- paste0(sample_prefix, ".ssu_per_base.corr.png")
-if(opt$lib_type %in% c("random_intron", "random_exon", "random_combi"))
-{
-    list_files_ssu_diagram <- list.files(pattern = paste0(sample_prefix, ".ssu_per_base.cluster_.*.png$"))
-} else {
-    list_files_ssu_diagram <- list()
-}
+list_files_ssu_diagram <- list.files(pattern = paste0(sample_prefix, ".ssu_per_base.map.*.png$"))
+names(list_files_ssu_diagram) <- names(list_ssu_maps)
 
 file_render_context <- paste0(sample_prefix, ".splicing_report.Rmd")
 create_html_render(opt$pl_name,
                    opt$pl_version,
+                   opt$lib_type,
                    file_summary_reads, 
                    file_summary_pct,
                    plot_reads_pct,
@@ -583,7 +579,7 @@ create_html_render(opt$pl_name,
                    file_psi_can,
                    file_psi_all,
                    plot_ssu,
-                   list_files_ssu_diagram
+                   list_files_ssu_diagram,
                    file_render_context)
 
 rmarkdown::render(file_render_context, clean = TRUE, quiet = TRUE)
