@@ -107,7 +107,17 @@ def update_base_cov_in_chunks(base_cov_file: str, chunk_size: int, threads: int)
             futures = [ executor.submit(function_processpool, batch) for batch in base_cov_batches ]
             for future in as_completed(futures):
                 batch_result = future.result()
-                list_base_covs.append(pl.DataFrame(batch_result, schema = ["var_id", "base_pos", "base_cov"], orient = "row"))
+                list_base_covs.append(
+                    pl.DataFrame(
+                        batch_result,
+                        schema={
+                            "var_id": pl.String,
+                            "base_pos": pl.Int64,
+                            "base_cov": pl.Int64,
+                        },
+                        orient="row",
+                    )
+                )
 
             df_yields = pl.concat(list_base_covs, how = "vertical").filter(pl.col("var_id").is_not_null())
             yield df_yields
