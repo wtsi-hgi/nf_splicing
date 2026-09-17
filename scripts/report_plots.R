@@ -301,21 +301,17 @@ create_ssu_map_by_clusters <- function(dt_ssu, dt_exon_pos)
                 geom_line(aes(color = stats), linewidth = 0.3) + 
                 scale_fill_manual(values = c(mean = "brown1", median = "royalblue")) + 
                 scale_color_manual(values = c(mean = "brown1", median = "royalblue")) + 
-                labs(title = paste0("Cluster ", i), x = "Position", y = "SSU") +
-                theme(legend.position = "bottom", legend.direction = "horizontal", legend.title = element_blank()) +
+                labs(title = paste0("cluster", i), x = "Position", y = "SSU") +
+                theme(legend.position = "top", legend.direction = "horizontal", legend.title = element_blank()) +
                 theme(panel.background = element_rect(fill = "ivory", colour = "white")) +
-                theme(axis.title = element_text(size = 16, face = "bold", family = "Arial")) +
-                theme(plot.title = element_text(size = 16, face = "bold", family = "Arial")) +
-                theme(axis.text = element_text(size = 8, face = "bold")) +
-                theme(axis.text.x = element_text(angle = 90)) + 
                 geom_segment(data = dt_plot_exons, 
                              aes(x = start, xend = end, y = 0, yend = 0, fill = NULL), 
-                             color = "yellowgreen", 
-                             linewidth = 6, 
+                             color = "navy", 
+                             linewidth = 5, 
                              lineend = "butt") +
                 geom_segment(data = dt_plot_introns, 
                              aes(x = start, xend = end, y = 0, yend = 0, fill = NULL),
-                             color = "darkgreen", 
+                             color = "navy", 
                              linewidth = 1)      
         
         dt_plot <- list_ssu_clusters[[i]] %>%
@@ -329,24 +325,148 @@ create_ssu_map_by_clusters <- function(dt_ssu, dt_exon_pos)
         p2 <- ggplot(dt_plot, aes(x = position, y = SSU, group = var_id)) +
                 geom_line(alpha = 0.5, linewidth = 0.3, color = "grey") +
                 scale_y_continuous(limits = c(0, 1)) +
-                theme_classic() +
+                theme(panel.background = element_rect(fill = "ivory", colour = "white")) +
                 labs(x = "Position", y = "SSU") +
                 geom_line(data = data.frame( position = as.numeric(names(list_ssu_cluster_mean[[i]])),
                                              SSU      = list_ssu_cluster_mean[[i]]),
                           aes(x = position, y = SSU),
                           color = "red",
                           linewidth = 0.6,
-                          inherit.aes = FALSE)
+                          inherit.aes = FALSE) +
+                geom_segment(data = dt_plot_exons, 
+                             aes(x = start, xend = end, y = 0, yend = 0, fill = NULL), 
+                             color = "navy", 
+                             linewidth = 5, 
+                             lineend = "butt",
+                             inherit.aes = FALSE) +
+                geom_segment(data = dt_plot_introns, 
+                             aes(x = start, xend = end, y = 0, yend = 0, fill = NULL),
+                             color = "navy", 
+                             linewidth = 1,
+                             inherit.aes = FALSE)      
 
         p3 <- p1 / p2 + plot_layout(heights = c(1, 1))
 
         p3
     })
 
+    names(list_ssu_cluster_plot) <- paste0("cluster", seq_along(list_ssu_cluster_plot))
+
     return(list_ssu_cluster_plot)
 }
 
 create_ssu_map_by_exons <- function(dt_ssu, dt_exon_pos)
 {
+    dt_ssu_wide <- dt_ssu[, .(var_id, base_pos, ssu_corrected)]
+    dt_ssu_wide <- dt_ssu_wide[complete.cases(dt_ssu_wide)] %>%
+        pivot_wider(
+            id_cols     = var_id,
+            names_from  = base_pos,
+            values_from = ssu_corrected
+        )
 
+    # derive exon_id from var_id, e.g. TP53_E4_A34T -> TP53_E4
+    parts <- tstrsplit(dt_ssu_wide$var_id, "_", keep = 1:2)
+    dt_ssu_wide$exon_id <- paste(parts[[1]], parts[[2]], sep = "_")
+
+    exon_ids <- sort(unique(dt_ssu_wide$exon_id))
+
+    list_ssu_exons <- lapply(exon_ids, function(id) {
+        dt <- dt_ssu_wide[dt_ssu_wide$exon_id == id, ]
+        dt$exon_id <- NULL
+        dt
+    })
+    names(list_ssu_exons) <- exon_ids
+
+    list_ssu_exon_mean   <- lapply(list_ssu_exons, function(dt) { colMeans(as.matrix(dt[, -1]), na.rm = TRUE) })
+    list_ssu_exon_median <- lapply(list_ssu_exons, function(dt) { colMedians(as.matrix(dt[, -1]), na.rm = TRUE) })
+
+    list_exon_pos <- lapply(list_ssu_exons, function(dt) {
+        tmp_var_id <- dt$var_id[1]
+        dt_exon_pos[dt_exon_pos$var_id == tmp_var_id]
+    })
+
+    list_ssu_exon_plot <- lapply(seq_along(exon_ids), function(i) {
+
+        dt_plot <- tibble(
+            position = as.numeric(names(list_ssu_exon_mean[[i]])),
+            mean     = as.numeric(list_ssu_exon_mean[[i]]),
+            median   = as.numeric(list_ssu_exon_median[[i]])
+        ) %>% pivot_longer(
+            cols      = c(mean, median),
+            names_to  = "stats",
+            values_to = "SSU"
+        )
+
+        dt_plot_exons <- data.table(
+            start = list_exon_pos[[i]]$exon_start,
+            end   = list_exon_pos[[i]]$exon_end
+        )
+
+        dt_plot_introns <- data.table(
+            start = dt_plot_exons$end[-nrow(dt_plot_exons)],
+            end   = dt_plot_exons$start[-1]
+        )
+
+        p1 <- ggplot(dt_plot, aes(x = position, y = SSU, fill = stats)) +
+                geom_area(alpha = 0.4, position = "identity") +
+                geom_line(aes(color = stats), linewidth = 0.3) +
+                scale_fill_manual(values = c(mean = "brown1", median = "royalblue")) +
+                scale_color_manual(values = c(mean = "brown1", median = "royalblue")) +
+                labs(title = paste0("Exon ", exon_ids[i]), x = "Position", y = "SSU") +
+                theme(legend.position = "bottom", legend.direction = "horizontal", legend.title = element_blank()) +
+                theme(panel.background = element_rect(fill = "ivory", colour = "white")) +
+                theme(axis.title = element_text(size = 16, face = "bold", family = "Arial")) +
+                theme(plot.title = element_text(size = 16, face = "bold", family = "Arial")) +
+                theme(axis.text = element_text(size = 8, face = "bold")) +
+                theme(axis.text.x = element_text(angle = 90)) +
+                geom_segment(data = dt_plot_exons,
+                             aes(x = start, xend = end, y = 0, yend = 0, fill = NULL),
+                             color = "navy",
+                             linewidth = 5,
+                             lineend = "butt") +
+                geom_segment(data = dt_plot_introns,
+                             aes(x = start, xend = end, y = 0, yend = 0, fill = NULL),
+                             color = "navy",
+                             linewidth = 1)
+
+        dt_plot <- list_ssu_exons[[i]] %>%
+            pivot_longer(
+                cols      = -var_id,
+                names_to  = "position",
+                values_to = "SSU"
+            ) %>%
+            mutate(position = as.integer(position))
+
+        p2 <- ggplot(dt_plot, aes(x = position, y = SSU, group = var_id)) +
+                geom_line(alpha = 0.5, linewidth = 0.3, color = "grey") +
+                scale_y_continuous(limits = c(0, 1)) +
+                theme(panel.background = element_rect(fill = "ivory", colour = "white")) +
+                labs(x = "Position", y = "SSU") +
+                geom_line(data = data.frame(position = as.numeric(names(list_ssu_exon_mean[[i]])),
+                                             SSU      = list_ssu_exon_mean[[i]]),
+                          aes(x = position, y = SSU),
+                          color = "red",
+                          linewidth = 0.6,
+                          inherit.aes = FALSE) +
+                geom_segment(data = dt_plot_exons, 
+                             aes(x = start, xend = end, y = 0, yend = 0, fill = NULL), 
+                             color = "navy", 
+                             linewidth = 5, 
+                             lineend = "butt",
+                             inherit.aes = FALSE) +
+                geom_segment(data = dt_plot_introns, 
+                             aes(x = start, xend = end, y = 0, yend = 0, fill = NULL),
+                             color = "navy", 
+                             linewidth = 1,
+                             inherit.aes = FALSE)   
+
+        p3 <- p1 / p2 + plot_layout(heights = c(1, 1))
+
+        p3
+    })
+
+    names(list_ssu_exon_plot) <- exon_ids
+
+    return(list_ssu_exon_plot)
 }
