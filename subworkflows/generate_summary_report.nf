@@ -120,6 +120,7 @@ process CREATE_HTML_REPORT {
     gzip ${sample}.junctions_category.tsv
     gzip ${sample}.psi_canon_only.tsv
     gzip ${sample}.psi_all_events.tsv
+    gzip ${sample}.ssu_per_base.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
