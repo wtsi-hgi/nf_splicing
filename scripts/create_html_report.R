@@ -389,6 +389,8 @@ message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU plot 
 dt_plot_ssu <- dt_ssu[, .(ssu1, ssu2, ssu3, ssu_corrected)]
 dt_plot_ssu <- dt_plot_ssu[complete.cases(dt_plot_ssu)] # remove rows with NA
 
+# for speeding up plotting to collapse rows with the same values
+dt_plot_ssu <- unique(dt_plot_ssu)
 png(paste0(sample_prefix, ".ssu_per_base.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
 pairs(dt_plot_ssu,
       upper.panel = panel.cor,
