@@ -452,9 +452,10 @@ text(0.5, 0.5, expression(SSU == frac("Reads spanning the site",  "Reads spannin
 
 ### 6.1. SSU correlations across all the replicates
 Note: 
-1. SSU data may have millions of rows, and most of them are exactly the same across replicate SSUs and corrected SSU
-2. SSU correlations collapse all the same values for fast processing, but it may lose some information for the same values
-3. Overall, it may influence the correlation score (under-estimation), but it holds the relations
+
+* SSU data may have millions of rows, and most of them are exactly the same across replicate SSUs and corrected SSU
+* SSU correlations collapse all the same values for fast processing, but it may lose some information for the same values
+* Overall, it may influence the correlation score (under-estimation), but it holds the relations
 
 ```{{r, echo = FALSE, fig.show = "hold", fig.align = "center", out.height = "80%", out.width = "80%"}}
 knitr::include_graphics("{plot_ssu}", rel_path = FALSE)
