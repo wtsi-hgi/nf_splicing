@@ -414,12 +414,8 @@ create_ssu_map_by_exons <- function(dt_ssu, dt_exon_pos)
                 scale_fill_manual(values = c(mean = "brown1", median = "royalblue")) +
                 scale_color_manual(values = c(mean = "brown1", median = "royalblue")) +
                 labs(title = paste0("Exon ", exon_ids[i]), x = "Position", y = "SSU") +
-                theme(legend.position = "bottom", legend.direction = "horizontal", legend.title = element_blank()) +
+                theme(legend.position = "top", legend.direction = "horizontal", legend.title = element_blank()) +
                 theme(panel.background = element_rect(fill = "ivory", colour = "white")) +
-                theme(axis.title = element_text(size = 16, face = "bold", family = "Arial")) +
-                theme(plot.title = element_text(size = 16, face = "bold", family = "Arial")) +
-                theme(axis.text = element_text(size = 8, face = "bold")) +
-                theme(axis.text.x = element_text(angle = 90)) +
                 geom_segment(data = dt_plot_exons,
                              aes(x = start, xend = end, y = 0, yend = 0, fill = NULL),
                              color = "navy",
