@@ -154,7 +154,10 @@ particularly in the context of variant interpretation and functional genomics.
 By introducing specific mutations into synthetic constructs (minigenes), 
 researchers can assess how sequence changes affect splicing outcomes in a controlled cellular environment.
 
-**Library Type:** {lib_type}
+---
+
+### **Library Type:** {lib_type}
+
 ---
 
 ## 2. Read Processing
