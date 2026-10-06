@@ -36,10 +36,10 @@ process CORRECT_SSU {
     
     memory {
         def file_size = ssu_counts[0].size()
-        def mem = file_size <= 100_000_000 ? 8 :
-                  file_size <= 1_000_000_000 ? 16 :
-                  file_size <= 2_000_000_000 ? 32 :
-                  file_size <= 4_000_000_000 ? 64 : 128
+        def mem = file_size <= 100_000_000 ? 12 :
+                  file_size <= 200_000_000 ? 24 :
+                  file_size <= 400_000_000 ? 48 :
+                  file_size <= 800_000_000 ? 96 : 164
         "${mem * task.attempt} GB"
     }
 
