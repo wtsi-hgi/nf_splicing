@@ -403,11 +403,11 @@ text(0.5, 0.5, expression(PSI == frac("Canonical Inclusion",  "Canonical Inclusi
 
 ```{{r, echo = FALSE, fig.show = "hold", fig.align = "center", out.height = "80%", out.width = "80%"}}
 dt_psi <- as.data.table(vroom("{file_psi_can}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
-cols_to_scale <- c("psi1", "psi2", "psi3", "corrected_psi")
+cols_to_scale <- c("psi1", "psi2", "psi3", "psi_corrected")
 dt_psi[, (cols_to_scale) := lapply(.SD, function(x) round(x * 100, 2)), .SDcols = cols_to_scale]
 reactable(dt_psi, highlight = TRUE, bordered = TRUE, striped = TRUE, compact = TRUE, wrap = TRUE,
           filterable = TRUE, minRows = 20, defaultPageSize = 20, defaultColDef = colDef(minWidth = 100, align = "left"),
-          columns = list(corrected_psi = colDef(filterMethod = JS("filterMinValue"), filterInput = JS("rangeMore"))))
+          columns = list(psi_corrected = colDef(filterMethod = JS("filterMinValue"), filterInput = JS("rangeMore"))))
 
 knitr::include_graphics("{plot_psi_can}", rel_path = FALSE)
 ```
@@ -428,11 +428,11 @@ text(0.5, 0.5, expression(PSI == frac("Canonical Inclusion",  "Canonical Inclusi
 
 ```{{r, echo = FALSE, fig.show = "hold", fig.align = "center", out.height = "80%", out.width = "80%"}}
 dt_psi <- as.data.table(vroom("{file_psi_all}", delim = "\t", col_names = TRUE, show_col_types = FALSE))
-cols_to_scale <- c("psi1", "psi2", "psi3", "corrected_psi")
+cols_to_scale <- c("psi1", "psi2", "psi3", "psi_corrected")
 dt_psi[, (cols_to_scale) := lapply(.SD, function(x) round(x * 100, 2)), .SDcols = cols_to_scale]
 reactable(dt_psi, highlight = TRUE, bordered = TRUE, striped = TRUE, compact = TRUE, wrap = TRUE,
           filterable = TRUE, minRows = 20, defaultPageSize = 20, defaultColDef = colDef(minWidth = 100, align = "left"),
-          columns = list(corrected_psi = colDef(filterMethod = JS("filterMinValue"), filterInput = JS("rangeMore"))))
+          columns = list(psi_corrected = colDef(filterMethod = JS("filterMinValue"), filterInput = JS("rangeMore"))))
 
 knitr::include_graphics("{plot_psi_all}", rel_path = FALSE)
 ```
