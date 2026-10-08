@@ -555,8 +555,8 @@ if(opt$lib_type == "muta_exon")
 }
 plot_psi_can <- paste0(sample_prefix, ".psi_canon_only.corr.png")
 plot_psi_all <- paste0(sample_prefix, ".psi_all_events.corr.png")
-file_psi_can <- paste0(sample_prefix, ".psi_canon_only.tsv")
-file_psi_all <- paste0(sample_prefix, ".psi_all_events.tsv")
+file_psi_can <- paste0(sample_prefix, ".psi_canon_only.tsv.gz")
+file_psi_all <- paste0(sample_prefix, ".psi_all_events.tsv.gz")
 
 plot_ssu <- paste0(sample_prefix, ".ssu_per_base.corr.png")
 list_files_ssu_diagram <- list.files(pattern = paste0(sample_prefix, ".ssu_per_base.map.*.png$"))
