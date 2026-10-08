@@ -249,7 +249,8 @@ create_ssu_map_by_clusters <- function(dt_ssu, dt_exon_pos)
         pivot_wider(
             id_cols     = var_id,
             names_from  = base_pos,
-            values_from = ssu_corrected
+            values_from = ssu_corrected,
+            values_fill = 0
         )
     
     dt_ssu_mat <- dt_ssu_wide %>%
