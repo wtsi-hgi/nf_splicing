@@ -397,6 +397,14 @@ dt_plot_ssu <- unique(
         .(ssu1, ssu2, ssu3, ssu_corrected)
     ]
 )
+
+# for speeding up SSU correlation, sampling random 10%, rather than using all rows
+if(nrow(dt_plot_ssu) > 100000)
+{
+    n_sample <- round(nrow(dt_plot_ssu) * 0.1)
+    set.seed(123)
+    dt_plot_ssu <- dt_plot_ssu[sample.int(nrow(dt_plot_ssu), n_sample)]
+}
 png(paste0(sample_prefix, ".ssu_per_base.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
 pairs(dt_plot_ssu,
       upper.panel = panel.cor,
