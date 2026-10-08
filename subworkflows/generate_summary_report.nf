@@ -56,11 +56,14 @@ process CREATE_HTML_REPORT {
     memory {
         def file_size_1 = canonical_barcodes[0].size()
         def file_size_2 = novel_barcodes[0].size()
-        def file_size_total = file_size_1 + file_size_2
-        def mem = file_size_total <= 100_000_000 ? 24 :
-                  file_size_total <= 1_000_000_000 ? 48 :
-                  file_size_total <= 2_000_000_000 ? 96 :
-                  file_size_total <= 4_000_000_000 ? 128 : 256
+        def file_size_3 = psi_can_results.size()
+        def file_size_4 = psi_all_results.size()
+        def file_size_5 = ssu_results.size()
+        def file_size_total = file_size_1 + file_size_2 + file_size_3 + file_size_4 + file_size_5
+        def mem = file_size_total <= 100_000_000 ? 12 :
+                  file_size_total <= 1_000_000_000 ? 64 :
+                  file_size_total <= 2_000_000_000 ? 128 :
+                  file_size_total <= 4_000_000_000 ? 256 : 384
         "${mem * task.attempt} GB"
     }
 
@@ -99,6 +102,106 @@ process CREATE_HTML_REPORT {
     ln -s ${projectDir}/assets/src/select2.min.js select2.min.js
     ln -s ${projectDir}/assets/src/select2.min.css select2.min.css
 
+    zcat ${file_psi_can_results} | \
+        awk 'BEGIN {
+            FS = "\t" 
+            OFS ="\t" 
+        } NR == 1 {
+            for (i = 1; i <= NF; i++) col[$i] = i
+            
+            print $col["var_id"], \
+                  $col["psi1"],          $col["psi2"],         $col["psi3"], \
+                  $col["ratio1"],        $col["ratio2"],       $col["ratio3"], \
+                  $col["n_total1"],      $col["n_total2"],     $col["n_total3"], \
+                  $col["psi_corrected"], $col["psi_ci_width"], $col["psi_precision_class"]
+
+            next
+        }{
+            print $col["var_id"], \
+                  $col["psi1"],          $col["psi2"],         $col["psi3"], \
+                  $col["ratio1"],        $col["ratio2"],       $col["ratio3"], \
+                  $col["n_total1"],      $col["n_total2"],     $col["n_total3"], \
+                  $col["psi_corrected"], $col["psi_ci_width"], $col["psi_precision_class"]
+        }' | gzip > ${sample}.psi_canon_only.tsv.gz
+
+    zcat ${file_psi_can_results} | \
+        awk 'BEGIN {
+            FS = "\t" 
+            OFS ="\t" 
+        } NR == 1 {
+            for (i = 1; i <= NF; i++) col[$i] = i
+            print $col["psi1"], $col["psi2"], $col["psi3"], $col["psi_corrected"]
+            next
+        }{
+            print $col["psi1"], $col["psi2"], $col["psi3"], $col["psi_corrected"]
+        }' | gzip > ${sample}.psi_canon_only.plot.tsv.gz
+
+    zcat ${file_psi_all_results} | \
+        awk 'BEGIN {
+            FS = "\t" 
+            OFS ="\t" 
+        } NR == 1 {
+            for (i = 1; i <= NF; i++) col[$i] = i
+            
+            print $col["var_id"], \
+                  $col["psi1"],          $col["psi2"],         $col["psi3"], \
+                  $col["ratio1"],        $col["ratio2"],       $col["ratio3"], \
+                  $col["n_total1"],      $col["n_total2"],     $col["n_total3"], \
+                  $col["psi_corrected"], $col["psi_ci_width"], $col["psi_precision_class"]
+
+            next
+        }{
+            print $col["var_id"], \
+                  $col["psi1"],          $col["psi2"],         $col["psi3"], \
+                  $col["ratio1"],        $col["ratio2"],       $col["ratio3"], \
+                  $col["n_total1"],      $col["n_total2"],     $col["n_total3"], \
+                  $col["psi_corrected"], $col["psi_ci_width"], $col["psi_precision_class"]
+        }' | gzip > ${sample}.psi_all_events.tsv.gz
+
+    zcat ${file_psi_all_results} | \
+        awk 'BEGIN {
+            FS = "\t" 
+            OFS ="\t" 
+        } NR == 1 {
+            for (i = 1; i <= NF; i++) col[$i] = i
+            print $col["psi1"], $col["psi2"], $col["psi3"], $col["psi_corrected"]
+            next
+        }{
+            print $col["psi1"], $col["psi2"], $col["psi3"], $col["psi_corrected"]
+        }' | gzip > ${sample}.psi_all_events.plot.tsv.gz
+
+    zcat ${file_ssu_results} | \
+        awk 'BEGIN {
+            FS = "\t" 
+            OFS ="\t" 
+        } NR == 1 {
+            for (i = 1; i <= NF; i++) col[$i] = i
+            
+            print $col["var_id"],        $col["base_pos"], \
+                  $col["ssu1"],          $col["ssu2"],         $col["ssu3"], \
+                  $col["mcov1"],         $col["mcov2"],       $col["mcov3"], \
+                  $col["ssu_corrected"], $col["ssu_ci_width"], $col["ssu_precision_class"]
+
+            next
+        }{
+            print $col["var_id"],        $col["base_pos"], \
+                  $col["ssu1"],          $col["ssu2"],         $col["ssu3"], \
+                  $col["mcov1"],         $col["mcov2"],       $col["mcov3"], \
+                  $col["ssu_corrected"], $col["ssu_ci_width"], $col["ssu_precision_class"]
+        }' | gzip > ${sample}.ssu_per_base.tsv.gz
+
+    zcat ${file_ssu_results} | \
+        awk 'BEGIN {
+            FS = "\t" 
+            OFS ="\t" 
+        } NR == 1 {
+            for (i = 1; i <= NF; i++) col[$i] = i
+            print $col["var_id"], $col["base_pos"], $col["ssu1"], $col["ssu2"], $col["ssu3"], $col["ssu_corrected"]
+            next
+        }{
+            print $col["var_id"], $col["base_pos"], $col["ssu1"], $col["ssu2"], $col["ssu3"], $col["ssu_corrected"]
+        }' | gzip > ${sample}.ssu_per_base.plot.tsv.gz
+
     ${projectDir}/scripts/create_html_report.R --rscript_dir          ${projectDir}/scripts \
                                                --lib_type             ${params.library} \
                                                --exon_pos             ${file_exon_pos} \
@@ -111,16 +214,13 @@ process CREATE_HTML_REPORT {
                                                --canonical_barcodes   ${list_canonical_barcodes} \
                                                --novel_barcodes       ${list_novel_barcodes} \
                                                --classified_junctions ${list_junctions} \
-                                               --psi_results          ${file_psi_can_results},${file_psi_all_results} \
-                                               --ssu_results          ${file_ssu_results} \
+                                               --psi_results          ${sample}.psi_canon_only.plot.tsv.gz,${sample}.psi_all_events.plot.tsv.gz \
+                                               --ssu_results          ${sample}.ssu_per_base.plot.tsv.gz \
                                                --prefix               ${sample} \
                                                --pl_name              ${params.pipeline_name} \
                                                --pl_version           ${params.pipeline_version}
 
     gzip ${sample}.junctions_category.tsv
-    gzip ${sample}.psi_canon_only.tsv
-    gzip ${sample}.psi_all_events.tsv
-    gzip ${sample}.ssu_per_base.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
