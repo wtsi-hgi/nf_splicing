@@ -625,7 +625,7 @@ message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "14. calculate confidence in
 z <- 1.96
 dt_ssu_corrected[, ssu_corrected_lwr := plogis(theta_shrunk - z * sqrt(var_theta_shrunk))]
 dt_ssu_corrected[, ssu_corrected_upr := plogis(theta_shrunk + z * sqrt(var_theta_shrunk))]
-dt_ssu_corrected[, ssu_ci_width := ssu_corrected_upr - ssu_corrected_lwr]
+dt_ssu_corrected[, ssu_ci_width      := ssu_corrected_upr - ssu_corrected_lwr]
 
 dt_ssu_corrected[, ssu_precision_class := fcase(
     ssu_ci_width <= 0.10, "high",
