@@ -242,7 +242,7 @@ dt_splicing_corrected[, shrinkage := tau2 / (tau2 + var_theta)]
 # θ(shrunk)​ = λ(v)​θ(v)​ + (1−λ(v)​) * mu_global
 dt_splicing_corrected[, theta_shrunk := shrinkage * theta + (1 - shrinkage) * mu_global]
 dt_splicing_corrected[, var_theta_shrunk := shrinkage^2 * var_theta]
-dt_splicing_corrected[, psi_shrunk := plogis(theta_shrunk)]
+dt_splicing_corrected[, psi_corrected := plogis(theta_shrunk)]
 
 # -- 8. confidence intervals -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "8. calculate confidence intervals ...")
@@ -251,12 +251,22 @@ message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "8. calculate confidence int
 # a standard normal variable Z ~ N(0,1), so P(|Z| <= 1.96) = 0.95
 # then 95% CI = mean ± 1.96 × SD
 z <- 1.96
-dt_splicing_corrected[, psi_shrunk_lwr   := plogis(theta_shrunk - z * sqrt(var_theta_shrunk))]
-dt_splicing_corrected[, psi_shrunk_upr   := plogis(theta_shrunk + z * sqrt(var_theta_shrunk))]
+dt_splicing_corrected[, psi_corrected_lwr := plogis(theta_shrunk - z * sqrt(var_theta_shrunk))]
+dt_splicing_corrected[, psi_corrected_upr := plogis(theta_shrunk + z * sqrt(var_theta_shrunk))]
+dt_splicing_corrected[, psi_ci_width      := psi_corrected_upr - psi_corrected_lwr]
+
+dt_splicing_corrected[, psi_precision_class := fcase(
+    psi_ci_width <= 0.10, "high",
+    psi_ci_width <= 0.20, "moderate",
+    default = "low"
+)]
 
 # -- 9. output -- #
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "9. output ...")
 num_cols <- names(dt_splicing_corrected)[sapply(dt_splicing_corrected, is.numeric)]
 dt_splicing_corrected[, (num_cols) := lapply(.SD, round, 4), .SDcols = num_cols]
+
 output_file <- file.path(opt$output_dir, paste0(sample_prefix, ".details.tsv"))
 fwrite(dt_splicing_corrected, file = output_file, sep = "\t", quote = FALSE, na = "NA", row.names = FALSE)
+
+message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "All done ...")
