@@ -104,102 +104,96 @@ process CREATE_HTML_REPORT {
 
     zcat ${file_psi_can_results} | \
         awk 'BEGIN {
-            FS = "\t" 
-            OFS ="\t" 
+            FS = OFS = "\\t"
         } NR == 1 {
-            for (i = 1; i <= NF; i++) col[$i] = i
+            for (i = 1; i <= NF; i++) col[\$i] = i
             
-            print $col["var_id"], \
-                  $col["psi1"],          $col["psi2"],         $col["psi3"], \
-                  $col["ratio1"],        $col["ratio2"],       $col["ratio3"], \
-                  $col["n_total1"],      $col["n_total2"],     $col["n_total3"], \
-                  $col["psi_corrected"], $col["psi_ci_width"], $col["psi_precision_class"]
+            print \$col["var_id"], \
+                  \$col["psi1"],          \$col["psi2"],         \$col["psi3"], \
+                  \$col["ratio1"],        \$col["ratio2"],       \$col["ratio3"], \
+                  \$col["n_total1"],      \$col["n_total2"],     \$col["n_total3"], \
+                  \$col["psi_corrected"], \$col["psi_ci_width"], \$col["psi_precision_class"]
 
             next
         }{
-            print $col["var_id"], \
-                  $col["psi1"],          $col["psi2"],         $col["psi3"], \
-                  $col["ratio1"],        $col["ratio2"],       $col["ratio3"], \
-                  $col["n_total1"],      $col["n_total2"],     $col["n_total3"], \
-                  $col["psi_corrected"], $col["psi_ci_width"], $col["psi_precision_class"]
+            print \$col["var_id"], \
+                  \$col["psi1"],          \$col["psi2"],         \$col["psi3"], \
+                  \$col["ratio1"],        \$col["ratio2"],       \$col["ratio3"], \
+                  \$col["n_total1"],      \$col["n_total2"],     \$col["n_total3"], \
+                  \$col["psi_corrected"], \$col["psi_ci_width"], \$col["psi_precision_class"]
         }' | gzip > ${sample}.psi_canon_only.tsv.gz
 
     zcat ${file_psi_can_results} | \
         awk 'BEGIN {
-            FS = "\t" 
-            OFS ="\t" 
+            FS = OFS = "\\t" 
         } NR == 1 {
-            for (i = 1; i <= NF; i++) col[$i] = i
-            print $col["psi1"], $col["psi2"], $col["psi3"], $col["psi_corrected"]
+            for (i = 1; i <= NF; i++) col[\$i] = i
+            print \$col["psi1"], \$col["psi2"], \$col["psi3"], \$col["psi_corrected"]
             next
         }{
-            print $col["psi1"], $col["psi2"], $col["psi3"], $col["psi_corrected"]
+            print \$col["psi1"], \$col["psi2"], \$col["psi3"], \$col["psi_corrected"]
         }' | gzip > ${sample}.psi_canon_only.plot.tsv.gz
 
     zcat ${file_psi_all_results} | \
         awk 'BEGIN {
-            FS = "\t" 
-            OFS ="\t" 
+            FS = OFS = "\\t"
         } NR == 1 {
-            for (i = 1; i <= NF; i++) col[$i] = i
+            for (i = 1; i <= NF; i++) col[\$i] = i
             
-            print $col["var_id"], \
-                  $col["psi1"],          $col["psi2"],         $col["psi3"], \
-                  $col["ratio1"],        $col["ratio2"],       $col["ratio3"], \
-                  $col["n_total1"],      $col["n_total2"],     $col["n_total3"], \
-                  $col["psi_corrected"], $col["psi_ci_width"], $col["psi_precision_class"]
+            print \$col["var_id"], \
+                  \$col["psi1"],          \$col["psi2"],         \$col["psi3"], \
+                  \$col["ratio1"],        \$col["ratio2"],       \$col["ratio3"], \
+                  \$col["n_total1"],      \$col["n_total2"],     \$col["n_total3"], \
+                  \$col["psi_corrected"], \$col["psi_ci_width"], \$col["psi_precision_class"]
 
             next
         }{
-            print $col["var_id"], \
-                  $col["psi1"],          $col["psi2"],         $col["psi3"], \
-                  $col["ratio1"],        $col["ratio2"],       $col["ratio3"], \
-                  $col["n_total1"],      $col["n_total2"],     $col["n_total3"], \
-                  $col["psi_corrected"], $col["psi_ci_width"], $col["psi_precision_class"]
+            print \$col["var_id"], \
+                  \$col["psi1"],          \$col["psi2"],         \$col["psi3"], \
+                  \$col["ratio1"],        \$col["ratio2"],       \$col["ratio3"], \
+                  \$col["n_total1"],      \$col["n_total2"],     \$col["n_total3"], \
+                  \$col["psi_corrected"], \$col["psi_ci_width"], \$col["psi_precision_class"]
         }' | gzip > ${sample}.psi_all_events.tsv.gz
 
     zcat ${file_psi_all_results} | \
         awk 'BEGIN {
-            FS = "\t" 
-            OFS ="\t" 
+            FS = OFS = "\\t"
         } NR == 1 {
-            for (i = 1; i <= NF; i++) col[$i] = i
-            print $col["psi1"], $col["psi2"], $col["psi3"], $col["psi_corrected"]
+            for (i = 1; i <= NF; i++) col[\$i] = i
+            print \$col["psi1"], \$col["psi2"], \$col["psi3"], \$col["psi_corrected"]
             next
         }{
-            print $col["psi1"], $col["psi2"], $col["psi3"], $col["psi_corrected"]
+            print \$col["psi1"], \$col["psi2"], \$col["psi3"], \$col["psi_corrected"]
         }' | gzip > ${sample}.psi_all_events.plot.tsv.gz
 
     zcat ${file_ssu_results} | \
         awk 'BEGIN {
-            FS = "\t" 
-            OFS ="\t" 
+            FS = OFS = "\\t"
         } NR == 1 {
-            for (i = 1; i <= NF; i++) col[$i] = i
+            for (i = 1; i <= NF; i++) col[\$i] = i
             
-            print $col["var_id"],        $col["base_pos"], \
-                  $col["ssu1"],          $col["ssu2"],         $col["ssu3"], \
-                  $col["mcov1"],         $col["mcov2"],       $col["mcov3"], \
-                  $col["ssu_corrected"], $col["ssu_ci_width"], $col["ssu_precision_class"]
+            print \$col["var_id"],        \$col["base_pos"], \
+                  \$col["ssu1"],          \$col["ssu2"],         \$col["ssu3"], \
+                  \$col["mcov1"],         \$col["mcov2"],       \$col["mcov3"], \
+                  \$col["ssu_corrected"], \$col["ssu_ci_width"], \$col["ssu_precision_class"]
 
             next
         }{
-            print $col["var_id"],        $col["base_pos"], \
-                  $col["ssu1"],          $col["ssu2"],         $col["ssu3"], \
-                  $col["mcov1"],         $col["mcov2"],       $col["mcov3"], \
-                  $col["ssu_corrected"], $col["ssu_ci_width"], $col["ssu_precision_class"]
+            print \$col["var_id"],        \$col["base_pos"], \
+                  \$col["ssu1"],          \$col["ssu2"],         \$col["ssu3"], \
+                  \$col["mcov1"],         \$col["mcov2"],       \$col["mcov3"], \
+                  \$col["ssu_corrected"], \$col["ssu_ci_width"], \$col["ssu_precision_class"]
         }' | gzip > ${sample}.ssu_per_base.tsv.gz
 
     zcat ${file_ssu_results} | \
         awk 'BEGIN {
-            FS = "\t" 
-            OFS ="\t" 
+            FS = OFS = "\\t"
         } NR == 1 {
-            for (i = 1; i <= NF; i++) col[$i] = i
-            print $col["var_id"], $col["base_pos"], $col["ssu1"], $col["ssu2"], $col["ssu3"], $col["ssu_corrected"]
+            for (i = 1; i <= NF; i++) col[\$i] = i
+            print \$col["var_id"], \$col["base_pos"], \$col["ssu1"], \$col["ssu2"], \$col["ssu3"], \$col["ssu_corrected"]
             next
         }{
-            print $col["var_id"], $col["base_pos"], $col["ssu1"], $col["ssu2"], $col["ssu3"], $col["ssu_corrected"]
+            print \$col["var_id"], \$col["base_pos"], \$col["ssu1"], \$col["ssu2"], \$col["ssu3"], \$col["ssu_corrected"]
         }' | gzip > ${sample}.ssu_per_base.plot.tsv.gz
 
     ${projectDir}/scripts/create_html_report.R --rscript_dir          ${projectDir}/scripts \
