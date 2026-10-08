@@ -114,9 +114,29 @@ barcode_association <- as.data.table(vroom(opt$barcode_association, delim = "\t"
 exon_pos <- as.data.table(vroom(opt$exon_pos, delim = "\t", comment = "#", col_names = FALSE, show_col_types = FALSE))
 setnames(exon_pos, c("var_id", "exon_id", "exon_start", "exon_end"))
 
-dt_psi_can <- as.data.table(vroom(files_psi_results[1], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
-dt_psi_all <- as.data.table(vroom(files_psi_results[2], delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
-dt_ssu <- as.data.table(vroom(file_ssu_results, delim = "\t", comment = "#", col_names = TRUE, show_col_types = FALSE))
+dt_psi_can <- as.data.table(
+    vroom(files_psi_results[1], 
+          delim = "\t", 
+          comment = "#", 
+          col_names = TRUE, 
+          show_col_types = FALSE)
+)
+
+dt_psi_all <- as.data.table(
+    vroom(files_psi_results[2], 
+          delim = "\t", 
+          comment = "#", 
+          col_names = TRUE, 
+          show_col_types = FALSE)
+)
+
+dt_ssu <- as.data.table(
+    vroom(file_ssu_results, 
+          delim = "\t", 
+          comment = "#", 
+          col_names = TRUE, 
+          show_col_types = FALSE)
+)
 
 # ==============================================================================
 # Collect sequencing statistics for each replicate
@@ -343,54 +363,40 @@ invisible(gc(verbose = FALSE))
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating PSI plot ...")
 
 # canonical splicing events
-dt_plot_psi <- dt_psi_can[, .(psi1, psi2, psi3, psi_shrunk)]
-dt_plot_psi <- dt_plot_psi[complete.cases(dt_plot_psi)] # remove rows with NA
-setnames(dt_plot_psi, colnames(dt_plot_psi), c(sample_reps, "corrected_psi"))
-
 png(paste0(sample_prefix, ".psi_canon_only.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
-pairs(dt_plot_psi,
+pairs(dt_psi_can[complete.cases(dt_psi_can)],
       upper.panel = panel.cor,
       diag.panel = panel.hist,
       lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
       use = "complete.obs")
 invisible(dev.off())
-
-dt_plot_psi <- dt_psi_can[, .(var_id, psi1, psi2, psi3, ratio1, ratio2, ratio3, n_total1, n_total2, n_total3, psi_shrunk)]
-setnames(dt_plot_psi, "psi_shrunk", "corrected_psi")
-fwrite(dt_plot_psi, file = paste0(sample_prefix, ".psi_canon_only.tsv"), sep = "\t", row.names = FALSE)
 
 # all splicing events
-dt_plot_psi <- dt_psi_all[, .(psi1, psi2, psi3, psi_shrunk)]
-dt_plot_psi <- dt_plot_psi[complete.cases(dt_plot_psi)]
-setnames(dt_plot_psi, colnames(dt_plot_psi), c(sample_reps, "corrected_psi"))
-
 png(paste0(sample_prefix, ".psi_all_events.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
-pairs(dt_plot_psi,
+pairs(dt_psi_all[complete.cases(dt_psi_all)],
       upper.panel = panel.cor,
       diag.panel = panel.hist,
       lower.panel = function(x, y, ...) {panel.smooth(x, y, method = "lm", ...)},
       use = "complete.obs")
 invisible(dev.off())
-
-dt_plot_psi <- dt_psi_all[, .(var_id, psi1, psi2, psi3, ratio1, ratio2, ratio3, n_total1, n_total2, n_total3, psi_shrunk)]
-setnames(dt_plot_psi, "psi_shrunk", "corrected_psi")
-fwrite(dt_plot_psi, file = paste0(sample_prefix, ".psi_all_events.tsv"), sep = "\t", row.names = FALSE)
 
 # << free memory >>
 rm(dt_psi_can)
 rm(dt_psi_all)
-rm(dt_plot_psi)
 invisible(gc(verbose = FALSE))
 
 # ------------------------------------------------------------------------------
 # 6. ssu correlation of splicing events
 # ------------------------------------------------------------------------------
 message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU plot ...")
-dt_plot_ssu <- dt_ssu[, .(ssu1, ssu2, ssu3, ssu_corrected)]
-dt_plot_ssu <- dt_plot_ssu[complete.cases(dt_plot_ssu)] # remove rows with NA
 
 # for speeding up plotting to collapse rows with the same values
-dt_plot_ssu <- unique(dt_plot_ssu)
+dt_plot_ssu <- unique(
+    dt_ssu[
+        complete.cases(ssu1, ssu2, ssu3, ssu_corrected),
+        .(ssu1, ssu2, ssu3, ssu_corrected)
+    ]
+)
 png(paste0(sample_prefix, ".ssu_per_base.corr.png"), width = 1200, height = 1200, units = "px", res = 100)
 pairs(dt_plot_ssu,
       upper.panel = panel.cor,
@@ -399,16 +405,13 @@ pairs(dt_plot_ssu,
       use = "complete.obs")
 invisible(dev.off())
 
-dt_plot_ssu <- dt_ssu[, .(var_id, base_pos, ssu1, ssu2, ssu3, mcov1, mcov2, mcov3, n_reps_used, ssu_corrected, ssu_ci_width, ssu_precision_class)]
-fwrite(dt_plot_ssu, file = paste0(sample_prefix, ".ssu_per_base.tsv"), sep = "\t", row.names = FALSE)
-
 if(opt$lib_type %in% c("random_intron", "random_exon", "random_combi"))
 {
     message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU mapping by clusters ...")
-    list_ssu_maps <- create_ssu_map_by_clusters(dt_plot_ssu, exon_pos)
+    list_ssu_maps <- create_ssu_map_by_clusters(dt_ssu, exon_pos)
 } else {
     message(format(Sys.time(), "[%Y-%m-%d %H:%M:%S] "), "    |--> Creating SSU mapping by exons ...")
-    list_ssu_maps <- create_ssu_map_by_exons(dt_plot_ssu, exon_pos)
+    list_ssu_maps <- create_ssu_map_by_exons(dt_ssu, exon_pos)
 }
 
 for(i in seq_along(list_ssu_maps))
