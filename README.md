@@ -346,7 +346,7 @@ These files summarize all the barcodes in the sequencing library, categorized by
 >
 > 📄 **corrected_psi**
 >
-> | var_id | psi1 | psi2 | psi3 | ratio1 | ratio2 | ratio3 | n_total1 | n_total2 | n_total3 | theta | var_theta | psi_est | shrinkage | theta_shrunk | var_theta_shrunk | psi_shrunk | psi_shrunk_lwr | psi_shrunk_upr |
+> | var_id | psi1 | psi2 | psi3 | ratio1 | ratio2 | ratio3 | n_total1 | n_total2 | n_total3 | theta | var_theta | psi_est | shrinkage | theta_shrunk | var_theta_shrunk | psi_corrected | psi_corrected_lwr | psi_corrected_upr |
 > | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
 > | ABHD12_e5_A110T | 0 | 0.0221 | 0.02 | 0:7:93 | 2:9:89 | 1:9:90 | 307 | 272 | 952 | -3.9157 | 0.1186 | 0.0195 | 0.9895 | -3.917 | 0.1161 | 0.0195 | 0.0101 | 0.0374 |
 > | PTPRF_e14_del85to85 | 0 | 0.1368 | 0.0791 | 0:88:12 | 13:58:29 | 7:67:26 | 218 | 190 | 316 | -2.0166 | 0.0537 | 0.1175 | 0.9952 | -2.0263 | 0.0532 | 0.1165 | 0.0774 | 0.1716 |
@@ -355,9 +355,9 @@ These files summarize all the barcodes in the sequencing library, categorized by
 >
 > * **ratio**: the ratios of [canonical inclusion : canonical skipping : others]
 > * **n_total**: the counts of [canonical inclusion : canonical skipping : others]
-> * **psi_shrunk**: the corrected psi
-> * **psi_shrunk_lwr**: the lower bound of the psi confidence interval
-> * **psi_shrunk_upr**: the upper bound of the psi confidence interval
+> * **psi_corrected**: the corrected psi
+> * **psi_corrected_lwr**: the lower bound of the psi confidence interval
+> * **psi_corrected_upr**: the upper bound of the psi confidence interval
 
 <br>
 
