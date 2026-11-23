@@ -5,10 +5,9 @@ process FLASH2 {
         def file_size_1 = read1.size()
         def file_size_2 = read2.size()
         def file_size_total = file_size_1 + file_size_2
-        def mem = file_size_total <= 40_000_000_000 ? 20 :
-                  file_size_total <= 80_000_000_000 ? 40 :
-                  file_size_total <= 160_000_000_000 ? 80 :
-                  file_size_total <= 320_000_000_000 ? 160 : 320
+        def mem = file_size_total <= 32_000_000_000 ? 64 :
+                  file_size_total <= 64_000_000_000 ? 128 :
+                  file_size_total <= 128_000_000_000 ? 256 : 512
         "${mem * task.attempt} GB"
     }
 
